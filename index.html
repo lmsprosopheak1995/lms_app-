@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+  <meta charset="UTF-8" />
+  <title>ប្រព័ន្ធគ្រប់គ្រងកម្ចី - Loan Management System</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="toastContainer"></div>
+
+  <div id="appLoadingOverlay" style="display:none;">
+    <div class="app-loading-box">
+      <i class="fas fa-spinner fa-spin"></i>
+      <p>កំពុងទាញយកទិន្នន័យពី Cloud...</p>
+    </div>
+  </div>
+
+  <div id="pinLockOverlay" style="display: none;">
+    <div id="pinLockBox">
+      <h4><i class="fas fa-lock"></i> Session Locked</h4>
+      <p>Please enter your PIN to continue.</p>
+      <input type="password" id="pinInput" maxlength="4" pattern="\d*">
+      <button class="btn" onclick="checkPin()">Unlock</button>
+      <a href="#" onclick="logout()" style="display:block; margin-top:15px; font-size:12px;">Logout</a>
+    </div>
+  </div>
+
+  <div id="loginSection" class="main-container" style="display:none;">
+    <div class="card" style="max-width:380px; margin:80px auto; padding: 25px;">
+      <h3 style="margin-top:0;"><i class="fas fa-landmark"></i> ប្រព័ន្ធគ្រប់គ្រងកម្ចី</h3>
+      <label>ឈ្មោះអ្នកប្រើ</label><input type="text" id="username" />
+      <label style="margin-top:10px;">ពាក្យសម្ងាត់</label><input type="password" id="password" />
+      <button class="btn" onclick="login()" style="width:100%; margin-top:20px;"><i class="fas fa-sign-in-alt"></i> ចូល / Login</button>
+      <a href="#" onclick="toggleForgotPasswordBox(); return false;" style="display:block; text-align:center; margin-top:15px; font-size:13px;"><i class="fas fa-question-circle"></i> ភ្លេចពាក្យសម្ងាត់?</a>
+      <div id="forgotPasswordBox" style="display:none; margin-top:12px; padding:12px; background:#f8f9fa; border-radius:8px; font-size:13px; text-align:center;">
+        <p style="margin:0 0 10px;">ពាក្យសម្ងាត់រក្សាទុកលើ Cloud ដូច្នេះមានតែអ្នកគ្រប់គ្រងទេដែលអាចកំណត់ជាថ្មីបាន។ សូមទាក់ទងអ្នកគ្រប់គ្រង៖</p>
+        <a href="https://t.me/Samross_Ph_Care" target="_blank" rel="noopener" class="btn btn-info btn-sm" style="width:100%; display:block; margin-bottom:8px;"><i class="fab fa-telegram"></i> ទាក់ទងតាម Telegram</a>
+        <p style="margin:0;"><i class="fas fa-phone"></i> 096 666 7292 &nbsp;/&nbsp; 088 887 6150</p>
+      </div>
+      <!-- Supabase connection settings — hidden by default; the app already ships with a working
+           default connection (see getCloudSettings() in cloud-sync.js), so ordinary officers never
+           need this. Kept in the page (not deleted) only for the rare case of pointing a fresh
+           browser at a DIFFERENT Supabase project — open it from the browser console with
+           document.getElementById('loginSupabaseConfigWrap').style.display='block' if that's ever needed. -->
+      <div id="loginSupabaseConfigWrap" style="display:none;">
+        <a href="#" onclick="toggleLoginSupabaseConfig(); return false;" style="display:block; text-align:center; margin-top:15px; font-size:12px;"><i class="fas fa-cog"></i> កំណត់ការតភ្ជាប់ Supabase (ត្រូវការមុនពេលចូលលើកដំបូង)</a>
+        <div id="loginSupabaseConfigBox" style="display:none; margin-top:15px; padding-top:15px; border-top:1px solid #eee;">
+          <p style="font-size:12px; color:#888; margin-top:0;">កំណត់តែម្តងលើ browser/computer នេះ។ ចម្លងតម្លៃដដែលដែលអ្នកបានប្រើក្នុង Cloud Sync (Admin tab) ពីកុំព្យូទ័រផ្សេង។</p>
+          <label style="font-size:13px;">Supabase Project URL</label><input type="text" id="loginSupabaseUrl" placeholder="https://xxxx.supabase.co" />
+          <label style="margin-top:10px; font-size:13px;">Supabase API Key (anon)</label><input type="password" id="loginSupabaseKey" />
+          <button class="btn btn-info" onclick="saveLoginSupabaseConfig()" style="width:100%; margin-top:12px;"><i class="fas fa-save"></i> រក្សាទុក</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+
+  <div id="appSection" class="main-container" style="display:none;">
+    <div class="app-header">
+      <div id="userInfo"></div>
+      <div style="display: flex; align-items: center; gap: 20px;">
+        <div id="notificationBell" style="position: relative; cursor: pointer;" onclick="toggleNotificationPanel()">
+          <i class="fas fa-bell fa-lg"></i>
+          <span id="notificationCount" style="position: absolute; top: -5px; right: -8px; background: red; color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px; display: none;">0</span>
+        </div>
+        
+        <!-- START: Dark Mode Toggle -->
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <i class="fas fa-moon"></i>
+            <label class="theme-switch">
+              <input type="checkbox" id="darkModeToggle">
+              <span class="slider round"></span>
+            </label>
+        </div>
+        <!-- END: Dark Mode Toggle -->
+
+        <button id="profileBtn" class="btn btn-info" onclick="openProfileModal()"><i class="fas fa-user-circle"></i> Profile</button>
+        <button id="logoutBtn" class="btn btn-danger"><i class="fas fa-sign-out-alt"></i> Logout</button>
+      </div>
+    </div>
+    
+    <div id="notificationPanel" style="display: none; position: absolute; top: 70px; right: 20px; width: 350px; max-height: 400px; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 8px; z-index: 1001;">
+      <div style="padding: 10px; border-bottom: 1px solid #eee; font-weight: bold; display: flex; justify-content: space-between; align-items: center;">
+        <span><i class="fas fa-bell"></i> ការជូនដំណឹង</span>
+        <div>
+          <button class="btn btn-sm btn-muted" style="padding: 2px 6px; margin-right: 5px;" onclick="markAllNotificationsAsRead()"><i class="fas fa-check-double"></i> អានទាំងអស់</button>
+          <button class="btn btn-sm btn-muted" style="padding: 2px 6px;" onclick="clearNotifications()"><i class="fas fa-trash-alt"></i> សម្អាត</button>
+        </div>
+      </div>
+      <div id="notificationList">
+         <div class="notification-item" style="text-align: center; color: #888;">មិនមានការជូនដំណឹងថ្មី</div>
+      </div>
+    </div>
+    
+    <h2 style="margin-top:15px;"><i class="fas fa-landmark"></i> ប្រព័ន្ធគ្រប់គ្រងកម្ចី (Loan Management System)</h2>
+    
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('dashboard')"><i class="fas fa-tachometer-alt"></i> ផ្ទាំងព័ត៌មាន</div>
+      <div class="tab" onclick="switchTab('loans')"><i class="fas fa-hand-holding-usd"></i> កម្ចី</div>
+      <div class="tab" onclick="switchTab('customers')"><i class="fas fa-users"></i> អតិថិជន</div>
+      <div class="tab" onclick="switchTab('customerProfile')"><i class="fas fa-id-badge"></i> ប្រវត្តិរូបអតិថិជន</div>
+      <div class="tab" onclick="switchTab('clientAccount')"><i class="fas fa-user-circle"></i> គណនីអតិថិជន</div>
+      <div class="tab" onclick="switchTab('collections')"><i class="fas fa-calendar-check"></i> ការប្រមូលប្រាក់</div>
+      <div class="tab" onclick="switchTab('customerReport')"><i class="fas fa-users"></i> តារាងព័ត៌មានអតិថិជន</div>
+      <div class="tab" onclick="switchTab('reports')"><i class="fas fa-chart-pie"></i> របាយការណ៍</div>
+      <div class="tab" onclick="switchTab('map')"><i class="fas fa-map-marked-alt"></i> ផែនទី</div>
+      <div class="tab" onclick="switchTab('analysis')"><i class="fas fa-chart-line"></i> ការវិភាគទិន្នន័យ</div>
+      <div class="tab" onclick="switchTab('expenses')"><i class="fas fa-wallet"></i> ការគ្រប់គ្រងចំណាយ</div>
+      <div class="tab" onclick="switchTab('savings')"><i class="fas fa-piggy-bank"></i> សន្សំ</div>
+      <div class="tab" id="adminTabButton" style="display:none;" onclick="switchTab('admin')"><i class="fas fa-user-shield"></i> រដ្ឋបាល</div>
+      <div class="tab" onclick="switchTab('about')"><i class="fas fa-info-circle"></i> អំពីប្រព័ន្ធ</div>
+    </div>
+
+    <div id="dashboardTab" class="tab-content active">
+        <div class="card" style="margin-bottom: 16px;">
+            <div class="grid autofit" style="align-items: end; gap: 16px;">
+                <div><label for="dashboardDateRange"><i class="fas fa-filter"></i> តម្រងទិន្នន័យតាមកាលបរិច្ឆេទ</label><select id="dashboardDateRange"><option value="all">ចាប់តាំងពីដើម</option><option value="this_month">ខែនេះ</option><option value="last_month">ខែមុន</option><option value="this_quarter">ត្រីមាសនេះ</option><option value="this_year">ឆ្នាំនេះ</option></select></div>
+                <div id="dashboard_new_loans_card" class="dashboard-metric-small"><h4><i class="fas fa-plus-circle"></i> កម្ចីថ្មី</h4><div class="value" id="db_new_loans">0</div></div>
+                <div id="dashboard_disbursed_card" class="dashboard-metric-small"><h4><i class="fas fa-sign-out-alt"></i> ប្រាក់បានបញ្ចេញ</h4><div class="value" id="db_disbursed">0</div></div>
+                <div id="dashboard_collected_card" class="dashboard-metric-small"><h4><i class="fas fa-wallet"></i> ប្រាក់បានប្រមូល</h4><div class="value" id="db_collected">0</div></div>
+            </div>
+        </div>
+        <div class="dashboard-cards"><div class="dashboard-card"><h3><i class="fas fa-file-invoice-dollar"></i> កម្ចីសកម្ម</h3><div class="value" id="totalLoans">0</div><div class="subtext">កម្ចីដែលកំពុងដំណើរការ</div></div><div class="dashboard-card"><h3><i class="fas fa-dollar-sign"></i> ប្រាក់កម្ចីសកម្ម</h3><div class="value" id="totalLoanAmount">0.00</div><div class="subtext">តម្លៃកម្ចីដែលកំពុងដំណើរការ</div></div><div class="dashboard-card"><h3><i class="fas fa-percent"></i> ការប្រាក់រំពឹងទុក (សកម្ម)</h3><div class="value" id="totalExpectedInterest">0.00</div><div class="subtext">ការប្រាក់សរុបពីកម្ចីសកម្ម</div></div><div class="dashboard-card"><h3><i class="fas fa-exclamation-triangle"></i> ការប្រាក់យឺត (សកម្ម)</h3><div class="value" id="totalLateInterest">0.00</div><div class="subtext">ការប្រាក់យឺតសរុបពីកម្ចីសកម្ម</div></div></div>
+        <h3><i class="fas fa-piggy-bank"></i> ស្ថិតិគណនីសន្សំ</h3>
+        <div class="dashboard-cards">
+            <div class="dashboard-card"><h3><i class="fas fa-piggy-bank"></i> គណនីសន្សំសកម្ម</h3><div class="value" id="db_savings_active_count">0</div><div class="subtext">គណនីកំពុងសន្សំ</div></div>
+            <div class="dashboard-card"><h3><i class="fas fa-trophy"></i> សម្រេចគោលដៅ</h3><div class="value" id="db_savings_completed_count">0</div><div class="subtext">គណនីសម្រេចគោលដៅរួច</div></div>
+            <div class="dashboard-card"><h3><i class="fas fa-wallet"></i> ប្រាក់សន្សំសរុប</h3><div class="value" id="db_savings_total_saved">0.00</div><div class="subtext">សរុបគ្រប់គណនីសកម្ម (USD)</div></div>
+            <div class="dashboard-card"><h3><i class="fas fa-percentage"></i> ការប្រាក់សរុប</h3><div class="value" id="db_savings_total_interest">0.00</div><div class="subtext">ការប្រាក់ដែលបានផ្តល់ដល់អតិថិជន (USD)</div></div>
+        </div>
+        <div class="card"><h3><i class="fas fa-hourglass-half"></i> កម្ចីដែលមានស្ថានភាពយឺត</h3><div class="table-container"><table id="lateLoansTable"><thead><tr><th><i class="fas fa-hashtag"></i> ល.រ</th><th><i class="fas fa-id-card"></i> លេខកម្ចី</th><th><i class="fas fa-user"></i> ឈ្មោះអតិថិជន</th><th><i class="fas fa-sort-numeric-down"></i> ចំនួនដងយឺត</th><th><i class="fas fa-dollar-sign"></i> ការប្រាក់យឺត</th><th><i class="fas fa-calendar-alt"></i> កាលបរិច្ឆេទកម្ចី</th></tr></thead><tbody id="lateLoansTableBody"></tbody></table></div></div><div class="card"><h3><i class="fas fa-calendar-check"></i> កម្ចីដែលនឹងបញ្ចប់ក្នុង 30 ថ្ងៃ</h3><div class="table-container"><table id="endingLoansTable"><thead><tr><th><i class="fas fa-hashtag"></i> ល.រ</th><th><i class="fas fa-id-card"></i> លេខកម្ចី</th><th><i class="fas fa-user"></i> ឈ្មោះអតិថិជន</th><th><i class="fas fa-money-bill-wave"></i> ប្រាក់ដើមនៅសល់</th><th><i class="fas fa-calendar-check"></i> កាលបរិច្ឆេទបញ្ចប់</th><th><i class="fas fa-hourglass-end"></i> ថ្ងៃនៅសល់</th></tr></thead><tbody id="endingLoansTableBody"></tbody></table></div></div></div>
+    
+    <div id="loansTab" class="tab-content"><div class="card" style="max-width:1000px;margin:0 auto 12px;"><div class="grid autofit"><div><label for="exchangeRateInput"><i class="fas fa-exchange-alt"></i> អត្រាប្តូរប្រាក់ (1 USD = ? ៛)</label><input type="number" inputmode="decimal" id="exchangeRateInput" min="3000" step="1" /></div><div style="align-self:end"><span>ថ្ងៃកំណត់អត្រា: <span id="exDateTag">—</span></span></div></div></div>
+        <div class="table-filters">
+            <div class="search-wrap" style="grid-column: 1 / -1;"><input type="text" id="mainSearchInput" placeholder="ស្វែងរកតាមលេខកម្ចី, ឈ្មោះ, លេខទូរសព្ទ, មន្ត្រីឥណទាន..."/><svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/></svg><button id="clearSearchBtn" title="Clear Search" style="display: none;">&times;</button></div>
+            <div><label for="filterStatus"><i class="fas fa-tasks"></i> ត្រងតាមស្ថានភាព</label><select id="filterStatus">
+                <option value="all">ទាំងអស់ (លើកលែងតែ Archived)</option>
+                <option value="pending">រង់ចាំការអនុម័ត</option>
+                <option value="active">កំពុងដំណើរការ</option>
+                <option value="overdue">មានការយឺត</option>
+                <option value="completed">បានបញ្ចប់</option>
+                <option value="refinanced">បានកែលម្អ</option>
+                <option value="written_off">កម្ចីបំណុលមិនអាចសងបាន</option>
+                <option value="rejected">បានបដិសេធ</option>
+                <option value="archived">បានទុកក្នុងបណ្ណសារ</option>
+            </select></div>
+            <div><label for="filterCurrency"><i class="fas fa-money-bill"></i> ត្រងតាមរូបិយប័ណ្ណ</label><select id="filterCurrency"><option value="all">ទាំងអស់</option><option value="USD">ដុល្លារ ($)</option><option value="KHR">រៀល (៛)</option></select></div>
+        </div>
+        <form id="loanForm" class="card" style="max-width:1000px;margin:0 auto 16px;">
+        <div class="grid autofit">
+            <div style="grid-column: 1 / -1;">
+                <label for="loanProductSelect"><i class="fas fa-box-open"></i> ជ្រើសរើសប្រភេទកម្ចី (Template)</label>
+                <select id="loanProductSelect">
+                    <option value="">-- បញ្ចូលព័ត៌មានដោយដៃ --</option>
+                </select>
+            </div>
+            
+            <div style="grid-column: 1 / -1; border: 1px dashed var(--info); padding: 10px; border-radius: 8px; background: var(--input-bg);">
+                <h4 style="margin-top:0;"><i class="fas fa-user-check"></i> ជ្រើសរើសអតិថិជន</h4>
+                <div class="grid autofit">
+                    <div>
+                        <label for="customerSelect"><i class="fas fa-search"></i> ស្វែងរក និងជ្រើសរើសអតិថិជន</label>
+                        <select id="customerSelect" required>
+                            <option value="">-- សូមជ្រើសរើស --</option>
+                        </select>
+                    </div>
+                    <div style="align-self: end;">
+                        <button type="button" class="btn btn-sm" onclick="switchTab('customers')"><i class="fas fa-user-plus"></i> បង្កើតអតិថិជនថ្មី</button>
+                    </div>
+                </div>
+                <div id="selectedCustomerInfo" style="font-size: 13px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd;">
+                    <!-- ព័ត៌មានអតិថិជនដែលបានជ្រើសរើសនឹងបង្ហាញនៅទីនេះ -->
+                </div>
+            </div>
+
+            <div><label for="loanId"><i class="fas fa-id-card"></i> លេខកម្ចី</label><input id="loanId" type="text" placeholder="Generated Automatically" readonly/></div>
+            <div><label for="creditOfficer"><i class="fas fa-user-tie"></i> មន្ត្រីឥណទាន</label><select id="creditOfficer"></select></div>
+            <div><label for="loanDate"><i class="fas fa-calendar-alt"></i> កាលបរិច្ឆេទកម្ចី</label><input id="loanDate" type="date" required/></div>
+            <div><label for="currency"><i class="fas fa-money-bill"></i> រូបិយប័ណ្ណ</label><select id="currency"><option value="KHR">រៀល (៛)</option><option value="USD">ដុល្លារ ($)</option></select></div>
+            <div><label for="loanAmount"><i class="fas fa-dollar-sign"></i> ប្រាក់កម្ចី</label><input id="loanAmount" type="number" inputmode="decimal" min="1" step="0.01" required/></div>
+            <div><label for="interestRate"><i class="fas fa-percent" id="interestRateIcon"></i> អត្រាការប្រាក់</label><div class="input-group"><input id="interestRate" type="number" inputmode="decimal" min="0" step="0.01" required/><select id="interestRateType" onchange="updateInterestRateTypeUI()"><option value="percent">ភាគរយ %</option><option value="fixed">ចំនួនថេរ</option></select></div></div>
+            <div><label for="serviceRate"><i class="fas fa-concierge-bell"></i> អត្រាសេវា (%/ខែ)</label><input id="serviceRate" type="number" inputmode="decimal" min="0" step="0.01" value="0"/></div>
+            <div><label for="adminFee"><i class="fas fa-landmark"></i> សេវារដ្ឋបាល (ប្រចាំខែ)</label><input id="adminFee" type="number" inputmode="decimal" min="0" step="0.01" value="0"/></div>
+            <div><label for="insuranceFee"><i class="fas fa-shield-alt"></i> សេវាធានារ៉ាប់រង (ប្រចាំខែ)</label><input id="insuranceFee" type="number" inputmode="decimal" min="0" step="0.01" value="0"/></div>
+            <div><label for="penaltyFee"><i class="fas fa-exclamation-circle"></i> ការពិន័យបង់យឺត</label><div class="input-group"><input id="penaltyFee" type="number" inputmode="decimal" min="0" step="0.01" value="0"/><select id="penaltyType"><option value="fixed">Fixed</option><option value="percent">% of Installment Principal</option></select></div></div>
+            <div><label for="loanTerm"><i class="fas fa-clock"></i> រយៈពេល (ខែ)</label><input id="loanTerm" type="number" inputmode="decimal" min="1" required/></div><div><label for="interestUnit"><i class="fas fa-calculator"></i> ឯកតាការប្រាក់</label><select id="interestUnit"><option value="month">ខែ</option><option value="day">ថ្ងៃ</option><option value="week">សប្តាហ៍</option><option value="year">ឆ្នាំ</option></select></div><div><label for="paymentMethod"><i class="fas fa-credit-card"></i> វិធីបង់</label><select id="paymentMethod"><option value="annuity">រំលស់ស្មើ (Annuity)</option><option value="equal-principal">ដើមថេរ (Equal Principal)</option></select></div>
+            <div><label for="calculationType"><i class="fas fa-cogs"></i> ប្រភេទការគណនា</label><select id="calculationType"><option value="fixed">តារាងថេរ (Fixed Schedule)</option><option value="dynamic">សមតុល្យថយចុះថាមវន្ត (Dynamic Declining Balance)</option></select></div>
+            <div><label for="paymentDateType"><i class="fas fa-calendar-day"></i> របៀបកំណត់ថ្ងៃបង់</label><select id="paymentDateType"><option value="monthly">តាមថ្ងៃខ្ចី</option><option value="fixed-day">ថ្ងៃកំណត់ប្រចាំខែ</option><option value="every-x-days">រាល់ X ថ្ងៃ</option></select></div><div id="fixedDayInput" style="display:none"><label for="fixedDayOfMonth"><i class="fas fa-calendar-check"></i> ថ្ងៃកំណត់ (1-28)</label><input id="fixedDayOfMonth" type="number" inputmode="decimal" min="1" max="28" value="15"/></div><div id="everyXDaysInput" style="display:none"><label for="everyXDays"><i class="fas fa-calendar-week"></i> រាល់ (ថ្ងៃ)</label><input id="everyXDays" type="number" inputmode="decimal" min="1" value="14"/></div>
+        </div>
+        <div class="extra-details-section">
+            <h4 style="margin-top:0;"><i class="fas fa-info-circle"></i> ព័ត៌មានបន្ថែម</h4>
+            <div class="grid autofit">
+                <div><label><i class="fas fa-file-signature"></i> វត្ថុធានា</label><button type="button" class="btn btn-sm" onclick="openCollateralModal()"><i class="fas fa-folder-open"></i> Manage Collateral (<span id="collateralCount">0</span>)</button></div>
+                <div><label><i class="fas fa-user-check"></i> អ្នកធានា</label><button type="button" class="btn btn-sm" onclick="openGuarantorModal()"><i class="fas fa-users"></i> Manage Guarantors (<span id="guarantorCount">0</span>)</button></div>
+                <div><label><i class="fas fa-map-marker-alt"></i> Latitude</label><input type="text" id="latitude" placeholder="e.g., 11.5564"/></div>
+                <div><label><i class="fas fa-map-marker-alt"></i> Longitude</label><div class="input-group"><input type="text" id="longitude" placeholder="e.g., 104.9282"/><button type="button" class="btn btn-info btn-sm" onclick="getCurrentLocation()" title="Get Current Location" style="border-radius: 0 4px 4px 0;"><i class="fas fa-crosshairs"></i></button></div></div>
+            </div>
+        </div>
+        <div class="attachments-section">
+            <h4 style="margin-top:0;"><i class="fas fa-paperclip"></i> ឯកសារភ្ជាប់ (Attachments)</h4>
+            <div id="attachmentList" style="margin-bottom:8px;"></div>
+            <label for="attachmentInput"><i class="fas fa-plus-circle"></i> បន្ថែមឯកសារថ្មី:</label>
+            <input type="file" id="attachmentInput" multiple />
+        </div>
+        <div class="refinance-section" id="refinanceSection" style="display:none;"><h4 style="margin-top:0;"><i class="fas fa-sync-alt"></i> ការកែលម្អកម្ចី</h4><div class="grid autofit"><div><label for="refinanceLoanId"><i class="fas fa-id-card"></i> លេខកម្ចីដើម</label><input type="text" id="refinanceLoanId" readonly /></div><div><label for="refinanceDate"><i class="fas fa-calendar-alt"></i> កាលបរិច្ឆេទកែលម្អ</label><input type="date" id="refinanceDate" /></div><div><label for="refinanceReason"><i class="fas fa-question-circle"></i> មូលហេតុ</label><select id="refinanceReason"><option value="extend">ពន្យារពេល</option><option value="adjust_rate">កែអត្រាការប្រាក់</option><option value="additional">ប្រាក់កម្ចីបន្ថែម</option><option value="other">ផ្សេងៗ</option></select></div><div><label for="refinanceNotes"><i class="fas fa-sticky-note"></i> កំណត់ចំណាំ</label><textarea id="refinanceNotes" rows="1"></textarea></div></div></div>
+        
+        <div style="margin-top:10px; padding: 10px; border: 2px dashed var(--info); border-radius: 8px; background: var(--input-bg); display:none;" id="approvalActions">
+            <h4 style="margin: 0 0 10px 0; text-align: left;"><i class="fas fa-gavel"></i> សកម្មភាពអនុម័ត</h4>
+            <button type="button" id="approveBtn" class="btn btn-success" onclick="approveLoan()"><i class="fas fa-check-circle"></i> អនុម័តកម្ចី</button>
+            <button type="button" id="rejectBtn" class="btn btn-danger" onclick="rejectLoan()"><i class="fas fa-times-circle"></i> បដិសេធកម្ចី</button>
+        </div>
+
+        <div style="margin-top:10px" id="formActions">
+            <button type="submit" id="saveLoanBtn" class="btn btn-success"><i class="fas fa-save"></i> រក្សាទុក</button>
+            <button type="button" id="resetForm" class="btn btn-muted" style="margin-left:8px"><i class="fas fa-eraser"></i> សម្អាតទម្រង់</button>
+            <button type="button" id="refinanceBtn" class="btn btn-manager" style="margin-left:8px;display:none;" onclick="initiateRefinance()"><i class="fas fa-sync-alt"></i> កែលម្អកម្ចី</button>
+            <button type="button" id="payoffBtn" class="btn btn-info" style="margin-left:8px;display:none;" onclick="openPayoffModal()"><i class="fas fa-fast-forward"></i> Early Payoff</button>
+            <button type="button" id="writeOffBtn" class="btn btn-danger" style="margin-left:8px;display:none;" onclick="openWriteOffModal()"><i class="fas fa-times-circle"></i> Write-Off</button>
+            <button type="button" id="historyBtn" class="btn btn-muted" style="margin-left:8px;display:none;" onclick="openHistoryModal()"><i class="fas fa-history"></i> View History</button>
+        </div>
+        </form>
+        <h3><i class="fas fa-table"></i> តារាងព័ត៌មានអតិថិជន (ទូទៅ)</h3>
+        <div id="batchActionsContainer" style="margin-bottom: 10px; display: none; max-width: 1000px; margin: 0 auto 10px auto;">
+            <button class="btn btn-info btn-sm" onclick="batchPrintSchedules()"><i class="fas fa-print"></i> បោះពុម្ពតារាងបង់ប្រាក់</button>
+            <span id="selectionCount" style="margin-left: 10px; font-size: 14px; font-weight: bold;"></span>
+        </div>
+        <div class="table-container"><table id="loansTable">
+            <thead><tr><th><i class="fas fa-check-square"></i></th><th data-sortable><i class="fas fa-hashtag"></i> ល.រ</th><th data-sortable><i class="fas fa-id-card"></i> លេខកម្ចី</th><th data-sortable><i class="fas fa-user"></i> ឈ្មោះ</th><th data-sortable><i class="fas fa-venus-mars"></i> ភេទ</th><th data-sortable><i class="fas fa-user-tie"></i> មន្ត្រីឥណទាន</th><th><i class="fas fa-map-marker-alt"></i> ភូមិ</th><th><i class="fas fa-map-marker-alt"></i> ឃុំ</th><th><i class="fas fa-map-marker-alt"></i> ស្រុក</th><th data-sortable><i class="fas fa-map-marked-alt"></i> ខេត្ត</th><th><i class="fas fa-phone"></i> លេខទូរសព្ទ</th><th data-sortable><i class="fas fa-dollar-sign"></i> ប្រាក់កម្ចី</th><th data-sortable><i class="fas fa-percent"></i> អត្រាការប្រាក់ (%)</th><th><i class="fas fa-landmark"></i> សេវារដ្ឋបាល</th><th><i class="fas fa-shield-alt"></i> សេវាធានារ៉ាប់រង</th><th data-sortable><i class="fas fa-clock"></i> រយៈពេល (ខែ)</th><th data-sortable><i class="fas fa-tasks"></i> ស្ថានភាព</th><th><i class="fas fa-cogs"></i> សកម្មភាព</th></tr></thead>
+            <tbody id="loansTableBody"></tbody>
+            <tfoot>
+                <tr class="summary-row">
+                    <td colspan="11" id="summaryLabel"><i class="fas fa-calculator"></i> សរុប / Total</td>
+                    <td class="right" id="totalLoanAmounts"></td>
+                    <td colspan="6"></td>
+                </tr>
+            </tfoot>
+        </table></div>
+        <div id="paginationControls" class="pagination-controls"></div>
+        <h3><i class="fas fa-calendar-alt"></i> តារាងបង់ប្រាក់</h3><div class="table-container"><table id="scheduleTable"><thead><tr><th><i class="fas fa-hashtag"></i> ល.រ</th><th><i class="fas fa-calendar-alt"></i> កាលបរិច្ឆេទបង់</th><th><i class="fas fa-money-bill-wave"></i> ប្រាក់ដើម</th><th><i class="fas fa-hand-holding-usd"></i> ការប្រាក់</th><th><i class="fas fa-exclamation-triangle"></i> ការប្រាក់យឺត</th><th><i class="fas fa-exclamation-circle"></i> ពិន័យ</th><th><i class="fas fa-concierge-bell"></i> ថ្លៃសេវា</th><th><i class="fas fa-landmark"></i> សេវារដ្ឋបាល</th><th><i class="fas fa-shield-alt"></i> សេវាធានារ៉ាប់រង</th><th><i class="fas fa-cash-register"></i> សរុបត្រូវបង់</th><th><i class="fas fa-wallet"></i> បានបង់</th><th><i class="fas fa-wallet"></i> នៅសល់</th><th><i class="fas fa-tasks"></i> ស្ថានភាព</th><th><i class="fas fa-cogs"></i> សកម្មភាព</th></tr></thead><tbody id="scheduleTableBody"></tbody></table></div><div style="max-width:1000px;margin:10px auto;text-align:center"><button id="printReceiptBtn" class="btn btn-success" onclick="openReceiptForLoan()"><i class="fas fa-receipt"></i> បង្កាន់ដៃសរុបកម្ចី</button><button id="printScheduleBtn" class="btn" onclick="openPrintOptionsModal()"><i class="fas fa-print"></i> បោះពុម្ពតារាងបង់ប្រាក់</button><button id="exportScheduleBtn" class="btn btn-info" onclick="exportScheduleToExcel()"><i class="fas fa-file-excel"></i> នាំចេញទៅ Excel</button><button id="messageBtn" class="btn btn-manager" onclick="openMessageModal()" style="display: none;"><i class="fas fa-comment-dots"></i> បង្កើតសារ</button></div>
+    <div class="card" style="max-width: 1000px; margin: 16px auto 0 auto;">
+      <h3><i class="fas fa-calculator"></i> របាយការណ៍សរុប</h3>
+      <div class="summary-grid">
+        <div><i class="fas fa-money-bill-wave"></i> ប្រាក់ដើមកម្ចីសរុប</div><div class="right" id="totalPrincipal">0.00</div>
+        <div><i class="fas fa-hand-holding-usd"></i> ការប្រាក់ចំណេញសរុប</div><div class="right" id="totalInterest">0.00</div>
+        <div><i class="fas fa-exclamation-triangle"></i> ការប្រាក់យឺតសរុប</div><div class="right" id="totalLateInterestSummary">0.00</div>
+        <div><i class="fas fa-concierge-bell"></i> ថ្លៃសេវាសរុប (%/ខែ)</div><div class="right" id="totalServiceFeeSummary">0.00</div>
+        <div><i class="fas fa-landmark"></i> សេវារដ្ឋបាលសរុប</div><div class="right" id="totalAdminFeeSummary">0.00</div>
+        <div><i class="fas fa-shield-alt"></i> សេវាធានារ៉ាប់រងសរុប</div><div class="right" id="totalInsuranceFeeSummary">0.00</div>
+        <div><i class="fas fa-piggy-bank"></i> សរុបទាំងអស់</div><div class="right" id="totalPrincipalInterest">0.00</div>
+        <div><i class="fas fa-check-circle"></i> បង់រួច</div><div class="right" id="paidCount">0</div>
+        <div><i class="fas fa-hourglass-half"></i> យឺត/បង់មិនគ្រប់</div><div class="right" id="lateCount">0</div>
+        <div><i class="fas fa-times-circle"></i> មិនទាន់បង់</div><div class="right" id="unpaidCount">0</div>
+      </div>
+    </div>
+    </div>
+
+    <!-- ===================== CUSTOMERS TAB START (NEW UI) ===================== -->
+    <div id="customersTab" class="tab-content">
+      <div id="customerFormCard" class="card" style="max-width: 1000px; margin: 0 auto 20px; display: none;">
+        <form id="customerForm">
+            <h4 id="customerFormTitle" style="text-align: left; justify-content: flex-start;"><i class="fas fa-user-plus"></i> បន្ថែមអតិថិជនថ្មី</h4>
+            <input type="hidden" id="customerId" />
+            <div class="grid autofit" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                <div><label for="custName"><i class="fas fa-user"></i> ឈ្មោះអតិថិជន</label><input id="custName" required/></div>
+                <div><label for="custGender"><i class="fas fa-venus-mars"></i> ភេទ</label><select id="custGender"><option value="ប្រុស">ប្រុស</option><option value="ស្រី">ស្រី</option></select></div>
+                <div><label for="custPhone"><i class="fas fa-phone"></i> លេខទូរសព្ទ</label><input id="custPhone"/></div>
+                <div><label for="custVillage"><i class="fas fa-map-marker-alt"></i> ភូមិ</label><input id="custVillage"/></div>
+                <div><label for="custCommune"><i class="fas fa-map-marker-alt"></i> ឃុំ</label><input id="custCommune"/></div>
+                <div><label for="custDistrict"><i class="fas fa-map-marker-alt"></i> ស្រុក</label><input id="custDistrict"/></div>
+                <div><label for="custProvince"><i class="fas fa-map-marked-alt"></i> ខេត្ត</label><input id="custProvince"/></div>
+                <div>
+                  <label for="custResidency"><i class="fas fa-globe-asia"></i> ស្ថានភាពនិវាសនជន</label>
+                  <select id="custResidency">
+                    <option value="resident">និវាសនជន (ប្រជាជនកម្ពុជា)</option>
+                    <option value="non-resident">អនិវាសនជន (ជនបរទេស)</option>
+                  </select>
+                </div>
+                <div style="align-self: center;"><label class="form-check"><input type="checkbox" id="custBlacklisted"> <i class="fas fa-ban"></i> ដាក់ក្នុងបញ្ជីខ្មៅ (Blacklist)</label></div>
+            </div>
+            <div style="margin-top:20px; text-align:right;">
+              <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> រក្សាទុក</button>
+              <button type="button" class="btn btn-muted" onclick="hideCustomerForm()"><i class="fas fa-times"></i> បោះបង់</button>
+            </div>
+        </form>
+      </div>
+
+      <div class="card" style="max-width: 1200px; margin: 0 auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h4 style="margin: 0; text-align: left; justify-content: flex-start;"><i class="fas fa-list-ul"></i> បញ្ជីអតិថិជន</h4>
+            <button class="btn btn-primary" onclick="showCustomerForm()"><i class="fas fa-user-plus"></i> បន្ថែមអតិថិជនថ្មី</button>
+        </div>
+        <div class="table-container" style="max-height: 600px;">
+          <table id="customersListTable">
+            <thead>
+              <tr>
+                <th><i class="fas fa-hashtag"></i> #</th>
+                <th><i class="fas fa-user"></i> ឈ្មោះអតិថិជន</th>
+                <th><i class="fas fa-venus-mars"></i> ភេទ</th>
+                <th><i class="fas fa-phone"></i> លេខទូរសព្ទ</th>
+                <th><i class="fas fa-map-marked-alt"></i> ខេត្ត</th>
+                <th><i class="fas fa-info-circle"></i> ស្ថានភាព</th>
+                <th><i class="fas fa-cogs"></i> សកម្មភាព</th>
+              </tr>
+            </thead>
+            <tbody id="customersListTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <!-- ===================== CUSTOMERS TAB END (NEW UI) ===================== -->
+
+    <!-- ===================== CUSTOMER PROFILE TAB (NEW) ===================== -->
+    <div id="customerProfileTab" class="tab-content">
+        <div class="card">
+            <label for="customerProfileSelect"><h4><i class="fas fa-user-check"></i> ជ្រើសរើសអតិថិជនដើម្បីមើលប្រវត្តិរូប</h4></label>
+            <select id="customerProfileSelect">
+                <option value="">-- សូមជ្រើសរើស --</option>
+            </select>
+        </div>
+        <div id="customerProfileContent" class="customer-profile-grid" style="display: none;">
+            <div style="grid-column: 1 / -1; display:flex; gap:10px; justify-content:flex-end; margin-bottom:4px;">
+                <button class="btn btn-muted btn-sm" onclick="printCustomerProfile()"><i class="fas fa-print"></i> Print ប្រវត្តិរូប</button>
+                <button class="btn btn-info btn-sm" onclick="printCustomerIdCard()"><i class="fas fa-id-card"></i> Print Card</button>
+            </div>
+            <!-- Left Column -->
+            <div>
+                <div class="card">
+                    <h4><i class="fas fa-user-circle"></i> រូបថត (Avatar)</h4>
+                    <div style="text-align: center;">
+                        <img id="profileAvatarPreview" class="profile-avatar" src="" alt="Avatar">
+                        <label for="profileAvatarInput" class="btn btn-sm btn-info" style="margin-top: 10px;"><i class="fas fa-camera"></i> ផ្លាស់ប្តូររូបថត</label>
+                        <input type="file" id="profileAvatarInput" accept="image/*" style="display: none;" />
+                    </div>
+                </div>
+                <div class="card">
+                    <h4><i class="fas fa-id-card"></i> អត្តសញ្ញាណប័ណ្ណ (ID Card)</h4>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center;">
+                        <div style="text-align:center;">
+                            <div style="font-size:12px; margin-bottom:4px;">មុខ</div>
+                            <img id="idCardFrontPreview" src="" alt="ID Front" style="width:140px; height:90px; object-fit:cover; border:1px solid var(--border); border-radius:6px; background:#f0f0f0; display:block;">
+                            <label for="idCardFrontInput" class="btn btn-sm btn-info" style="margin-top: 6px;"><i class="fas fa-camera"></i> ថតរូប/ជ្រើសរើស</label>
+                            <input type="file" id="idCardFrontInput" accept="image/*" capture="environment" style="display: none;" />
+                        </div>
+                        <div style="text-align:center;">
+                            <div style="font-size:12px; margin-bottom:4px;">ក្រោយ</div>
+                            <img id="idCardBackPreview" src="" alt="ID Back" style="width:140px; height:90px; object-fit:cover; border:1px solid var(--border); border-radius:6px; background:#f0f0f0; display:block;">
+                            <label for="idCardBackInput" class="btn btn-sm btn-info" style="margin-top: 6px;"><i class="fas fa-camera"></i> ថតរូប/ជ្រើសរើស</label>
+                            <input type="file" id="idCardBackInput" accept="image/*" capture="environment" style="display: none;" />
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <h4><i class="fas fa-folder-open"></i> ឯកសារផ្សេងៗ</h4>
+                    <select id="customerDocumentCategory" style="margin-bottom:8px; width:100%;">
+                        <option value="loan_contract">ច្បាប់កម្ចី</option>
+                        <option value="savings">សៀវភៅ/ឯកសារសន្សំ</option>
+                        <option value="other">ផ្សេងៗ</option>
+                    </select>
+                    <div id="customerDocumentList"></div>
+                    <label for="customerDocumentInput" class="btn btn-sm" style="margin-top: 10px;"><i class="fas fa-plus-circle"></i> បន្ថែមឯកសារ</label>
+                    <input type="file" id="customerDocumentInput" multiple style="display:none;" />
+                </div>
+            </div>
+            <!-- Right Column -->
+            <div>
+                <div class="card">
+                    <h4><i class="fas fa-info-circle"></i> ព័ត៌មានលម្អិត</h4>
+                    <div class="summary-grid">
+                        <div><i class="fas fa-user"></i> ឈ្មោះ</div><div id="profileDetailName"></div>
+                        <div><i class="fas fa-venus-mars"></i> ភេទ</div><div id="profileDetailGender"></div>
+                        <div><i class="fas fa-phone"></i> លេខទូរសព្ទ</div><div id="profileDetailPhone"></div>
+                        <div><i class="fas fa-map-marked-alt"></i> អាសយដ្ឋាន</div><div id="profileDetailAddress" style="white-space: normal;"></div>
+                        <div><i class="fas fa-calendar-plus"></i> បានបង្កើតនៅ</div><div id="profileDetailCreated"></div>
+                        <div><i class="fas fa-info-circle"></i> ស្ថានភាព</div><div id="profileDetailStatus"></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <h4><i class="fas fa-hand-holding-usd"></i> ប្រវត្តិរូបកម្ចី</h4>
+                    <div class="table-container" style="max-height: 250px;">
+                        <table id="profileLoansTable">
+                            <thead><tr><th>ID</th><th>ចំនួន</th><th>កាលបរិច្ឆេទ</th><th>នៅសល់</th><th>ស្ថានភាព</th></tr></thead>
+                            <tbody id="profileLoansTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- ===================== CUSTOMER PROFILE TAB END ===================== -->
+
+    <!-- ===================== CLIENT ACCOUNT TAB START (NEW) ===================== -->
+    <div id="clientAccountTab" class="tab-content">
+        <div class="card" style="max-width: 1200px; margin: 0 auto 16px;">
+            <label for="clientAccountSelect"><h4><i class="fas fa-user-check"></i> ជ្រើសរើសអតិថិជនដើម្បីមើលព័ត៌មាន</h4></label>
+            <select id="clientAccountSelect">
+                <option value="">-- សូមជ្រើសរើស --</option>
+            </select>
+        </div>
+
+        <div class="card" style="max-width: 1200px; margin: 0 auto 16px;">
+            <h4><i class="fas fa-chart-bar"></i> ព័ត៌មានសរុប</h4>
+            <div class="client-summary-grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));">
+                <div class="metric">
+                    <div class="metric-title"><i class="fas fa-hand-holding-usd"></i> កម្ចីសកម្ម</div>
+                    <div class="metric-value" id="clientSummaryActiveLoans">0</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-title"><i class="fas fa-money-bill-wave"></i> ប្រាក់ដើមនៅសល់សរុប</div>
+                    <div class="metric-value debt" id="clientSummaryPrincipalRemaining">$0.00</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-title"><i class="fas fa-check-circle"></i> សមតុល្យបានបង់សរុប</div>
+                    <div class="metric-value saving" id="clientSummaryPaidBalance">$0.00</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-title"><i class="fas fa-percent"></i> ការប្រាក់បានបង់ (ខែនេះ)</div>
+                    <div class="metric-value" id="clientSummaryInterestThisMonth">$0.00</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="max-width: 1200px; margin: 0 auto 16px;">
+            <h4><i class="fas fa-file-invoice-dollar"></i> បញ្ជីកម្ចីទាំងអស់</h4>
+            <div class="table-container" style="max-height: 300px;">
+                <table id="clientAccountLoansTable">
+                    <thead>
+                        <tr>
+                            <th><i class="fas fa-id-card"></i> លេខកម្ចី</th>
+                            <th><i class="fas fa-dollar-sign"></i> ចំនួនទឹកប្រាក់</th>
+                            <th><i class="fas fa-calendar-alt"></i> កាលបរិច្ឆេទខ្ចី</th>
+                            <th><i class="fas fa-calendar-check"></i> ថ្ងៃបញ្ចប់</th>
+                            <th><i class="fas fa-balance-scale-right"></i> សមតុល្យនៅសល់</th>
+                            <th><i class="fas fa-tasks"></i> ស្ថានភាព</th>
+                        </tr>
+                    </thead>
+                    <tbody id="clientAccountLoansTableBody">
+                        <tr><td colspan="6" class="center">សូមជ្រើសរើសអតិថិជន</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+    <!-- ===================== CLIENT ACCOUNT TAB END (NEW) ===================== -->
+
+    <div id="collectionsTab" class="tab-content">
+        <div class="card" style="max-width: 1200px; margin: 0 auto 16px;">
+            <div class="grid autofit">
+                <div>
+                    <label for="collectionsDate"><i class="fas fa-calendar-alt"></i> ជ្រើសរើសកាលបរិច្ឆេទ</label>
+                    <input type="date" id="collectionsDate" />
+                </div>
+                <div>
+                    <label for="collectionsOfficerFilter"><i class="fas fa-user-tie"></i> ត្រងតាមមន្ត្រីឥណទាន</label>
+                    <select id="collectionsOfficerFilter"></select>
+                </div>
+            </div>
+        </div>
+        <div class="card" style="max-width: 1200px; margin: 0 auto;">
+            <h3><i class="fas fa-tasks"></i> កម្ចីត្រូវប្រមូលប្រាក់</h3>
+            <div class="table-container">
+                <table id="collectionsTable">
+                    <thead>
+                        <tr>
+                            <th><i class="fas fa-id-card"></i> លេខកម្ចី</th>
+                            <th><i class="fas fa-user"></i> ឈ្មោះអតិថិជន</th>
+                            <th><i class="fas fa-phone"></i> លេខទូរសព្ទ</th>
+                            <th><i class="fas fa-hashtag"></i> ការបង់លើកទី</th>
+                            <th><i class="fas fa-money-bill-wave"></i> ចំនួនត្រូវបង់</th>
+                            <th><i class="fas fa-user-tie"></i> មន្ត្រីឥណទាន</th>
+                            <th><i class="fas fa-cogs"></i> សកម្មភាព</th>
+                        </tr>
+                    </thead>
+                    <tbody id="collectionsTableBody">
+                        <tr><td colspan="7" class="center" style="color:#888;">សូមជ្រើសរើសកាលបរិច្ឆេទ</td></tr>
+                    </tbody>
+                    <tfoot class="summary-row">
+                        <tr>
+                            <td colspan="4"><i class="fas fa-file-invoice-dollar"></i> សរុបប្រាក់ដើមត្រូវប្រមូល</td>
+                            <td class="right" id="collectionsPrincipalTotal">0.00</td>
+                            <td colspan="2"></td>
+                        </tr>
+                        <tr>
+                            <td colspan="4"><i class="fas fa-chart-line"></i> សរុបប្រាក់ចំណេញរំពឹងទុក (ការប្រាក់ + ផ្សេងៗ)</td>
+                            <td class="right" id="collectionsProfitTotal">0.00</td>
+                            <td colspan="2"></td>
+                        </tr>
+                        <tr>
+                            <td colspan="4" style="font-weight:bold; font-size: 1.1em;"><i class="fas fa-calculator"></i> សរុបត្រូវប្រមូល</td>
+                            <td class="right" style="font-weight:bold; font-size: 1.1em;" id="collectionsGrandTotal">0.00</td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div id="customerReportTab" class="tab-content">
+        <div class="card" style="max-width: 1200px; margin: 0 auto;">
+            <h3><i class="fas fa-filter"></i> តម្រងរបាយការណ៍អតិថិជន</h3>
+            <div class="grid autofit">
+                <div>
+                    <label for="reportOfficerFilter"><i class="fas fa-user-tie"></i> មន្ត្រីឥណទាន</label>
+                    <select id="reportOfficerFilter"></select>
+                </div>
+                <div>
+                    <label for="reportProvinceFilter"><i class="fas fa-map-marked-alt"></i> ខេត្ត</label>
+                    <select id="reportProvinceFilter"></select>
+                </div>
+                <div>
+                    <label for="reportDistrictFilter"><i class="fas fa-map-marker-alt"></i> ស្រុក</label>
+                    <select id="reportDistrictFilter"></select>
+                </div>
+                <div>
+                    <label for="reportStatusFilter"><i class="fas fa-tasks"></i> ស្ថានភាព</label>
+                    <select id="reportStatusFilter">
+                        <option value="all">ទាំងអស់</option>
+                        <option value="pending">រង់ចាំការអនុម័ត</option>
+                        <option value="active">កំពុងដំណើរការ</option>
+                        <option value="overdue">មានការយឺត</option>
+                        <option value="completed">បានបញ្ចប់</option>
+                    </select>
+                </div>
+            </div>
+            <div style="margin-top: 16px; text-align: center;">
+                <button class="btn btn-primary" onclick="renderCustomerReport()"><i class="fas fa-search"></i> បង្កើតរបាយការណ៍</button>
+                <button class="btn btn-muted" onclick="resetCustomerFilters()"><i class="fas fa-eraser"></i> សម្អាតតម្រង</button>
+                <button class="btn btn-success" onclick="exportCustomerReportToExcel()"><i class="fas fa-file-excel"></i> នាំចេញទៅ Excel</button>
+            </div>
+        </div>
+        <div class="card" style="max-width: 1200px; margin: 16px auto 0;">
+             <div class="table-container">
+                <table id="customerReportTable">
+                    <thead>
+                        <tr>
+                            <th><i class="fas fa-hashtag"></i> #</th>
+                            <th><i class="fas fa-id-card"></i> លេខកម្ចី</th>
+                            <th><i class="fas fa-user"></i> ឈ្មោះអតិថិជន</th>
+                            <th><i class="fas fa-venus-mars"></i> ភេទ</th>
+                            <th><i class="fas fa-phone"></i> លេខទូរសព្ទ</th>
+                            <th><i class="fas fa-user-tie"></i> មន្ត្រីឥណទាន</th>
+                            <th><i class="fas fa-map-marked-alt"></i> ខេត្ត</th>
+                            <th><i class="fas fa-map-marker-alt"></i> ស្រុក</th>
+                            <th><i class="fas fa-dollar-sign"></i> ប្រាក់កម្ចី</th>
+                            <th><i class="fas fa-calendar-alt"></i> កាលបរិច្ឆេទកម្ចី</th>
+                            <th><i class="fas fa-tasks"></i> ស្ថានភាព</th>
+                        </tr>
+                    </thead>
+                    <tbody id="customerReportTableBody"></tbody>
+                    <tfoot>
+                      <tr class="summary-row">
+                          <td colspan="8" id="customerReportSummaryLabel"><i class="fas fa-calculator"></i> សរុប</td>
+                          <td class="right" id="customerReportTotalAmount"></td>
+                          <td colspan="2"></td>
+                      </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div id="reportsTab" class="tab-content">
+        <div class="sub-tabs">
+            <div class="sub-tab active" onclick="switchSubTab('reports', 'financialReport')"><i class="fas fa-money-check-alt"></i> របាយការណ៍ហិរញ្ញវត្ថុ</div>
+            <div class="sub-tab" onclick="switchSubTab('reports', 'annualReport')"><i class="fas fa-calendar-alt"></i> របាយការណ៍ប្រចាំឆ្នាំ</div>
+            <div class="sub-tab" onclick="switchSubTab('reports', 'plReport')"><i class="fas fa-balance-scale"></i> ចំណេញ និងខាត</div>
+        </div>
+
+        <div id="financialReportSubTab" class="sub-tab-content active">
+             <div class="card" style="max-width:1200px; margin: 0 auto;">
+                <h3><i class="fas fa-filter"></i> តម្រងរបាយការណ៍ហិរញ្ញវត្ថុ</h3>
+                <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                    <div><label for="reportStartDate"><i class="fas fa-calendar-minus"></i> ចាប់ពីថ្ងៃ</label><input type="date" id="reportStartDate" /></div>
+                    <div><label for="reportEndDate"><i class="fas fa-calendar-plus"></i> ដល់ថ្ងៃ</label><input type="date" id="reportEndDate" /></div>
+                    <div><label for="reportOfficer"><i class="fas fa-user-tie"></i> មន្ត្រីឥណទាន</label><select id="reportOfficer"></select></div>
+                </div>
+                 <div style="margin-top: 16px; text-align: center;">
+                    <button class="btn" onclick="generateFinancialReport()"><i class="fas fa-cogs"></i> បង្កើតរបាយការណ៍</button>
+                    <button class="btn btn-success" onclick="exportFinancialReport()"><i class="fas fa-file-excel"></i> នាំចេញ</button>
+                    <button class="btn btn-info" onclick="printFinancialReport()"><i class="fas fa-print"></i> បោះពុម្ព</button>
+                </div>
+            </div>
+            <div class="card" style="max-width:1200px; margin: 16px auto 0;">
+                <div class="table-container">
+                    <table id="financialReportTable">
+                        <thead>
+                            <tr>
+                                <th><i class="fas fa-hashtag"></i> #</th><th><i class="fas fa-calendar-day"></i> កាលបរិច្ឆេទ</th><th><i class="fas fa-id-card"></i> លេខកម្ចី</th><th><i class="fas fa-user"></i> អតិថិជន</th>
+                                <th><i class="fas fa-money-bill-wave"></i> ប្រាក់ដើម</th><th><i class="fas fa-hand-holding-usd"></i> ការប្រាក់</th><th><i class="fas fa-exclamation-triangle"></i> ការប្រាក់យឺត</th><th><i class="fas fa-exclamation-circle"></i> ពិន័យ</th>
+                                <th><i class="fas fa-concierge-bell"></i> សេវា</th><th><i class="fas fa-wallet"></i> សរុបបានបង់</th><th><i class="fas fa-user-tie"></i> មន្ត្រីឥណទាន</th>
+                            </tr>
+                        </thead>
+                        <tbody id="financialReportTableBody"></tbody>
+                        <tfoot>
+                            <tr class="summary-row">
+                                <td colspan="4"><i class="fas fa-calculator"></i> សរុប</td>
+                                <td id="reportPrincipal" class="right"></td><td id="reportInterest" class="right"></td>
+                                <td id="reportLate" class="right"></td><td id="reportPenalty" class="right"></td>
+                                <td id="reportService" class="right"></td><td id="reportTotal" class="right"></td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="annualReportSubTab" class="sub-tab-content">
+            <div class="card" style="max-width:1000px; margin: 0 auto;">
+                <div class="grid" style="grid-template-columns: 200px 1fr;">
+                    <div><label for="annualReportYear"><i class="fas fa-calendar"></i> ជ្រើសរើសឆ្នាំ</label><select id="annualReportYear"></select></div>
+                    <div style="align-self: end;"><button class="btn" onclick="generateAnnualReport()"><i class="fas fa-cogs"></i> បង្កើត</button></div>
+                </div>
+                <div class="chart-container" style="height:350px; margin-top:20px;"><canvas id="annualReportChart"></canvas></div>
+            </div>
+            <div class="card" style="max-width:1000px; margin: 16px auto 0;">
+                <div class="table-container">
+                    <table id="annualReportTable">
+                        <thead><tr><th><i class="fas fa-calendar-week"></i> ខែ</th><th><i class="fas fa-file-alt"></i> ចំនួនកម្ចី</th><th><i class="fas fa-money-bill-wave"></i> ប្រាក់ដើមសរុប</th><th><i class="fas fa-hand-holding-usd"></i> ការប្រាក់</th><th><i class="fas fa-exclamation-triangle"></i> ការប្រាក់យឺត</th><th><i class="fas fa-concierge-bell"></i> សេវា</th><th><i class="fas fa-wallet"></i> ចំណូលសរុប</th></tr></thead>
+                        <tbody id="annualReportTableBody"></tbody>
+                        <tfoot>
+                            <tr class="summary-row">
+                                <td><i class="fas fa-calculator"></i> សរុប</td>
+                                <td id="annualLoanCount" class="right"></td><td id="annualLoanAmount" class="right"></td>
+                                <td id="annualInterest" class="right"></td><td id="annualLate" class="right"></td>
+                                <td id="annualService" class="right"></td><td id="annualTotal" class="right"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="plReportSubTab" class="sub-tab-content">
+            <div class="card" style="max-width:800px; margin:0 auto;">
+                 <h3><i class="fas fa-balance-scale"></i> របាយការណ៍ចំណេញ និងខាត</h3>
+                 <div class="grid autofit">
+                     <div><label for="plStartDate"><i class="fas fa-calendar-minus"></i> ចាប់ពីថ្ងៃ</label><input type="date" id="plStartDate" /></div>
+                     <div><label for="plEndDate"><i class="fas fa-calendar-plus"></i> ដល់ថ្ងៃ</label><input type="date" id="plEndDate" /></div>
+                     <div style="align-self:end;"><button id="generatePlBtn" class="btn"><i class="fas fa-calculator"></i> គណនា</button></div>
+                 </div>
+                 <div id="plReportResult" style="margin-top:20px; display:none;">
+                     <div class="summary-grid">
+                        <div class="pl-section-header pl-income" style="grid-column: 1 / -1; font-weight: bold;"><i class="fas fa-arrow-down" style="color:var(--success)"></i> ចំណូល</div>
+                        <div><i class="fas fa-hand-holding-usd"></i> ចំណូលពីការប្រាក់</div><div class="right" id="plIncomeInterest"></div>
+                        <div><i class="fas fa-exclamation-triangle"></i> ចំណូលពីការប្រាក់យឺត</div><div class="right" id="plIncomeLate"></div>
+                        <div><i class="fas fa-exclamation-circle"></i> ចំណូលពីការផាកពិន័យ</div><div class="right" id="plIncomePenalty"></div>
+                        <div><i class="fas fa-concierge-bell"></i> ចំណូលពីសេវាកម្ម</div><div class="right" id="plIncomeService"></div>
+                        <div style="font-weight:bold; background: var(--input-bg);">សរុបចំណូល</div><div class="right" style="background: var(--input-bg);" id="plTotalIncome"></div>
+                        
+                        <div class="pl-section-header pl-expense" style="grid-column: 1 / -1; font-weight: bold;"><i class="fas fa-arrow-up" style="color:var(--danger)"></i> ចំណាយ</div>
+                        <div><i class="fas fa-wallet"></i> ចំណាយប្រតិបត្តិការសរុប</div><div class="right" id="plTotalExpenses"></div>
+
+                        <div style="grid-column: 1 / -1; border-top: 2px solid var(--thead); font-size: 1.1em; font-weight:bold;">លទ្ធផលចំណេញ/ខាត</div>
+                        <div style="font-weight:bold;">ចំណេញ/ខាត សរុប</div><div class="right" id="plNetResult"></div>
+                     </div>
+                 </div>
+            </div>
+        </div>
+    </div>
+    <div id="mapTab" class="tab-content">
+        <div class="card">
+            <div id="map" style="height: 600px; width: 100%;"></div>
+        </div>
+    </div>
+    <div id="analysisTab" class="tab-content">
+        <div class="dashboard-cards" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+            <div class="dashboard-card"><h3><i class="fas fa-dollar-sign"></i> ទំហំកម្ចីជាមធ្យម</h3><div class="value" id="avgLoanAmount">0.00</div></div>
+            <div class="dashboard-card"><h3><i class="fas fa-percent"></i> អត្រាការប្រាក់ជាមធ្យម</h3><div class="value" id="avgInterestRate">0.00%</div></div>
+            <div class="dashboard-card"><h3><i class="fas fa-clock"></i> រយៈពេលកម្ចីជាមធ្យម</h3><div class="value" id="avgLoanTerm">0 ខែ</div></div>
+        </div>
+        <div class="analysis-grid">
+            <div class="card"><h4><i class="fas fa-tasks"></i> ស្ថានភាពផលប័ត្រសកម្ម</h4><div class="chart-container"><canvas id="loanStatusChart"></canvas></div></div>
+            <div class="card"><h4><i class="fas fa-map-marked-alt"></i> ផលប័ត្រសកម្មតាមខេត្ត</h4><div class="chart-container"><canvas id="loansByProvinceChart"></canvas></div></div>
+            <div class="card" style="grid-column: 1 / -1;"><h4><i class="fas fa-chart-line"></i> និន្នាការបញ្ចេញកម្ចី (12 ខែចុងក្រោយ)</h4><div class="chart-container" style="height: 350px;"><canvas id="monthlyTrendsChart"></canvas></div></div>
+            <div class="card">
+                <h4><i class="fas fa-user-tie"></i> លទ្ធផលការងារមន្ត្រីឥណទាន (ផលប័ត្រសកម្ម)</h4>
+                <div class="table-container">
+                    <table id="officerPerformanceTable">
+                        <thead><tr><th><i class="fas fa-user"></i> ឈ្មោះមន្ត្រី</th><th><i class="fas fa-file-alt"></i> ចំនួនកម្ចី</th><th><i class="fas fa-wallet"></i> ប្រាក់ដើមសរុប</th><th><i class="fas fa-exclamation-triangle"></i> អត្រាយឺតយ៉ាវ (%)</th></tr></thead>
+                        <tbody id="officerPerformanceBody"></tbody>
+                        <tfoot id="officerPerformanceFoot"></tfoot>
+                    </table>
+                </div>
+            </div>
+            <div class="card" id="parReportCard">
+                <h4><i class="fas fa-exclamation-triangle"></i> របាយការណ៍ផលប័ត្រមានហានិភ័យ (PAR)</h4>
+                <div id="par-content"></div>
+            </div>
+        </div>
+    </div>
+    <div id="expensesTab" class="tab-content">
+         <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px; max-width: 1200px; margin: 0 auto;">
+             <div>
+                <form id="expenseForm" class="card">
+                    <h4 id="expenseFormTitle"><i class="fas fa-plus-circle"></i> បន្ថែមចំណាយថ្មី</h4>
+                    <input type="hidden" id="expenseId" />
+                    <div><label for="expenseDate"><i class="fas fa-calendar-alt"></i> កាលបរិច្ឆេទ</label><input type="date" id="expenseDate" required /></div>
+                    <div style="margin-top:10px;"><label for="expenseCategory"><i class="fas fa-tags"></i> ប្រភេទ</label><select id="expenseCategory" required></select></div>
+                    <div style="margin-top:10px;"><label for="expenseDescription"><i class="fas fa-file-alt"></i> ការពិពណ៌នា</label><textarea id="expenseDescription" rows="3" required></textarea></div>
+                    <div class="grid autofit" style="margin-top:10px;">
+                        <div><label for="expenseAmount"><i class="fas fa-dollar-sign"></i> ចំនួនទឹកប្រាក់</label><input type="number" inputmode="decimal" id="expenseAmount" min="0.01" step="0.01" required /></div>
+                        <div><label for="expenseCurrency"><i class="fas fa-money-bill"></i> រូបិយប័ណ្ណ</label><select id="expenseCurrency"><option value="USD">USD</option><option value="KHR">KHR</option></select></div>
+                    </div>
+                    <div style="margin-top:20px;">
+                        <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> រក្សាទុក</button>
+                        <button type="button" class="btn btn-muted" onclick="clearExpenseForm()"><i class="fas fa-eraser"></i> សម្អាត</button>
+                    </div>
+                </form>
+             </div>
+             <div>
+                <div class="card">
+                    <h4><i class="fas fa-list-ul"></i> បញ្ជីចំណាយ</h4>
+                    <div class="table-container">
+                        <table id="expensesTable">
+                            <thead><tr><th><i class="fas fa-calendar-day"></i> កាលបរិច្ឆេទ</th><th><i class="fas fa-tags"></i> ប្រភេទ</th><th><i class="fas fa-file-alt"></i> ការពិពណ៌នា</th><th><i class="fas fa-dollar-sign"></i> ចំនួនទឹកប្រាក់</th><th><i class="fas fa-user-edit"></i> អ្នកប្រើប្រាស់</th><th><i class="fas fa-cogs"></i> សកម្មភាព</th></tr></thead>
+                            <tbody id="expensesTableBody"></tbody>
+                             <tfoot>
+                                <tr class="summary-row">
+                                    <td colspan="3"><i class="fas fa-calculator"></i> សរុប</td>
+                                    <td class="right" id="totalExpenses"></td>
+                                    <td colspan="2"></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+             </div>
+         </div>
+    </div>
+    <div id="savingsTab" class="tab-content">
+        <form id="savingsAccountForm" class="card" style="max-width:1000px;margin:0 auto 16px;">
+            <h4 id="savingsFormTitle" style="text-align:left; justify-content:flex-start;"><i class="fas fa-piggy-bank"></i> គណនីសន្សំថ្មី</h4>
+            <div class="grid autofit">
+                <div><label for="savingsAccountId"><i class="fas fa-id-card"></i> លេខគណនី</label><input id="savingsAccountId" type="text" placeholder="Generated Automatically" readonly/></div>
+                <div><label for="savingsCustomerName"><i class="fas fa-user"></i> ឈ្មោះអតិថិជន</label><input id="savingsCustomerName" type="text" required/></div>
+                <div><label for="savingsCustomerPhone"><i class="fas fa-phone"></i> លេខទូរសព្ទ</label><input id="savingsCustomerPhone" type="text"/></div>
+                <div><label for="savingsCurrency"><i class="fas fa-money-bill"></i> រូបិយប័ណ្ណ</label><select id="savingsCurrency"><option value="KHR">រៀល (៛)</option><option value="USD">ដុល្លារ ($)</option></select></div>
+                <div><label for="savingsStartDate"><i class="fas fa-calendar-alt"></i> ថ្ងៃចាប់ផ្តើម</label><input id="savingsStartDate" type="date" required/></div>
+                <div><label for="savingsGoalAmount"><i class="fas fa-bullseye"></i> គោលដៅសន្សំ</label><input id="savingsGoalAmount" type="number" inputmode="decimal" min="1" step="0.01" required/></div>
+                <div><label for="savingsMonthlyAmount"><i class="fas fa-coins"></i> សន្សំប្រចាំខែ</label><input id="savingsMonthlyAmount" type="number" inputmode="decimal" min="0.01" step="0.01" required/></div>
+                <div><label><i class="fas fa-clock"></i> រយៈពេលប៉ាន់ស្មាន (ខែ)</label><input id="savingsEstimatedTerm" type="text" readonly/></div>
+                <div><label for="savingsInterestType"><i class="fas fa-percentage"></i> ការប្រាក់</label><select id="savingsInterestType"><option value="none">គ្មានការប្រាក់</option><option value="monthly">ប្រចាំខែ</option><option value="annual">ប្រចាំឆ្នាំ</option></select></div>
+                <div id="savingsInterestRateWrap" style="display:none"><label for="savingsInterestRate"><i class="fas fa-percent"></i> អត្រាការប្រាក់ (%)</label><input id="savingsInterestRate" type="number" inputmode="decimal" min="0" step="0.01" value="0"/></div>
+                <div id="savingsTaxRateWrap" style="display:none"><label for="savingsTaxRate"><i class="fas fa-file-invoice-dollar"></i> កាត់ពន្ធលើការប្រាក់ (%)</label><input id="savingsTaxRate" type="number" inputmode="decimal" min="0" max="100" step="0.01" value="0"/></div>
+                <div><label for="savingsHasMembershipFee"><i class="fas fa-user-plus"></i> ប្រាក់ចូលរួមមុន</label><select id="savingsHasMembershipFee"><option value="no">មិនមាន</option><option value="yes">មាន</option></select></div>
+                <div id="savingsMembershipFeeAmountWrap" style="display:none"><label for="savingsMembershipFeeAmount"><i class="fas fa-hand-holding-usd"></i> ចំនួនប្រាក់ចូលរួម</label><input id="savingsMembershipFeeAmount" type="number" inputmode="decimal" min="0" step="0.01" value="0"/></div>
+                <div style="grid-column: 1 / -1;"><label for="savingsNotes"><i class="fas fa-sticky-note"></i> កំណត់ចំណាំ</label><textarea id="savingsNotes" rows="2"></textarea></div>
+            </div>
+            <div style="margin-top:15px;">
+                <button type="submit" id="saveSavingsBtn" class="btn btn-success"><i class="fas fa-save"></i> រក្សាទុក</button>
+                <button type="button" id="resetSavingsForm" class="btn btn-muted" style="margin-left:8px" onclick="clearSavingsForm()"><i class="fas fa-eraser"></i> សម្អាតទម្រង់</button>
+                <button type="button" id="withdrawSavingsBtn" class="btn btn-warning" style="margin-left:8px;display:none;" onclick="openSavingsWithdrawModal()"><i class="fas fa-hand-holding-usd"></i> ដកប្រាក់</button>
+                <button type="button" id="closeSavingsBtn" class="btn btn-danger" style="margin-left:8px;display:none;" onclick="closeSavingsAccount()"><i class="fas fa-times-circle"></i> បិទគណនី</button>
+            </div>
+        </form>
+
+        <h3><i class="fas fa-table"></i> បញ្ជីគណនីសន្សំ</h3>
+        <div class="table-container"><table id="savingsAccountsTable">
+            <thead><tr><th><i class="fas fa-hashtag"></i> ល.រ</th><th><i class="fas fa-id-card"></i> លេខគណនី</th><th><i class="fas fa-user"></i> ឈ្មោះអតិថិជន</th><th><i class="fas fa-phone"></i> លេខទូរសព្ទ</th><th><i class="fas fa-bullseye"></i> គោលដៅ</th><th><i class="fas fa-coins"></i> សន្សំប្រចាំខែ</th><th><i class="fas fa-clock"></i> រយៈពេល (ខែ)</th><th><i class="fas fa-piggy-bank"></i> សន្សំបានហើយ</th><th><i class="fas fa-percentage"></i> ការប្រាក់</th><th><i class="fas fa-tasks"></i> ស្ថានភាព</th><th><i class="fas fa-cogs"></i> សកម្មភាព</th></tr></thead>
+            <tbody id="savingsAccountsTableBody"></tbody>
+        </table></div>
+
+        <h3><i class="fas fa-calendar-alt"></i> តារាងសន្សំ</h3>
+        <div class="table-container"><table id="savingsScheduleTable">
+            <thead><tr><th><i class="fas fa-hashtag"></i> លេខរៀង</th><th><i class="fas fa-calendar-alt"></i> ថ្ងៃ-ខែ-ឆ្នាំ</th><th><i class="fas fa-coins"></i> ប្រាក់សន្សំ</th><th><i class="fas fa-wallet"></i> បានបង់</th><th><i class="fas fa-wallet"></i> នៅសល់</th><th><i class="fas fa-piggy-bank"></i> សរុប</th><th><i class="fas fa-percentage"></i> ការប្រាក់</th><th><i class="fas fa-file-invoice-dollar"></i> ពន្ធ</th><th><i class="fas fa-hand-holding-usd"></i> ការប្រាក់សុទ្ធ</th><th><i class="fas fa-tasks"></i> ស្ថានភាព</th><th><i class="fas fa-cogs"></i> សកម្មភាព</th></tr></thead>
+            <tbody id="savingsScheduleTableBody"></tbody>
+        </table></div>
+        <div style="max-width:1000px;margin:10px auto;text-align:center">
+            <button id="printSavingsScheduleBtn" class="btn" onclick="printSavingsSchedule()"><i class="fas fa-print"></i> បោះពុម្ពសៀវភៅសន្សំ</button>
+            <button id="exportSavingsScheduleBtn" class="btn btn-info" onclick="exportSavingsScheduleToExcel()"><i class="fas fa-file-excel"></i> នាំចេញទៅ Excel</button>
+        </div>
+
+        <div class="card" style="max-width: 1000px; margin: 16px auto 0 auto;">
+            <h3><i class="fas fa-calculator"></i> របាយការណ៍សរុប</h3>
+            <div class="summary-grid">
+                <div><i class="fas fa-bullseye"></i> គោលដៅសន្សំ</div><div class="right" id="savingsSummaryGoal">0.00</div>
+                <div><i class="fas fa-piggy-bank"></i> សន្សំបានហើយ</div><div class="right" id="savingsSummarySaved">0.00</div>
+                <div><i class="fas fa-hand-holding-usd"></i> ដកប្រាក់សរុប</div><div class="right" id="savingsSummaryWithdrawn">0.00</div>
+                <div><i class="fas fa-hourglass-half"></i> នៅសល់ត្រូវសន្សំ</div><div class="right" id="savingsSummaryRemaining">0.00</div>
+                <div><i class="fas fa-check-circle"></i> បង់រួច</div><div class="right" id="savingsSummaryPaidCount">0</div>
+                <div><i class="fas fa-times-circle"></i> មិនទាន់បង់</div><div class="right" id="savingsSummaryUnpaidCount">0</div>
+                <div><i class="fas fa-percentage"></i> ការប្រាក់សរុប</div><div class="right" id="savingsSummaryInterest">0.00</div>
+                <div><i class="fas fa-file-invoice-dollar"></i> ពន្ធកាត់សរុប</div><div class="right" id="savingsSummaryTax">0.00</div>
+                <div><i class="fas fa-hand-holding-usd"></i> ការប្រាក់សុទ្ធសរុប</div><div class="right" id="savingsSummaryNetInterest">0.00</div>
+                <div><i class="fas fa-user-plus"></i> ប្រាក់ចូលរួមមុន</div><div class="right" id="savingsSummaryMembershipFee">-</div>
+            </div>
+        </div>
+    </div>
+    <div id="adminTab" class="tab-content">
+        <div class="sub-tabs">
+            <div class="sub-tab active" onclick="switchSubTab('admin', 'users')"><i class="fas fa-users-cog"></i> ការគ្រប់គ្រងអ្នកប្រើប្រាស់</div>
+            <div class="sub-tab" onclick="switchSubTab('admin', 'system')"><i class="fas fa-database"></i> ទិន្នន័យប្រព័ន្ធ</div>
+            <div class="sub-tab" onclick="switchSubTab('admin', 'holidays')"><i class="fas fa-calendar-times"></i> ការគ្រប់គ្រងថ្ងៃឈប់</div>
+            <div class="sub-tab" onclick="switchSubTab('admin', 'loanProducts')"><i class="fas fa-box-open"></i> ប្រភេទផលិតផលកម្ចី</div>
+            <div class="sub-tab" onclick="switchSubTab('admin', 'settings')"><i class="fas fa-cogs"></i> ការកំណត់ផ្សេងៗ</div>
+        </div>
+
+        <div id="usersSubTab" class="sub-tab-content active">
+             <div class="card" id="userFormCard" style="display:none; max-width: 800px; margin: 0 auto 16px;">
+                <h4 id="userFormTitle"></h4>
+                <input type="hidden" id="editUsername" />
+                <div style="display: flex; gap: 20px;">
+                    <div style="flex-shrink: 0; text-align: center;">
+                        <img id="avatarPreview" src="" class="avatar" style="width: 100px; height: 100px; margin-bottom: 10px; cursor:pointer;" onclick="document.getElementById('userAvatarInput').click()">
+                        <input type="file" id="userAvatarInput" accept="image/*" style="display:none;" />
+                        <label for="userAvatarInput" class="btn btn-sm btn-info">Change Avatar</label>
+                    </div>
+                    <div style="flex-grow: 1;">
+                        <div id="newUserAuthHint" class="backup-reminder" style="display:none; margin-bottom:12px; font-size:0.9em;">
+                            <i class="fas fa-info-circle"></i> គណនីចូលប្រព័ន្ធ (Email/Password) និងទិន្នន័យតួនាទីនឹងត្រូវបានបង្កើតដោយស្វ័យប្រវត្តិ — មិនចាំបាច់ចូល <b>Supabase Dashboard</b> ទៀតទេ។ សូមកត់ត្រា/ចម្លងពាក្យសម្ងាត់ខាងក្រោមទុកជូនអ្នកប្រើប្រាស់ថ្មី។
+                        </div>
+                        <div class="grid autofit">
+                            <div><label for="newUsername"><i class="fas fa-user"></i> ឈ្មោះអ្នកប្រើ (មិនរួម @lms.local)</label><input id="newUsername" /></div>
+                            <div><label for="newFullName"><i class="fas fa-id-card-alt"></i> ឈ្មោះពេញ</label><input id="newFullName" /></div>
+                            <div id="newUserPasswordField">
+                                <label for="newUserPassword"><i class="fas fa-key"></i> ពាក្យសម្ងាត់ចូលប្រព័ន្ធ (យ៉ាងតិច 6 តួ)</label>
+                                <div style="display:flex; gap:6px;">
+                                    <input type="password" id="newUserPassword" minlength="6" style="flex:1;" placeholder="បញ្ចូល ឬ ចុចប៊ូតុងបង្កើត" />
+                                    <button type="button" class="btn btn-info btn-sm" onclick="generateNewUserPassword()" title="បង្កើតដោយស្វ័យប្រវត្តិ"><i class="fas fa-dice"></i></button>
+                                    <button type="button" class="btn btn-muted btn-sm" onclick="toggleNewUserPasswordVisibility()" title="បង្ហាញ/លាក់"><i class="fas fa-eye"></i></button>
+                                </div>
+                            </div>
+                            <input type="hidden" id="newUid" />
+                            <div><label for="newPin"><i class="fas fa-shield-alt"></i> PIN (4 ខ្ទង់ សម្រាប់ Lock Screen)</label><input id="newPin" maxlength="4" pattern="\d*" placeholder="1234" /></div>
+                            <div><label for="newRole"><i class="fas fa-user-tag"></i> តួនាទី</label><select id="newRole"><option value="admin">Admin</option><option value="manager">Manager</option><option value="officer">Officer</option><option value="viewer">Viewer</option></select></div>
+                            <div style="align-self: center;"><div class="form-check"><input type="checkbox" id="frozenAccount"><label for="frozenAccount">បង្កកគណនី</label></div></div>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top:20px; text-align:right;"><button class="btn btn-success" onclick="saveUser()"><i class="fas fa-save"></i> រក្សាទុក</button><button class="btn btn-muted" style="margin-left:8px;" onclick="hideUserForm()"><i class="fas fa-times"></i> បោះបង់</button></div>
+            </div>
+            <div class="card" style="max-width: 1000px; margin: 0 auto;">
+                <div style="text-align:right; margin-bottom:12px;"><button class="btn btn-primary" onclick="showUserForm()"><i class="fas fa-user-plus"></i> បន្ថែមអ្នកប្រើប្រាស់ថ្មី</button></div>
+                <div class="table-container"><table id="usersTable">
+                    <thead><tr><th>Avatar</th><th><i class="fas fa-hashtag"></i> #</th><th><i class="fas fa-user"></i> ឈ្មោះអ្នកប្រើ</th><th><i class="fas fa-id-card-alt"></i> ឈ្មោះពេញ</th><th><i class="fas fa-user-tag"></i> តួនាទី</th><th><i class="fas fa-toggle-on"></i> ស្ថានភាព</th><th><i class="fas fa-cogs"></i> សកម្មភាព</th></tr></thead>
+                    <tbody id="usersTableBody"></tbody>
+                </table></div>
+            </div>
+        </div>
+        
+        <div id="systemSubTab" class="sub-tab-content">
+            <div class="card" style="max-width:800px; margin:0 auto;">
+                <h4><i class="fas fa-database"></i> នាំចេញ / នាំចូលទិន្នន័យ (JSON)</h4>
+                <p>ទិន្នន័យទាំងអស់រក្សាទុកនៅលើ Cloud Database (Supabase) ដោយស្វ័យប្រវត្តិរួចហើយ។ ការនាំចេញ JSON ខាងក្រោមគឺសម្រាប់ទុកជាច្បាប់ចម្លងផ្ទាល់ខ្លួនប៉ុណ្ណោះ។</p>
+                <button class="btn btn-success" onclick="backupData()"><i class="fas fa-download"></i> នាំចេញទិន្នន័យទាំងអស់ (JSON)</button>
+                <hr style="margin: 20px 0;">
+                <p>នាំចូលទិន្នន័យពីឯកសារ JSON ត្រឡប់ទៅ Cloud វិញ។ <strong>ការព្រមាន:</strong> វានឹងសរសេរជាន់លើទិន្នន័យលើ Cloud ដែលមានស្រាប់ទាំងអស់។</p>
+                <label for="restoreFile" class="btn btn-danger"><i class="fas fa-upload"></i> ជ្រើសរើសឯកសារដើម្បីនាំចូល</label>
+                <input type="file" id="restoreFile" onchange="restoreData(event)" accept=".json" style="display:none;">
+                 <hr style="margin: 20px 0;">
+                 <h4><i class="fas fa-file-csv"></i> នាំចូល/នាំចេញ CSV</h4>
+                 <p>នាំចូលកម្ចីច្រើនពីឯកសារ CSV។</p>
+                 <button class="btn btn-info" onclick="downloadCSVTemplate()"><i class="fas fa-file-alt"></i> ទាញយកគំរូ CSV</button>
+                 <label for="importFile" class="btn btn-primary" style="margin-left: 8px;"><i class="fas fa-upload"></i> នាំចូលកម្ចីពី CSV</label>
+                 <input type="file" id="importFile" onchange="importLoansFromCSV(event)" accept=".csv" style="display:none;">
+                 <button class="btn btn-success" style="margin-left: 8px;" onclick="exportAllLoansToCSV()"><i class="fas fa-file-download"></i> នាំចេញកម្ចីទាំងអស់ទៅ CSV</button>
+                 <hr style="margin: 20px 0;">
+                 <h4><i class="fas fa-cloud"></i> ការតភ្ជាប់ Cloud Database (Supabase) និង ជូនដំណឹង Telegram</h4>
+                 <p>URL/Key ខាងក្រោមប្រាប់ browser នេះថាតើត្រូវភ្ជាប់ទៅ Supabase Project មួយណា — ទិន្នន័យទាំងអស់ (កម្ចី, អតិថិជន, ។ល។) រស់នៅទីនោះទាំងស្រុង។ ព្រមទាំងទទួលការជូនដំណឹងតាម Telegram។</p>
+                 <div id="cloudSyncStatusText" style="margin-bottom:12px; font-size:14px;"></div>
+                 <div class="grid autofit">
+                     <div><label for="cloudSupabaseUrl"><i class="fas fa-link"></i> Supabase Project URL</label><input id="cloudSupabaseUrl" placeholder="https://xxxxxxxx.supabase.co" /></div>
+                     <div><label for="cloudSupabaseKey"><i class="fas fa-key"></i> Supabase API Key (anon — មិនត្រូវប្រើ service_role key ទេ)</label><input type="password" id="cloudSupabaseKey" placeholder="eyJhbGciOi..." /></div>
+                 </div>
+                 <div style="margin-top:10px;">
+                    <button class="btn btn-info btn-sm" onclick="testSupabaseConnection()"><i class="fas fa-plug"></i> សាកល្បងតភ្ជាប់ Supabase</button>
+                 </div>
+                 <div class="grid autofit" style="margin-top:16px;">
+                     <div><label for="cloudTelegramToken"><i class="fab fa-telegram"></i> Telegram Bot Token</label><input type="password" id="cloudTelegramToken" placeholder="123456:ABC-DEF..." /></div>
+                     <div><label for="cloudTelegramChatId"><i class="fas fa-comment"></i> Telegram Chat ID</label><input id="cloudTelegramChatId" placeholder="-100123456789" /></div>
+                     <div style="align-self:center;"><label class="form-check"><input type="checkbox" id="cloudTelegramEnabled"> <i class="fas fa-bell"></i> បើកការជូនដំណឹង Telegram</label></div>
+                 </div>
+                 <div style="margin-top:10px;">
+                    <button class="btn btn-info btn-sm" onclick="testTelegramConnection()"><i class="fas fa-paper-plane"></i> ផ្ញើសារសាកល្បង Telegram</button>
+                 </div>
+                 <div style="margin-top:16px; text-align:right;">
+                    <button class="btn btn-primary" onclick="saveCloudSettingsFromForm()"><i class="fas fa-save"></i> រក្សាទុកការកំណត់</button>
+                 </div>
+                 <hr style="margin: 20px 0;">
+                 <h4><i class="fas fa-power-off"></i> ផ្ដាច់ Browser នេះចេញពី Cloud</h4>
+                 <p style="color: var(--danger);"><strong>ចំណាំ:</strong> នេះលុបតែការកំណត់ Supabase URL/Key និង Session នៅលើ browser នេះប៉ុណ្ណោះ — ទិន្នន័យពិតនៅលើ Cloud មិនត្រូវបានប៉ះពាល់ទេ។ ដើម្បីលុបទិន្នន័យពិត សូមប្រើ Supabase Dashboard។</p>
+                 <button class="btn btn-danger" onclick="hardResetApplication()"><i class="fas fa-exclamation-triangle"></i> Disconnect This Browser</button>
+            </div>
+        </div>
+        <div id="holidaysSubTab" class="sub-tab-content">
+            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px; max-width: 1000px; margin: 0 auto;">
+                <form id="holidayForm" class="card">
+                    <h4><i class="fas fa-plus-circle"></i> បន្ថែមថ្ងៃឈប់</h4>
+                    <input type="hidden" id="holidayId"/>
+                    <div><label for="holidayDate"><i class="fas fa-calendar-alt"></i> កាលបរិច្ឆេទ</label><input type="date" id="holidayDate" required/></div>
+                    <div style="margin-top:10px;"><label for="holidayName"><i class="fas fa-tag"></i> ឈ្មោះថ្ងៃឈប់</label><input id="holidayName" required/></div>
+                    <div style="margin-top:20px;"><button type="submit" class="btn btn-success"><i class="fas fa-save"></i> រក្សាទុក</button> <button type="button" class="btn btn-muted" onclick="clearHolidayForm()"><i class="fas fa-eraser"></i> សម្អាត</button></div>
+                </form>
+                <div class="card">
+                    <h4><i class="fas fa-calendar-alt"></i> បញ្ជីថ្ងៃឈប់</h4>
+                    <div class="table-container" style="max-height: 400px;">
+                        <table id="holidaysTable">
+                            <thead><tr><th><i class="fas fa-calendar-day"></i> កាលបរិច្ឆេទ</th><th><i class="fas fa-tag"></i> ឈ្មោះ</th><th><i class="fas fa-cogs"></i> សកម្មភាព</th></tr></thead>
+                            <tbody id="holidaysTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="loanProductsSubTab" class="sub-tab-content">
+            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px; max-width: 1000px; margin: 0 auto;">
+                <form id="loanProductForm" class="card">
+                    <h4><i class="fas fa-box-open"></i> បន្ថែមប្រភេទផលិតផល</h4>
+                    <div><label for="productName"><i class="fas fa-tag"></i> ឈ្មោះផលិតផល</label><input id="productName" required/></div>
+                    <div style="margin-top:10px;"><label for="productInterestRate"><i class="fas fa-percent"></i> អត្រាការប្រាក់ (%)</label><input type="number" inputmode="decimal" step="0.1" id="productInterestRate" required/></div>
+                    <div style="margin-top:10px;"><label for="productLoanTerm"><i class="fas fa-clock"></i> រយៈពេល (ខែ)</label><input type="number" inputmode="decimal" id="productLoanTerm" required/></div>
+                    <div style="margin-top:10px;"><label for="productPaymentMethod"><i class="fas fa-credit-card"></i> វិធីបង់</label><select id="productPaymentMethod"><option value="annuity">Annuity</option><option value="equal-principal">Equal Principal</option></select></div>
+                    <div style="margin-top:20px;"><button type="submit" class="btn btn-success"><i class="fas fa-save"></i> រក្សាទុក</button></div>
+                </form>
+                <div class="card">
+                    <h4><i class="fas fa-list"></i> បញ្ជីប្រភេទផលិតផល</h4>
+                    <div class="table-container" style="max-height: 400px;">
+                        <table id="loanProductsTable">
+                            <thead><tr><th><i class="fas fa-tag"></i> ឈ្មោះ</th><th><i class="fas fa-percent"></i> អត្រាការប្រាក់</th><th><i class="fas fa-clock"></i> រយៈពេល</th><th><i class="fas fa-credit-card"></i> វិធីបង់</th><th><i class="fas fa-cogs"></i> សកម្មភាព</th></tr></thead>
+                            <tbody id="loanProductsTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="settingsSubTab" class="sub-tab-content">
+            <div class="analysis-grid">
+                <div class="card">
+                    <h4><i class="fas fa-tags"></i> ប្រភេទចំណាយ</h4>
+                    <form id="expenseCategoryForm" style="display:flex; gap: 8px; margin-bottom: 12px;">
+                        <input id="expenseCategoryName" placeholder="ឈ្មោះប្រភេទថ្មី" style="flex-grow:1;"/>
+                        <button type="submit" class="btn btn-info"><i class="fas fa-plus"></i> បន្ថែម</button>
+                    </form>
+                    <div id="expenseCategoryList"></div>
+                </div>
+                 <div class="card">
+                    <h4><i class="fas fa-comment-dots"></i> គំរូសារ</h4>
+                    <div id="messageTemplateList" style="margin-bottom: 15px;"></div>
+                    <form id="messageTemplateForm">
+                        <h5><i class="fas fa-edit"></i> កែប្រែ/បន្ថែមគំរូ</h5>
+                        <input type="hidden" id="templateId"/>
+                        <label><i class="fas fa-tag"></i> ឈ្មោះគំរូ</label><input id="templateName" required />
+                        <label style="margin-top:8px;"><i class="fas fa-file-alt"></i> ខ្លឹមសារ</label><textarea id="templateContent" rows="4" required></textarea>
+                        <small>Placeholders: [CustomerName], [LoanID], [DueDate], [RemainingAmount], [InstallmentNumber]</small>
+                        <div style="margin-top:10px;"><button type="submit" class="btn btn-success"><i class="fas fa-save"></i> រក្សាទុកគំរូ</button> <button type="button" class="btn btn-muted" onclick="clearTemplateForm()"><i class="fas fa-eraser"></i> សម្អាត</button></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="aboutTab" class="tab-content">
+        <div class="about-container">
+            <h3 class="about-title"><i class="fas fa-info-circle"></i> អំពីប្រព័ន្ធ (About System)</h3>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <h4><i class="fas fa-rocket blue"></i> ប្រសិទ្ធភាពការងារកើនឡើង</h4>
+                    <p>ប្រព័ន្ធនេះជួយសម្រួលដល់ការងារប្រចាំថ្ងៃ ដោយធ្វើការគណនាដោយស្វ័យប្រវត្តិ និងប្រមូលផ្តុំទិន្នន័យទាំងអស់នៅកន្លែងតែមួយ។ លោកអ្នកអាចមើលទិន្នន័យអតិថិជន និងបោះពុម្ពតារាងបានភ្លាមៗ ដោយមិនចាំបាច់ចំណាយពេលស្វែងរកក្នុងឯកសារច្រើន។</p>
+                </div>
+                <div class="feature-card">
+                    <h4><i class="fas fa-shield-alt red"></i> កាត់បន្ថយហានិភ័យ</h4>
+                    <p>កាត់បន្ថយហានិភ័យក្នុងការគណនាខុស, តាមដានការបង់ប្រាក់យឺតយ៉ាវ, ហើយប្រព័ន្ធនឹងជួយរំលឹកដល់កម្ចីដែលជិតដល់ថ្ងៃផុតកំណត់។ លើសពីនេះ, មុខងារកំណត់សិទ្ធិអ្នកប្រើប្រាស់ជួយការពារការកែប្រែទិន្នន័យដោយគ្មានការអនុញ្ញាត។</p>
+                </div>
+                <div class="feature-card">
+                    <h4><i class="fas fa-smile-beam green"></i> បទពិសោធន៍អតិថិជនកាន់តែប្រសើរ</h4>
+                    <p>ផ្តល់សេវាកម្មដល់អតិថិជនបានកាន់តែលឿន និងត្រឹមត្រូវ, តាមរយៈការចូលមើលទិន្នន័យបានភ្លាមៗ, បោះពុម្ពបង្កាន់ដៃច្បាស់លាស់, និងឆ្លើយតបទៅនឹងសំណួរអំពីសមតុល្យដែលនៅសល់បានភ្លាមៗ។</p>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top: 30px;">
+                <h4 style="text-align: left; justify-content: flex-start;"><i class="fas fa-question-circle"></i> សំណួរញឹកញាប់ (FAQ)</h4>
+                <ul style="padding-left: 20px; line-height: 1.8;">
+                    <li>
+                        <strong>តើកាលបរិច្ឆេទបង់ប្រចាំខែគួរកំណត់ធ្វើដូចម្តេច?</strong>
+                        <p style="margin: 5px 0 10px 0;">ប្រើ Fixed Day (1–28) ដើម្បីមានភាពថេរ និងជៀសវាងខែខ្វះថ្ងៃ។</p>
+                    </li>
+                    <li>
+                        <strong>តើអាចបោះពុម្ពតារាងបង់ប្រាក់បានទេ?</strong>
+                        <p style="margin: 5px 0 10px 0;">បាន—ចុច "បង្កាន់ដៃសរុបកម្ចី" ឬ "នាំចេញទៅ Excel" ដើម្បីទាញយក។</p>
+                    </li>
+                    <li>
+                        <strong>Refinance ខុសអ្វីពី Write‑Off?</strong>
+                        <p style="margin: 5px 0 10px 0;"><strong>Refinance:</strong> កែសម្រួលលក្ខខណ្ឌកម្ចី (រយៈពេល/អត្រា/ចំនួនបន្ថែម) ខណៈ <strong>Write‑Off:</strong> ជាការកត់ត្រាបំណុលមិនអាចសងបាន។</p>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="card" style="margin-top: 30px; text-align: center; line-height: 1.8;">
+                 <p style="margin: 5px 0;"><strong>Version:</strong> 4.0.2</p>
+                 <p style="margin: 5px 0;"><strong>បង្តើតដោយ (Created by):</strong> ហែម​ សុភក្ត៏ / Hem Sopheak</p>
+                 <p style="margin: 5px 0;"><i class="fab fa-telegram" style="color:#0088cc;"></i> <strong>Telegram:</strong> <a href="https://t.me/Samross_Ph_Care" target="_blank">https://t.me/Samross_Ph_Care</a></p>
+                 <p style="margin: 5px 0;"><i class="fas fa-phone-alt"></i> <strong>Phone:</strong> 096 666 7292 / 088 887 6150</p>
+                 <p style="margin: 5px 0;"><i class="fas fa-globe"></i> <strong>Website:</strong> .....</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="savingsDepositModal">
+      <div class="modal-content modal-lg">
+        <h4><i class="fas fa-piggy-bank"></i> គ្រប់គ្រងការដាក់ប្រាក់សន្សំ</h4>
+        <div class="summary-grid" style="margin-bottom: 16px;">
+            <div>លេខគណនី</div><div id="savingsModalAccountId"></div>
+            <div>ការដាក់ប្រាក់លើកទី</div><div id="savingsModalInstallment"></div>
+            <div>ថ្ងៃត្រូវដាក់</div><div id="savingsModalDueDate"></div>
+            <div>ត្រូវដាក់</div><div id="savingsModalAmount"></div>
+            <div>បានដាក់</div><div id="savingsModalPaidAmount"></div>
+            <div>នៅសល់</div><div id="savingsModalRemainingAmount" style="font-weight: bold; color: var(--danger);"></div>
+        </div>
+        <form id="addSavingsDepositForm" class="card" style="background: var(--input-bg);">
+            <h5><i class="fas fa-plus-circle"></i> បន្ថែមការដាក់ប្រាក់</h5>
+            <div class="grid autofit">
+                <div><label for="savingsDepositDate">កាលបរិច្ឆេទ</label><input type="date" id="savingsDepositDate" required /></div>
+                <div><label for="savingsDepositAmount">ចំនួនទឹកប្រាក់</label><input type="number" inputmode="decimal" step="0.01" id="savingsDepositAmount" required /></div>
+                <div style="grid-column: 1 / -1;"><label for="savingsDepositNote">កំណត់ចំណាំ</label><input type="text" id="savingsDepositNote" /></div>
+            </div>
+             <div class="modal-actions" style="margin-top:10px; padding-top:10px; border-top:1px solid #ddd"><button type="submit" class="btn btn-success">រក្សាទុកការដាក់ប្រាក់</button></div>
+        </form>
+        <h5 style="margin-top: 16px;">ប្រវត្តិការដាក់ប្រាក់សម្រាប់លើកនេះ</h5>
+        <div class="table-container" style="max-height: 200px;">
+            <table id="savingsDepositsTable">
+                <thead><tr><th>កាលបរិច្ឆេទ</th><th>ចំនួនទឹកប្រាក់</th><th>កំណត់ចំណាំ</th><th>ដោយ</th><th>សកម្មភាព</th></tr></thead>
+                <tbody id="savingsDepositsTableBody"></tbody>
+            </table>
+        </div>
+        <div class="modal-actions"><button class="btn btn-muted" onclick="closeSavingsDepositModal()">បិទ</button></div>
+      </div>
+    </div>
+
+    <div class="modal" id="savingsWithdrawModal">
+      <div class="modal-content modal-lg">
+        <h4><i class="fas fa-hand-holding-usd"></i> ដកប្រាក់ពីគណនីសន្សំ</h4>
+        <div class="summary-grid" style="margin-bottom: 16px;">
+            <div>លេខគណនី</div><div id="savingsWithdrawModalAccountId"></div>
+            <div>សន្សំបានហើយ (សុទ្ធ)</div><div id="savingsWithdrawModalBalance" style="font-weight: bold; color: var(--success);"></div>
+        </div>
+        <form id="addSavingsWithdrawForm" class="card" style="background: var(--input-bg);">
+            <h5><i class="fas fa-minus-circle"></i> បន្ថែមការដកប្រាក់</h5>
+            <div class="grid autofit">
+                <div><label for="savingsWithdrawDate">កាលបរិច្ឆេទ</label><input type="date" id="savingsWithdrawDate" required /></div>
+                <div><label for="savingsWithdrawAmount">ចំនួនទឹកប្រាក់</label><input type="number" inputmode="decimal" step="0.01" min="0.01" id="savingsWithdrawAmount" required /></div>
+                <div style="grid-column: 1 / -1;"><label for="savingsWithdrawNote">កំណត់ចំណាំ</label><input type="text" id="savingsWithdrawNote" /></div>
+            </div>
+             <div class="modal-actions" style="margin-top:10px; padding-top:10px; border-top:1px solid #ddd"><button type="submit" class="btn btn-danger">រក្សាទុកការដកប្រាក់</button></div>
+        </form>
+        <h5 style="margin-top: 16px;">ប្រវត្តិការដកប្រាក់</h5>
+        <div class="table-container" style="max-height: 200px;">
+            <table id="savingsWithdrawalsTable">
+                <thead><tr><th>កាលបរិច្ឆេទ</th><th>ចំនួនទឹកប្រាក់</th><th>កំណត់ចំណាំ</th><th>ដោយ</th><th>សកម្មភាព</th></tr></thead>
+                <tbody id="savingsWithdrawalsTableBody"></tbody>
+            </table>
+        </div>
+        <div class="modal-actions"><button class="btn btn-muted" onclick="closeSavingsWithdrawModal()">បិទ</button></div>
+      </div>
+    </div>
+
+    <!-- MODALS -->
+    <div class="modal" id="paymentModal">
+      <div class="modal-content modal-lg">
+        <h4><i class="fas fa-hand-holding-usd"></i> គ្រប់គ្រងការបង់ប្រាក់</h4>
+        <div class="summary-grid" style="margin-bottom: 16px;">
+            <div>លេខកម្ចី</div><div id="modalLoanId"></div>
+            <div>ការបង់លើកទី</div><div id="modalInstallment"></div>
+            <div>ថ្ងៃត្រូវបង់</div><div id="modalDueDate"></div>
+            <div>សរុបត្រូវបង់</div><div id="modalAmount"></div>
+            <div>បានបង់</div><div id="modalPaidAmount"></div>
+            <div>នៅសល់</div><div id="modalRemainingAmount" style="font-weight: bold; color: var(--danger);"></div>
+        </div>
+        <form id="addPartialPaymentForm" class="card" style="background: var(--input-bg);">
+            <h5><i class="fas fa-plus-circle"></i> បន្ថែមការបង់ប្រាក់</h5>
+            <div class="grid autofit">
+                <div><label for="partialPaymentDate">កាលបរិច្ឆេទ</label><input type="date" id="partialPaymentDate" required /></div>
+                <div><label for="partialPaymentAmount">ចំនួនទឹកប្រាក់</label><input type="number" inputmode="decimal" step="0.01" id="partialPaymentAmount" required /></div>
+                <div style="grid-column: 1 / -1;"><label for="partialPaymentNote">កំណត់ចំណាំ</label><input type="text" id="partialPaymentNote" /></div>
+            </div>
+             <div class="modal-actions" style="margin-top:10px; padding-top:10px; border-top:1px solid #ddd"><button type="submit" class="btn btn-success">រក្សាទុកការបង់ប្រាក់</button></div>
+        </form>
+        <h5 style="margin-top: 16px;">ប្រវត្តិការបង់ប្រាក់សម្រាប់ការបង់លើកនេះ</h5>
+        <div class="table-container" style="max-height: 200px;">
+            <table id="partialPaymentsTable">
+                <thead><tr><th>កាលបរិច្ឆេទ</th><th>ចំនួនទឹកប្រាក់</th><th>កំណត់ចំណាំ</th><th>ដោយ</th><th>សកម្មភាព</th></tr></thead>
+                <tbody id="partialPaymentsTableBody"></tbody>
+            </table>
+        </div>
+        <div class="modal-actions"><button class="btn btn-muted" onclick="closePaymentModal()">បិទ</button></div>
+      </div>
+    </div>
+    
+    <div class="modal" id="printOptionsModal">
+      <div class="modal-content" style="max-width:420px;">
+        <h4 style="text-align:center; margin-top:0;"><i class="fas fa-print"></i> ជ្រើសរើសរបៀបបោះពុម្ព</h4>
+        <p style="text-align:center; color:#888; font-size:13px; margin-top:-8px;">សូមជ្រើសរើសទំហំក្រដាស និងប្រភេទទិន្នន័យដែលអ្នកចង់បោះពុម្ព</p>
+        <div style="margin-bottom:16px;">
+          <label for="printPaperSize"><i class="fas fa-file-alt"></i> ទំហំក្រដាស</label>
+          <select id="printPaperSize" style="width:100%;">
+            <option value="a4">A4 (ទំហំធម្មតា)</option>
+            <option value="80mm">80mm (ម៉ាស៊ីនបោះពុម្ពបង្កាន់ដៃ)</option>
+          </select>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <button class="btn btn-info" style="width:100%;" onclick="printLoanSchedule('full')"><i class="fas fa-list"></i> បោះពុម្ពគ្រប់ទាំងអស់ (Full Schedule)</button>
+          <button class="btn btn-warning" style="width:100%;" onclick="printLoanSchedule('unpaid')"><i class="fas fa-hourglass-half"></i> បោះពុម្ពតែមិនទាន់បង់ (Unpaid Only)</button>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-muted" onclick="closePrintOptionsModal()">បិទ</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="receiptModal">
+      <div class="modal-content" id="receiptPrint">
+        <div style="text-align:center; border-bottom: 2px solid #333; padding-bottom:10px; margin-bottom:10px;">
+            <h4>បង្កាន់ដៃទទួលប្រាក់</h4>
+            <h5>Payment Receipt</h5>
+        </div>
+        <div class="summary-grid" style="grid-template-columns: 1fr 2fr;">
+            <div>លេខបង្កាន់ដៃ:</div><div id="receiptNumber"></div>
+            <div>កាលបរិច្ឆេទ:</div><div id="receiptDate"></div>
+            <div>ឈ្មោះអតិថិជន:</div><div id="customerNameReceipt"></div>
+            <div>លេខកម្ចី:</div><div id="loanIdReceipt"></div>
+            <div>កាលបរិច្ឆេទកម្ចី:</div><div id="loanDateReceipt"></div>
+            <div id="installmentLine">ការបង់លើកទី:</div><div id="installmentValue"></div>
+        </div>
+        <h5 style="margin-top:15px; border-bottom:1px solid #eee; padding-bottom:5px;">ព័ត៌មានលម្អិតការបង់ប្រាក់</h5>
+        <div class="summary-grid" style="grid-template-columns: 1fr 1fr;">
+            <div>ប្រាក់ដើម:</div><div class="right" id="principalAmount"></div>
+            <div>ការប្រាក់:</div><div class="right" id="interestAmount"></div>
+            <div>ការប្រាក់យឺត:</div><div class="right" id="lateInterestAmount"></div>
+            <div>ថ្លៃសេវា/ពិន័យ:</div><div class="right" id="serviceFee"></div>
+            <div>សេវារដ្ឋបាល:</div><div class="right" id="adminFeeReceipt"></div>
+            <div>សេវាធានារ៉ាប់រង:</div><div class="right" id="insuranceFeeReceipt"></div>
+            <div style="font-weight:bold; font-size: 1.1em; border-top:2px solid #333;">សរុប:</div><div class="right" style="font-weight:bold; font-size: 1.1em; border-top:2px solid #333;" id="totalPayment"></div>
+        </div>
+        <div style="margin-top:20px; font-size:12px; display:flex; justify-content:space-between;">
+            <span>ហត្ថលេខាអ្នកទទួល</span><span>ហត្ថលេខាអ្នកបង់</span>
+        </div>
+        <div id="receiptActions" class="modal-actions">
+            <button class="btn btn-info" onclick="printReceipt()"><i class="fas fa-print"></i> បោះពុម្ព</button>
+            <button class="btn btn-muted" onclick="closeReceipt()">បិទ</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="historyModal">
+        <div class="modal-content modal-lg">
+            <h4><i class="fas fa-history"></i> ប្រវត្តិសកម្មភាពសម្រាប់កម្ចី: <span id="historyLoanId"></span></h4>
+            <div class="table-container" style="max-height: 500px;">
+                <table id="historyTable">
+                    <thead><tr><th>Timestamp</th><th>User</th><th>Action</th><th>Details</th></tr></thead>
+                    <tbody id="historyTableBody"></tbody>
+                </table>
+            </div>
+            <div class="modal-actions"><button class="btn btn-muted" onclick="closeHistoryModal()">បិទ</button></div>
+        </div>
+    </div>
+    
+    <div class="modal" id="payoffModal">
+        <div class="modal-content">
+             <h4><i class="fas fa-fast-forward"></i> Early Payoff Calculation</h4>
+             <p>Loan ID: <strong id="payoffLoanId"></strong></p>
+             <div class="summary-grid">
+                 <div>Remaining Principal</div><div class="right" id="payoffPrincipal"></div>
+                 <div>Accrued Interest (approx.)</div><div class="right" id="payoffInterest"></div>
+                 <div style="font-weight:bold">Total to Payoff</div><div class="right" style="font-weight:bold" id="payoffTotal"></div>
+             </div>
+             <label for="payoffDate" style="margin-top:15px;">Payoff Date</label>
+             <input type="date" id="payoffDate"/>
+             <div class="modal-actions">
+                 <button class="btn btn-success" onclick="processPayoff()">Process Payoff</button>
+                 <button class="btn btn-muted" onclick="closePayoffModal()">បោះបង់</button>
+             </div>
+        </div>
+    </div>
+    <div class="modal" id="writeOffModal">
+        <div class="modal-content">
+             <h4><i class="fas fa-times-circle"></i> កត់ត្រាកម្ចីបំណុលមិនអាចសងបាន</h4>
+             <p>Loan ID: <strong id="writeOffLoanId"></strong></p>
+             <label for="writeOffReason">មូលហេតុ</label>
+             <textarea id="writeOffReason" rows="3" placeholder="ឧទាហរណ៍: អតិថិជនបានរត់ចោល..."></textarea>
+             <div class="modal-actions">
+                 <button class="btn btn-danger" onclick="processWriteOff()">Confirm Write-Off</button>
+                 <button class="btn btn-muted" onclick="closeWriteOffModal()">បោះបង់</button>
+             </div>
+        </div>
+    </div>
+    
+    <div class="modal" id="collateralModal">
+        <div class="modal-content modal-lg">
+            <h4><i class="fas fa-file-signature"></i> គ្រប់គ្រងវត្ថុធានាសម្រាប់កម្ចី: <span id="collateralLoanId"></span></h4>
+            <form id="collateralForm" class="card" style="background:var(--input-bg); margin-bottom:16px;">
+                <input type="hidden" id="collateralId" />
+                <div class="grid autofit">
+                    <div><label>ប្រភេទ</label><input id="collateralType" placeholder="e.g., Land Title"/></div>
+                    <div><label>តម្លៃប៉ាន់ស្មាន</label><input id="collateralValue" placeholder="e.g., $5000"/></div>
+                    <div style="grid-column: 1/-1"><label>ការពិពណ៌នា</label><textarea id="collateralDescription" rows="2"></textarea></div>
+                </div>
+                <div style="margin-top:10px;"><button class="btn btn-success" type="submit">រក្សាទុក</button> <button class="btn btn-muted" type="button" onclick="clearCollateralForm()">សម្អាត</button></div>
+            </form>
+             <div class="table-container" style="max-height: 250px;">
+                <table id="collateralTable">
+                    <thead><tr><th>ប្រភេទ</th><th>ការពិពណ៌នា</th><th>តម្លៃ</th><th>សកម្មភាព</th></tr></thead>
+                    <tbody id="collateralTableBody"></tbody>
+                </table>
+            </div>
+            <div class="modal-actions"><button class="btn btn-muted" onclick="closeCollateralModal()">បិទ</button></div>
+        </div>
+    </div>
+    <div class="modal" id="guarantorModal">
+        <div class="modal-content modal-lg">
+            <h4><i class="fas fa-users"></i> គ្រប់គ្រងអ្នកធានាសម្រាប់កម្ចី: <span id="guarantorLoanId"></span></h4>
+            <form id="guarantorForm" class="card" style="background:var(--input-bg); margin-bottom:16px;">
+                 <input type="hidden" id="guarantorId" />
+                 <div class="grid autofit">
+                     <div><label>ឈ្មោះ</label><input id="guarantorName" /></div>
+                     <div><label>ទំនាក់ទំនង</label><input id="guarantorRelationship" /></div>
+                     <div><label>លេខទូរសព្ទ</label><input id="guarantorPhone" /></div>
+                     <div style="grid-column: 1/-1"><label>អាសយដ្ឋាន</label><input id="guarantorAddress" /></div>
+                 </div>
+                 <div style="margin-top:10px;"><button class="btn btn-success" type="submit">រក្សាទុក</button> <button class="btn btn-muted" type="button" onclick="clearGuarantorForm()">សម្អាត</button></div>
+            </form>
+             <div class="table-container" style="max-height: 250px;">
+                <table id="guarantorTable">
+                    <thead><tr><th>ឈ្មោះ</th><th>ទំនាក់ទំនង</th><th>លេខទូរសព្ទ</th><th>អាសយដ្ឋាន</th><th>សកម្មភាព</th></tr></thead>
+                    <tbody id="guarantorTableBody"></tbody>
+                </table>
+            </div>
+            <div class="modal-actions"><button class="btn btn-muted" onclick="closeGuarantorModal()">បិទ</button></div>
+        </div>
+    </div>
+    
+    <div class="modal" id="profileModal">
+        <div class="modal-content">
+            <h4><i class="fas fa-user-circle"></i> កែប្រែប្រវត្តិរូប</h4>
+            <label for="profileFullName">ឈ្មោះពេញ</label>
+            <input id="profileFullName" />
+            <label for="profileNewPassword" style="margin-top:10px;">ពាក្យសម្ងាត់ថ្មី (ទុកឱ្យនៅទំនេរប្រសិនបើមិនផ្លាស់ប្តូរ)</label>
+            <input type="password" id="profileNewPassword" />
+            <label for="profilePin" style="margin-top:10px;">PIN 4 ខ្ទង់ (សម្រាប់ដោះសោអេក្រង់)</label>
+            <input id="profilePin" maxlength="4" />
+            <div class="modal-actions">
+                <button class="btn btn-success" onclick="saveProfile()">រក្សាទុក</button>
+                <button class="btn btn-muted" onclick="closeProfileModal()">បោះបង់</button>
+            </div>
+        </div>
+    </div>
+    
+     <div class="modal" id="messageModal">
+        <div class="modal-content">
+            <h4><i class="fas fa-comment-dots"></i> បង្កើតសារ</h4>
+            <label>ជ្រើសរើសគំរូសារ</label>
+            <select id="messageTemplateSelect"></select>
+            <label style="margin-top:10px;">សារដែលបានបង្កើត</label>
+            <textarea id="generatedMessage" rows="5" readonly></textarea>
+            <div class="modal-actions">
+                <button class="btn btn-info" onclick="copyMessage()"><i class="fas fa-copy"></i> ចម្លង</button>
+                <button class="btn btn-muted" onclick="closeMessageModal()">បិទ</button>
+            </div>
+        </div>
+    </div>
+    
+  </div>
+
+  <!-- Custom confirm/prompt popups (replace native browser "This page says" dialogs) -->
+  <div class="modal" id="customConfirmModal" style="z-index:2000;">
+    <div class="modal-content" style="max-width:420px;">
+      <h4 id="customConfirmTitle"><i class="fas fa-question-circle"></i> បញ្ជាក់ការសម្រេចចិត្ត</h4>
+      <p id="customConfirmMessage" style="white-space:pre-line;"></p>
+      <div class="modal-actions">
+        <button class="btn btn-muted" id="customConfirmCancelBtn">បោះបង់</button>
+        <button class="btn btn-danger" id="customConfirmOkBtn">យល់ព្រម</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="customPromptModal" style="z-index:2000;">
+    <div class="modal-content" style="max-width:420px;">
+      <h4 id="customPromptTitle"><i class="fas fa-keyboard"></i> បញ្ចូលព័ត៌មាន</h4>
+      <p id="customPromptMessage" style="white-space:pre-line;"></p>
+      <input type="text" id="customPromptInput" />
+      <div class="modal-actions">
+        <button class="btn btn-muted" id="customPromptCancelBtn">បោះបង់</button>
+        <button class="btn btn-info" id="customPromptOkBtn">យល់ព្រម</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Used ONLY for live sync (Supabase Realtime WebSocket push) — all data reads/writes still go
+       through our own fetch()-based db.js, not this library's client. -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <!-- App modules — order matters: config/utils/ui first, main.js last (it boots the app) -->
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/customers.js"></script>
+  <script src="js/loans.js"></script>
+  <script src="js/savings.js"></script>
+  <script src="js/admin.js"></script>
+  <script src="js/cloud-sync.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/reports.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

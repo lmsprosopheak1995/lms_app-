@@ -1,0 +1,337 @@
+// =====================================================================
+// admin.js — Admin settings: holidays, loan products, expenses, expense categories, message templates.
+// =====================================================================
+
+// ===================== ADMIN FUNCTIONS (Holidays, Products, etc.) =====================
+function saveHoliday(e) {
+    e.preventDefault();
+    const id = document.getElementById('holidayId').value;
+    const date = document.getElementById('holidayDate').value;
+    const name = document.getElementById('holidayName').value.trim();
+
+    if (!date || !name) {
+        showToast('Please provide both date and name.', 'error');
+        return;
+    }
+
+    if (id) { // Editing
+        const index = holidays.findIndex(h => h.id === id);
+        if (index > -1) {
+            holidays[index] = { id, date, name };
+        }
+    } else { // Adding new
+        if (holidays.some(h => h.date === date)) {
+            showToast('A holiday for this date already exists.', 'error');
+            return;
+        }
+        holidays.push({ id: 'HOL-' + Date.now(), date, name });
+    }
+
+    persistData(LS_KEYS.holidays, holidays);
+    renderHolidaysTable();
+    clearHolidayForm();
+}
+
+function renderHolidaysTable() {
+    const tbody = document.getElementById('holidaysTableBody');
+    tbody.innerHTML = '';
+    holidays.sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(h => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${formatDateDMY(h.date)}</td>
+            <td>${esc(h.name)}</td>
+            <td class="actions">
+                <button class="btn btn-sm btn-info" onclick="editHoliday('${esc(h.id)}')"><i class="fas fa-edit"></i></button>
+                <button class="btn btn-sm btn-danger" onclick="deleteHoliday('${esc(h.id)}')"><i class="fas fa-trash-alt"></i></button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function editHoliday(id) {
+    const holiday = holidays.find(h => h.id === id);
+    if (holiday) {
+        document.getElementById('holidayId').value = holiday.id;
+        document.getElementById('holidayDate').value = holiday.date;
+        document.getElementById('holidayName').value = holiday.name;
+    }
+}
+
+async function deleteHoliday(id) {
+    if (await customConfirm('Are you sure you want to delete this holiday?')) {
+        holidays = holidays.filter(h => h.id !== id);
+        persistData(LS_KEYS.holidays, holidays);
+        renderHolidaysTable();
+    }
+}
+
+function clearHolidayForm() {
+    document.getElementById('holidayForm').reset();
+    document.getElementById('holidayId').value = '';
+}
+
+function saveLoanProduct(e) {
+    e.preventDefault();
+    const name = document.getElementById('productName').value.trim();
+    const interestRate = parseFloat(document.getElementById('productInterestRate').value);
+    const loanTerm = parseInt(document.getElementById('productLoanTerm').value);
+    const paymentMethod = document.getElementById('productPaymentMethod').value;
+    
+    if (name && interestRate >= 0 && loanTerm > 0) {
+        loanProducts.push({ id: 'PROD-' + Date.now(), name, interestRate, loanTerm, paymentMethod });
+        persistData(LS_KEYS.loanProducts, loanProducts);
+        renderLoanProductsTable();
+        populateLoanProductDropdown();
+        e.target.reset();
+    } else {
+        showToast('Please fill all fields correctly.', 'error');
+    }
+}
+
+function renderLoanProductsTable() {
+    const tbody = document.getElementById('loanProductsTableBody');
+    tbody.innerHTML = '';
+    loanProducts.forEach(p => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${esc(p.name)}</td>
+            <td>${p.interestRate}%</td>
+            <td>${p.loanTerm} months</td>
+            <td>${esc(p.paymentMethod)}</td>
+            <td class="actions"><button class="btn btn-sm btn-danger" onclick="deleteLoanProduct('${esc(p.id)}')"><i class="fas fa-trash-alt"></i></button></td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+async function deleteLoanProduct(id) {
+    if (await customConfirm('Are you sure? This will not affect existing loans.')) {
+        loanProducts = loanProducts.filter(p => p.id !== id);
+        persistData(LS_KEYS.loanProducts, loanProducts);
+        renderLoanProductsTable();
+        populateLoanProductDropdown();
+    }
+}
+
+// ===================== EXPENSES FUNCTIONS =====================
+function saveExpense(e) {
+    e.preventDefault();
+    const expenseId = document.getElementById('expenseId').value;
+    const expenseData = {
+        id: expenseId || 'EXP-' + Date.now(),
+        date: document.getElementById('expenseDate').value,
+        category: document.getElementById('expenseCategory').value,
+        description: document.getElementById('expenseDescription').value.trim(),
+        amount: parseFloat(document.getElementById('expenseAmount').value),
+        currency: document.getElementById('expenseCurrency').value,
+        user: currentUser.username
+    };
+
+    if (!expenseData.date || !expenseData.category || !expenseData.amount) {
+        showToast('Please fill in date, category, and amount.', 'error');
+        return;
+    }
+
+    if (expenseId) {
+        const index = expenses.findIndex(ex => ex.id === expenseId);
+        if (index > -1) expenses[index] = expenseData;
+    } else {
+        expenses.push(expenseData);
+    }
+    
+    persistData(LS_KEYS.expenses, expenses);
+    logChange(null, 'Expense Action', { action: expenseId ? 'Update' : 'Create', expenseId: expenseData.id });
+    renderExpensesTable();
+    clearExpenseForm();
+}
+
+function renderExpensesTable() {
+    const tbody = document.getElementById('expensesTableBody');
+    const totalEl = document.getElementById('totalExpenses');
+    tbody.innerHTML = '';
+    let totalUSD = 0;
+
+    expenses.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(ex => {
+        const tr = document.createElement('tr');
+        const amountInUSD = convertCurrency(ex.amount, ex.currency, 'USD');
+        totalUSD += amountInUSD;
+        tr.innerHTML = `
+            <td>${formatDateDMY(ex.date)}</td>
+            <td>${esc(ex.category)}</td>
+            <td>${esc(ex.description)}</td>
+            <td class="right">${fmtMoney(ex.amount, ex.currency)}</td>
+            <td>${esc(getOfficerFullName(ex.user))}</td>
+            <td class="actions">
+                <button class="btn btn-sm btn-info" onclick="editExpense('${esc(ex.id)}')"><i class="fas fa-edit"></i></button>
+                <button class="btn btn-sm btn-danger" onclick="deleteExpense('${esc(ex.id)}')"><i class="fas fa-trash-alt"></i></button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    totalEl.textContent = fmtMoney(totalUSD, 'USD');
+}
+
+function editExpense(id) {
+    const expense = expenses.find(ex => ex.id === id);
+    if (expense) {
+        document.getElementById('expenseId').value = expense.id;
+        document.getElementById('expenseDate').value = expense.date;
+        document.getElementById('expenseCategory').value = expense.category;
+        document.getElementById('expenseDescription').value = expense.description;
+        document.getElementById('expenseAmount').value = expense.amount;
+        document.getElementById('expenseCurrency').value = expense.currency;
+        document.getElementById('expenseFormTitle').innerHTML = '<i class="fas fa-edit"></i> កែប្រែចំណាយ';
+    }
+}
+
+async function deleteExpense(id) {
+    if (await customConfirm('Are you sure you want to delete this expense?')) {
+        expenses = expenses.filter(ex => ex.id !== id);
+        persistData(LS_KEYS.expenses, expenses);
+        logChange(null, 'Expense Action', { action: 'Delete', expenseId: id });
+        renderExpensesTable();
+    }
+}
+
+function clearExpenseForm() {
+    document.getElementById('expenseForm').reset();
+    document.getElementById('expenseId').value = '';
+    document.getElementById('expenseFormTitle').innerHTML = '<i class="fas fa-plus-circle"></i> បន្ថែមចំណាយថ្មី';
+}
+
+// ===================== ADMIN SETTINGS FUNCTIONS =====================
+function renderExpenseCategories() {
+    const container = document.getElementById('expenseCategoryList');
+    container.innerHTML = '';
+    appSettings.expenseCategories.forEach(cat => {
+        container.innerHTML += `<div class="attachment-item">${esc(cat)} <button class="btn btn-danger btn-sm" onclick="deleteExpenseCategory('${esc(cat)}')"><i class="fas fa-trash-alt"></i></button></div>`;
+    });
+}
+
+function saveExpenseCategory(e) {
+    e.preventDefault();
+    const newCat = document.getElementById('expenseCategoryName').value.trim();
+    if (newCat && !appSettings.expenseCategories.includes(newCat)) {
+        appSettings.expenseCategories.push(newCat);
+        persistData(LS_KEYS.appSettings, appSettings);
+        renderExpenseCategories();
+        populateExpenseCategoryDropdown();
+        document.getElementById('expenseCategoryName').value = '';
+    }
+}
+
+async function deleteExpenseCategory(categoryName) {
+    if (await customConfirm(`Are you sure you want to delete category "${categoryName}"?`)) {
+        appSettings.expenseCategories = appSettings.expenseCategories.filter(c => c !== categoryName);
+        persistData(LS_KEYS.appSettings, appSettings);
+        renderExpenseCategories();
+        populateExpenseCategoryDropdown();
+    }
+}
+
+function renderMessageTemplates() {
+    const container = document.getElementById('messageTemplateList');
+    container.innerHTML = '';
+    appSettings.messageTemplates.forEach(tpl => {
+        container.innerHTML += `<div class="attachment-item"><strong>${esc(tpl.name)}</strong> <div><button class="btn btn-sm btn-info" onclick="editMessageTemplate('${esc(tpl.id)}')"><i class="fas fa-edit"></i></button> <button class="btn btn-sm btn-danger" onclick="deleteMessageTemplate('${esc(tpl.id)}')"><i class="fas fa-trash-alt"></i></button></div></div>`;
+    });
+}
+
+function saveMessageTemplate(e) {
+    e.preventDefault();
+    const id = document.getElementById('templateId').value;
+    const name = document.getElementById('templateName').value.trim();
+    const content = document.getElementById('templateContent').value.trim();
+
+    if (!name || !content) {
+        showToast('Please provide a name and content for the template.', 'error');
+        return;
+    }
+
+    if (id) {
+        const index = appSettings.messageTemplates.findIndex(t => t.id === id);
+        if (index > -1) {
+            appSettings.messageTemplates[index] = { id, name, content };
+        }
+    } else {
+        appSettings.messageTemplates.push({ id: 'tpl-' + Date.now(), name, content });
+    }
+
+    persistData(LS_KEYS.appSettings, appSettings);
+    renderMessageTemplates();
+    clearTemplateForm();
+}
+
+function editMessageTemplate(id) {
+    const tpl = appSettings.messageTemplates.find(t => t.id === id);
+    if (tpl) {
+        document.getElementById('templateId').value = tpl.id;
+        document.getElementById('templateName').value = tpl.name;
+        document.getElementById('templateContent').value = tpl.content;
+    }
+}
+
+async function deleteMessageTemplate(id) {
+    if(await customConfirm('Are you sure you want to delete this message template?')) {
+        appSettings.messageTemplates = appSettings.messageTemplates.filter(t => t.id !== id);
+        persistData(LS_KEYS.appSettings, appSettings);
+        renderMessageTemplates();
+    }
+}
+
+function clearTemplateForm() {
+    document.getElementById('messageTemplateForm').reset();
+    document.getElementById('templateId').value = '';
+}
+
+function generateMessage() {
+    if (!currentLoan) return;
+
+    const templateId = document.getElementById('messageTemplateSelect').value;
+    const template = appSettings.messageTemplates.find(t => t.id === templateId);
+    if (!template) {
+        document.getElementById('generatedMessage').value = '';
+        return;
+    }
+
+    const customer = getCustomer(currentLoan.customerId);
+    const schedule = buildSchedule(currentLoan);
+    const nextUnpaid = schedule.find(inst => inst.status !== 'paid');
+
+    let message = template.content;
+    message = message.replace(/\[CustomerName\]/g, customer.name);
+    message = message.replace(/\[LoanID\]/g, currentLoan.loanId);
+    if (nextUnpaid) {
+        message = message.replace(/\[DueDate\]/g, formatDateDMY(nextUnpaid.date));
+        message = message.replace(/\[RemainingAmount\]/g, fmtMoney(nextUnpaid.remainingAmount, currentLoan.currency));
+        message = message.replace(/\[InstallmentNumber\]/g, nextUnpaid.index);
+    }
+
+    document.getElementById('generatedMessage').value = message;
+}
+
+function openMessageModal() {
+    const select = document.getElementById('messageTemplateSelect');
+    select.innerHTML = '<option value="">-- Select Template --</option>';
+    appSettings.messageTemplates.forEach(tpl => {
+        select.innerHTML += `<option value="${esc(tpl.id)}">${esc(tpl.name)}</option>`;
+    });
+    document.getElementById('generatedMessage').value = '';
+    document.getElementById('messageModal').style.display = 'flex';
+}
+
+function closeMessageModal() {
+    document.getElementById('messageModal').style.display = 'none';
+}
+
+function copyMessage() {
+    const message = document.getElementById('generatedMessage').value;
+    navigator.clipboard.writeText(message).then(() => {
+        showToast('Message copied to clipboard!', 'success');
+    }, () => {
+        showToast('Failed to copy message.', 'error');
+    });
+}
+
