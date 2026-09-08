@@ -1475,7 +1475,11 @@ function renderClientAccountView() {
                     payments[key].forEach(p => {
                         const paymentDate = parseDate(p.date);
                         if (paymentDate >= startOfMonth) {
-                            const inst = schedule.find(i => i.index == key.split('-')[1]);
+                            // loanId itself contains dashes (e.g. "L-2026-0001"), so split('-')
+                            // would wrongly break it apart — use lastIndexOf to only split off
+                            // the installment index at the end (mirrors db.js pushKeyedPairEntity).
+                            const installmentIndexStr = key.slice(key.lastIndexOf('-') + 1);
+                            const inst = schedule.find(i => i.index == installmentIndexStr);
                             if (inst) {
                                 let remainingPayment = p.amount;
                                 const allocate = (amountDue) => {

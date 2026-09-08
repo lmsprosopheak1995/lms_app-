@@ -22,7 +22,12 @@ function generatePlReport() {
         payments[key].forEach(p => {
             const paymentDate = parseDate(p.date);
             if (paymentDate >= start && paymentDate <= end) {
-                const [loanId, installmentIndex] = key.split('-');
+                // loanId itself contains dashes (e.g. "L-2026-0001"), so split('-') would wrongly
+                // break it apart — use lastIndexOf to only split off the installment index at the
+                // end (mirrors db.js pushKeyedPairEntity).
+                const sep = key.lastIndexOf('-');
+                const loanId = key.slice(0, sep);
+                const installmentIndex = key.slice(sep + 1);
                 const loan = loans.find(l => l.loanId === loanId);
                 const inst = buildSchedule(loan).find(i => i.index == installmentIndex);
 
@@ -169,7 +174,10 @@ function renderDashboard() {
         payments[key].forEach(p => {
             const paymentDate = parseDate(p.date);
             if (!range.start || (paymentDate >= range.start && paymentDate <= range.end)) {
-                const loan = loans.find(l => l.loanId === key.split('-')[0]);
+                // loanId itself contains dashes (e.g. "L-2026-0001"), so split('-')[0] would
+                // wrongly return just "L" — use lastIndexOf to strip only the installment index.
+                const loanId = key.slice(0, key.lastIndexOf('-'));
+                const loan = loans.find(l => l.loanId === loanId);
                 if (loan) {
                     collectedAmountUSD += convertCurrency(p.amount, loan.currency, 'USD');
                 }
@@ -497,7 +505,12 @@ function generateFinancialReport() {
 
     const allPayments = [];
     for (const key in payments) {
-        const [loanId, installmentIndex] = key.split('-');
+        // loanId itself contains dashes (e.g. "L-2026-0001"), so split('-') would wrongly break
+        // it apart — use lastIndexOf to only split off the installment index at the end (mirrors
+        // db.js pushKeyedPairEntity).
+        const sep = key.lastIndexOf('-');
+        const loanId = key.slice(0, sep);
+        const installmentIndex = key.slice(sep + 1);
         payments[key].forEach(p => allPayments.push({ ...p, loanId, installmentIndex }));
     }
     allPayments.sort((a, b) => new Date(a.ts) - new Date(b.ts));
@@ -659,7 +672,12 @@ function generateAnnualReport() {
             const paymentDate = parseDate(p.date);
             if (paymentDate.getFullYear() == year) {
                 const month = paymentDate.getMonth();
-                const [loanId, installmentIndex] = key.split('-');
+                // loanId itself contains dashes (e.g. "L-2026-0001"), so split('-') would wrongly
+                // break it apart — use lastIndexOf to only split off the installment index at the
+                // end (mirrors db.js pushKeyedPairEntity).
+                const sep = key.lastIndexOf('-');
+                const loanId = key.slice(0, sep);
+                const installmentIndex = key.slice(sep + 1);
                 const loan = loans.find(l => l.loanId === loanId);
                 const inst = buildSchedule(loan).find(i => i.index == installmentIndex);
 
