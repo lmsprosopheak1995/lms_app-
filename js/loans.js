@@ -341,6 +341,7 @@ function buildFixedSchedule(loan) {
       const paymentKey = `${loan.loanId}-${i}`;
       const partials = payments[paymentKey] || [];
       const paidAmount = partials.reduce((sum, p) => sum + p.amount, 0);
+      const isPayoffSettled = partials.some(p => p.isPayoff);
 
       const today = new Date(); today.setHours(0, 0, 0, 0);
       const dueDate = new Date(pmtDate); dueDate.setHours(0,0,0,0);
@@ -357,7 +358,12 @@ function buildFixedSchedule(loan) {
           status = remainingAmountBeforeLate <= 0.01 ? 'paid' : 'partial';
       }
 
-      if (status !== 'paid' && dueDate < today) {
+      if (isPayoffSettled) {
+          // Closed out by an early payoff: future scheduled interest on this installment was
+          // waived, so it will never naturally reach `total` — treat it as settled and skip
+          // any overdue/late-fee calculation.
+          status = 'paid';
+      } else if (status !== 'paid' && dueDate < today) {
           status = 'overdue';
           // *** BUG FIX: Calculate late interest on overdue PRINCIPAL only ***
           lateInterest = getLateInterest(loan, dueDate, principal, daysLate);
@@ -371,10 +377,10 @@ function buildFixedSchedule(loan) {
       }
 
       const total = totalDueBeforeLate + lateInterest + penalty;
-      const remainingAmount = total - paidAmount;
+      const remainingAmount = isPayoffSettled ? 0 : total - paidAmount;
       balance -= principal;
 
-      schedule.push({ index: i, date: pmtDate.toISOString().split('T')[0], principal, interest, lateInterest, penalty, serviceFee, adminFee, insuranceFee, total, balance: balance < 0.005 ? 0 : balance, status, isAdjusted, paidAmount, remainingAmount, daysLate: daysLate > 0 ? daysLate : 0 });
+      schedule.push({ index: i, date: pmtDate.toISOString().split('T')[0], principal, interest, lateInterest, penalty, serviceFee, adminFee, insuranceFee, total, balance: isPayoffSettled ? 0 : (balance < 0.005 ? 0 : balance), status, isAdjusted, paidAmount, remainingAmount, daysLate: daysLate > 0 ? daysLate : 0 });
   }
   return schedule;
 }
@@ -433,6 +439,7 @@ function buildDynamicSchedule(loan) {
       const paymentKey = `${loan.loanId}-${i}`;
       const partials = payments[paymentKey] || [];
       const paidAmount = partials.reduce((sum, p) => sum + p.amount, 0);
+      const isPayoffSettled = partials.some(p => p.isPayoff);
 
       const today = new Date(); today.setHours(0, 0, 0, 0);
       const dueDate = new Date(pmtDate); dueDate.setHours(0,0,0,0);
@@ -445,7 +452,10 @@ function buildDynamicSchedule(loan) {
       if(paidAmount > 0) {
         status = remainingAmountBeforeLate <= 0.01 ? 'paid' : 'partial';
       }
-      if (status !== 'paid' && dueDate < today) {
+      if (isPayoffSettled) {
+          // Closed out by an early payoff — see buildFixedSchedule() for the rationale.
+          status = 'paid';
+      } else if (status !== 'paid' && dueDate < today) {
           status = 'overdue';
           // *** BUG FIX: Calculate late interest on overdue PRINCIPAL only ***
           lateInterest = getLateInterest(loan, dueDate, principal, daysLate);
@@ -454,10 +464,10 @@ function buildDynamicSchedule(loan) {
           if (!penaltyAlreadyPaid && loan.penaltyFee > 0) { penalty = (loan.penaltyType === 'percent') ? (principal) * (loan.penaltyFee / 100) : loan.penaltyFee; }
       }
       const total = totalDueBeforeLate + lateInterest + penalty;
-      const remainingAmount = total - paidAmount;
+      const remainingAmount = isPayoffSettled ? 0 : total - paidAmount;
 
       const paidTowardsPrincipal = Math.max(0, paidAmount - (interest + totalFixedFees + lateInterest + penalty));
-      const balance = runningPrincipal - paidTowardsPrincipal;
+      const balance = isPayoffSettled ? 0 : (runningPrincipal - paidTowardsPrincipal);
 
       schedule.push({ index: i, date: pmtDate.toISOString().split('T')[0], principal, interest, lateInterest, penalty, serviceFee, adminFee, insuranceFee, total, balance: balance < 0.005 ? 0 : balance, status, isAdjusted, paidAmount, remainingAmount, daysLate: daysLate > 0 ? daysLate : 0 });
   }
@@ -1150,25 +1160,44 @@ function processPayoff() {
   const loan = currentLoan;
 
   const schedule = buildSchedule(loan, true); 
-  
-  schedule.forEach(inst => {
-      if (inst.status !== 'paid') {
-          const paymentKey = `${loan.loanId}-${inst.index}`;
-          delete payments[paymentKey];
-      }
-  });
+  const unpaidInstallments = schedule.filter(inst => inst.status !== 'paid');
 
-  const firstUnpaidIndex = schedule.findIndex(inst => inst.status !== 'paid');
-  if (firstUnpaidIndex === -1) {
+  if (unpaidInstallments.length === 0) {
       showToast("This loan is already fully paid.", "info");
       return;
   }
-  
-  const paymentKey = `${loan.loanId}-${firstUnpaidIndex + 1}`;
-  if (!payments[paymentKey]) payments[paymentKey] = [];
-  
-  payments[paymentKey].push({
-      id: genId(), amount: payoffAmount, date: payoffDate, note: "Early loan payoff", by: currentUser.username, ts: new Date().toISOString()
+
+  // Clear any existing (partial) payments on the unpaid installments — they're being
+  // superseded by the payoff settlement recorded below.
+  unpaidInstallments.forEach(inst => {
+      const paymentKey = `${loan.loanId}-${inst.index}`;
+      delete payments[paymentKey];
+  });
+
+  // Distribute the amount actually collected across EVERY remaining installment
+  // (proportional to each installment's outstanding principal), instead of dumping it
+  // all into the first unpaid one. Each installment is flagged `isPayoff: true`, which
+  // buildFixedSchedule()/buildDynamicSchedule() treat as fully settled regardless of the
+  // usual "paidAmount >= total" check (early payoff waives the not-yet-accrued portion of
+  // future interest, so those installments would never individually reach their scheduled
+  // total). This keeps the schedule, receipts, and reports consistent with the loan's
+  // "completed" status, while the sum of recorded payments still equals the real payoffAmount.
+  const totalOutstandingPrincipal = unpaidInstallments.reduce((sum, inst) => sum + inst.principal, 0);
+  let allocated = 0;
+  unpaidInstallments.forEach((inst, idx) => {
+      const isLast = idx === unpaidInstallments.length - 1;
+      const share = isLast
+          ? Math.round((payoffAmount - allocated) * 100) / 100 // remainder avoids rounding drift
+          : (totalOutstandingPrincipal > 0
+              ? Math.round((inst.principal / totalOutstandingPrincipal) * payoffAmount * 100) / 100
+              : 0);
+      allocated += share;
+
+      const paymentKey = `${loan.loanId}-${inst.index}`;
+      if (!payments[paymentKey]) payments[paymentKey] = [];
+      payments[paymentKey].push({
+          id: genId(), amount: share, date: payoffDate, note: "ការទូទាត់មុនកាលកំណត់ (Early loan payoff)", by: currentUser.username, ts: new Date().toISOString(), isPayoff: true
+      });
   });
 
   persistData(LS_KEYS.payments, payments);
@@ -1180,7 +1209,7 @@ function processPayoff() {
       persistData(LS_KEYS.loans, loans);
   }
 
-  logChange(loan.loanId, "Early Payoff", { amount: payoffAmount, date: payoffDate });
+  logChange(loan.loanId, "Early Payoff", { amount: payoffAmount, date: payoffDate, installmentsClosed: unpaidInstallments.length });
   showToast(`Loan ${loan.loanId} paid off successfully.`, 'success');
 
   closePayoffModal();
@@ -1585,6 +1614,75 @@ async function deleteAttachment(fileId, storagePath, loanId) {
 }
 
 // ===================== CSV Import/Export =====================
+// Proper RFC-4180-ish CSV line parser: handles fields wrapped in double quotes that contain
+// commas, newlines, or escaped ("") double quotes — a plain `line.split(',')` breaks as soon as
+// any free-text field (e.g. a village/commune name) contains a comma, shifting every column
+// after it.
+function parseCSVLine(line) {
+    const values = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (inQuotes) {
+            if (char === '"') {
+                if (line[i + 1] === '"') { current += '"'; i++; } // escaped quote ("")
+                else { inQuotes = false; }
+            } else {
+                current += char;
+            }
+        } else {
+            if (char === '"') {
+                inQuotes = true;
+            } else if (char === ',') {
+                values.push(current);
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+    }
+    values.push(current);
+    return values;
+}
+
+// Wraps a value in double quotes (escaping any existing double quotes) whenever it contains a
+// comma, double quote, or newline — i.e. whenever leaving it bare would corrupt the CSV. Every
+// exported column should go through this, not just customer name, otherwise any free-text
+// field (village/commune/district/province, etc.) containing a comma silently breaks the file.
+function csvField(value) {
+    const str = (value === null || value === undefined) ? '' : String(value);
+    if (/[",\n\r]/.test(str)) {
+        return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+}
+
+// Splits a full CSV file's text into rows of already-parsed fields, respecting quoted fields
+// that themselves contain a literal newline (a naive `text.split(/\r?\n/)` would otherwise cut
+// such a record in half before it ever reaches parseCSVLine()).
+function parseCSVRows(text) {
+    const lines = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        if (char === '"') {
+            if (inQuotes && text[i + 1] === '"') { current += '""'; i++; continue; } // escaped quote
+            inQuotes = !inQuotes;
+            current += char;
+        } else if ((char === '\n' || char === '\r') && !inQuotes) {
+            if (char === '\r' && text[i + 1] === '\n') i++; // treat \r\n as one line break
+            lines.push(current);
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+    if (current.trim() !== '') lines.push(current);
+    return lines.filter(l => l.trim() !== '').map(parseCSVLine);
+}
+
 function downloadCSVTemplate() {
   const headers = [
       "customerName", "gender", "phone", "village", "commune", "district", "province",
@@ -1609,15 +1707,12 @@ function importLoansFromCSV(event) {
   const reader = new FileReader();
   reader.onload = async (e) => {
       const text = e.target.result;
-      const lines = text.split(/\r?\n/).slice(1);
+      const rows = parseCSVRows(text).slice(1); // drop header row
       let importedCount = 0;
       let errorCount = 0;
 
-      for (const line of lines) {
-          if (!line.trim()) continue;
+      for (const values of rows) {
           try {
-              const values = line.split(',');
-
               const customerName = values[0]?.trim();
               if (!customerName) {
                   errorCount++;
@@ -1670,7 +1765,7 @@ function importLoansFromCSV(event) {
               }
           } catch (err) {
               errorCount++;
-              console.error("Error parsing CSV line:", line, err);
+              console.error("Error parsing CSV row:", values, err);
           }
       }
 
@@ -1702,7 +1797,7 @@ function exportAllLoansToCSV() {
       const customer = getCustomer(loan.customerId);
       return [
           loan.loanId,
-          `"${customer.name.replace(/"/g, '""')}"`,
+          customer.name,
           customer.gender,
           customer.phone || '',
           customer.village || '',
@@ -1721,7 +1816,7 @@ function exportAllLoansToCSV() {
           loan.paymentMethod,
           getOfficerFullName(loan.creditOfficer),
           getLoanComputedStatus(loan).text
-      ].join(",");
+      ].map(csvField).join(",");
   });
 
   const csvContent = "data:text/csv;charset=utf-8,"
