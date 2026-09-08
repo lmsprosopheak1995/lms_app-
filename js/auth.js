@@ -456,19 +456,32 @@ async function fetchUserRoster() {
 }
 
 // Creates or updates a user's role/PIN/frozen record. The Supabase Auth account itself (email +
-// password) must be created separately in the Supabase Dashboard first — this only writes the
-// app-side profile row, matched to that account's UID.
+// password) must be created separately (via createAppUserViaEdgeFunction) — this only ever
+// UPDATES the app-side profile row for an already-existing uid; it never creates a new row.
+//
+// This is a real PATCH-by-uid, not an INSERT-based upsert. It used to be
+// `POST .../app_user_roles` with `Prefer: resolution=merge-duplicates` (PostgREST upsert), but
+// that performs an INSERT ... ON CONFLICT DO UPDATE under the hood — and Postgres validates
+// NOT NULL columns (like `username`) while building the row for that INSERT attempt, BEFORE the
+// ON CONFLICT branch is even considered. So any partial update that didn't happen to include
+// every NOT NULL column (e.g. `{ uid, failed_attempts: 0 }` from login(), or
+// `{ uid, theme_preference }` from toggleTheme()) failed with a
+// "null value in column ... violates not-null constraint" error, even though the row already
+// existed and only needed a couple of fields touched. A PATCH only ever touches the columns it's
+// given, so partial updates work correctly regardless of which columns are included.
 async function upsertUserRoleProfile(profile) {
     const { url, key } = getSupabaseAuthConfig();
     const session = await ensureSupabaseSession();
-    const res = await fetch(`${url}/rest/v1/${USER_ROLES_TABLE}`, {
-        method: 'POST',
+    const { uid, ...fields } = profile;
+    if (!uid) throw new Error('upsertUserRoleProfile: missing uid');
+    const res = await fetch(`${url}/rest/v1/${USER_ROLES_TABLE}?uid=eq.${encodeURIComponent(uid)}`, {
+        method: 'PATCH',
         headers: {
             'Content-Type': 'application/json', 'apikey': key,
             'Authorization': `Bearer ${session?.access_token || key}`,
-            'Prefer': 'resolution=merge-duplicates,return=representation'
+            'Prefer': 'return=representation'
         },
-        body: JSON.stringify(profile)
+        body: JSON.stringify(fields)
     });
     if (!res.ok) { const t = await res.text().catch(() => ''); throw new Error(`HTTP ${res.status}: ${t}`); }
     return res.json();
