@@ -687,7 +687,7 @@ function toggleForgotPasswordBox() {
 // Toggles one of the three login-page action boxes (ស្នើសុំកម្ចី / ទាក់ទងក្រុមហ៊ុន / សុំជំនួយ),
 // closing the other two so only one is open at a time.
 function toggleLoginActionBox(boxId) {
-    ['loanRequestBox', 'contactCompanyBox', 'helpRequestBox', 'checkStatusBox'].forEach(id => {
+    ['loanRequestBox', 'contactCompanyBox', 'helpRequestBox', 'checkStatusBox', 'downloadScheduleBox'].forEach(id => {
         const box = document.getElementById(id);
         if (!box) return;
         box.style.display = (id === boxId && box.style.display === 'none') ? 'block' : 'none';
@@ -788,6 +788,84 @@ async function checkLoanRequestStatus(e) {
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<i class="fas fa-search"></i> ពិនិត្យស្ថានភាព';
     }
+}
+
+// Public "download my payment schedule" lookup on the login page (no login required). Same
+// security shape as checkLoanRequestStatus() above: never grants anon a general SELECT policy
+// on loans/customers/partial_payments (which would let any visitor browse every customer's full
+// loan terms and payment history) — calls a SECURITY DEFINER RPC that only returns loans
+// belonging to a customer whose phone matches what was typed in. Run
+// schema/loan_schedule_download_rpc.sql once in the Supabase SQL editor before this works.
+//
+// Reuses buildSchedule()/exportScheduleToExcel() (loans.js) instead of a second schedule-math
+// implementation, by populating the same globals (currentLoan, payments, holidays) those
+// functions already read from — so what the customer downloads is guaranteed to match what an
+// officer sees, not a parallel calculation that could drift out of sync.
+let __publicLoanScheduleData = [];
+
+async function checkMyLoanSchedule(e) {
+    e.preventDefault();
+    const phone = document.getElementById('dsPhone').value.trim();
+    const resultsBox = document.getElementById('dsResults');
+    if (!phone) return;
+
+    const submitBtn = document.getElementById('dsSubmitBtn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> កំពុងស្វែងរក...';
+    resultsBox.innerHTML = '';
+    __publicLoanScheduleData = [];
+
+    try {
+        const rows = await dbRpc('get_customer_loan_schedule_data', { p_phone: phone });
+        const row = (rows && rows[0]) || {};
+        const loanEntries = row.loans || [];
+
+        holidays = row.holidays || [];
+        payments = {};
+        loanEntries.forEach(entry => {
+            (entry.payments || []).forEach(p => {
+                const key = `${entry.loan.loanId}-${p.installment_index}`;
+                if (!payments[key]) payments[key] = [];
+                payments[key].push(p.data);
+            });
+        });
+        scheduleCache = {};
+
+        if (loanEntries.length === 0) {
+            resultsBox.innerHTML = `<p style="font-size:13px; color:#888; text-align:center; margin:0;">រកមិនឃើញកម្ចីជាមួយលេខទូរស័ព្ទនេះទេ។</p>`;
+        } else {
+            __publicLoanScheduleData = loanEntries;
+            resultsBox.innerHTML = loanEntries.map((entry, idx) => {
+                const loan = entry.loan;
+                const st = getLoanComputedStatus(loan);
+                return `
+                    <div style="border:1px solid #eee; border-radius:8px; padding:10px 12px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                        <div>
+                            <div style="font-weight:600;">${esc(loan.loanId)}</div>
+                            <div style="font-size:12px; color:#888;">${esc(fmtMoney(loan.loanAmount, loan.currency || 'USD'))} — ${esc(st.text)}</div>
+                        </div>
+                        ${loan.status === 'pending' || loan.status === 'rejected'
+                            ? `<span style="font-size:12px; color:#888;">មិនទាន់មានតារាង</span>`
+                            : `<button type="button" class="btn btn-sm btn-info" onclick="downloadMyLoanSchedule(${idx})"><i class="fas fa-file-excel"></i> ទាញយក</button>`
+                        }
+                    </div>
+                `;
+            }).join('');
+        }
+    } catch (err) {
+        console.error('checkMyLoanSchedule error:', err);
+        resultsBox.innerHTML = `<p style="font-size:13px; color:#c0392b; text-align:center; margin:0;">មិនអាចទាញយកទិន្នន័យបានទេ សូមព្យាយាមម្តងទៀត។</p>`;
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-search"></i> ស្វែងរកកម្ចី';
+    }
+}
+
+function downloadMyLoanSchedule(index) {
+    const entry = __publicLoanScheduleData[index];
+    if (!entry) return;
+    currentLoan = entry.loan;
+    exportScheduleToExcel();
 }
 
 // Lets someone set the Supabase URL/Key on a fresh browser BEFORE logging in (Cloud Sync settings
