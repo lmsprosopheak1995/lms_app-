@@ -1930,6 +1930,7 @@ function printLoanSchedule(mode) {
     `;
 
     const printWindow = window.open('', '_blank', 'noopener');
+    if (!printWindow) { showToast('សូមអនុញ្ញាត Pop-up (Allow Pop-ups) សម្រាប់គេហទំព័រនេះ ដើម្បីអាច Print បាន', 'error'); return; }
     printWindow.document.write(`<html><head><title>${titleText}</title><style>${pageStyle}</style></head><body>${bodyHtml}</body></html>`);
     printWindow.document.close();
     setTimeout(() => {
@@ -1946,6 +1947,7 @@ function printReceipt() {
     if (!printArea) return;
 
     const printWindow = window.open('', '_blank', 'noopener');
+    if (!printWindow) { showToast('សូមអនុញ្ញាត Pop-up (Allow Pop-ups) សម្រាប់គេហទំព័រនេះ ដើម្បីអាច Print បាន', 'error'); return; }
     printWindow.document.write('<html><head><title>Print Receipt</title>');
     printWindow.document.write('<link rel="stylesheet" href="styles.css">');
     printWindow.document.write('<style>body { margin: 20px; } .modal-content { border: none; box-shadow: none; } #receiptActions { display: none; } </style>');

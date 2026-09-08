@@ -678,6 +678,7 @@ function printSavingsSchedule() {
     `;
 
     const printWindow = window.open('', '_blank');
+    if (!printWindow) { showToast('សូមអនុញ្ញាត Pop-up (Allow Pop-ups) សម្រាប់គេហទំព័រនេះ ដើម្បីអាច Print បាន', 'error'); return; }
     printWindow.document.write(`<html><head><title>Savings Passbook - ${esc(account.id)}</title><style>${pageStyle}</style></head><body>${bodyHtml}</body></html>`);
     printWindow.document.close();
     setTimeout(() => {

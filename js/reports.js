@@ -610,6 +610,7 @@ function printFinancialReport() {
     `;
 
     const printWindow = window.open('', '_blank', 'noopener');
+    if (!printWindow) { showToast('សូមអនុញ្ញាត Pop-up (Allow Pop-ups) សម្រាប់គេហទំព័រនេះ ដើម្បីអាច Print បាន', 'error'); return; }
     printWindow.document.write('<html><head><title>Financial Report</title>');
     printWindow.document.write('<link rel="stylesheet" href="styles.css">');
     printWindow.document.write('<style>body { margin: 20px; font-family: "Noto Sans Khmer", Arial, sans-serif; } table { width: 100%; font-size: 10px; } .summary-row td { font-weight: bold; } .right { text-align: right; } </style>');
