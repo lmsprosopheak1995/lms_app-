@@ -679,6 +679,16 @@ function toggleForgotPasswordBox() {
     box.style.display = (box.style.display === 'none') ? 'block' : 'none';
 }
 
+// Toggles one of the three login-page action boxes (ស្នើសុំកម្ចី / ទាក់ទងក្រុមហ៊ុន / សុំជំនួយ),
+// closing the other two so only one is open at a time.
+function toggleLoginActionBox(boxId) {
+    ['loanRequestBox', 'contactCompanyBox', 'helpRequestBox'].forEach(id => {
+        const box = document.getElementById(id);
+        if (!box) return;
+        box.style.display = (id === boxId && box.style.display === 'none') ? 'block' : 'none';
+    });
+}
+
 // Lets someone set the Supabase URL/Key on a fresh browser BEFORE logging in (Cloud Sync settings
 // used to only be editable from inside the app, but login now depends on them being present here
 // first — this breaks that chicken-and-egg problem). Writes into the same CLOUD_SETTINGS_KEY that
