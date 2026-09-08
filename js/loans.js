@@ -3,6 +3,14 @@
 // =====================================================================
 
 // ===================== COMPUTED STATUS & DASHBOARD =====================
+// Pure: only computes the status to *display* for a loan — it must never mutate `loans` or call
+// persistData(). It used to auto-flip a fully-paid loan's status to 'completed' (and persist it)
+// as a side effect of being called here, which meant every render of the loans table or
+// dashboard (this function is called once per row, possibly dozens of times per render) could
+// silently trigger a cloud write. The actual state transition now happens in exactly one place —
+// reconcileLoanStatuses(), run once after data loads/changes (see main.js) — plus
+// checkAndUpdateLoanStatus(), run once right after a payment is recorded (see savePartialPayment
+// above). This function just reads whichever status is current at the time and reports it.
 function getLoanComputedStatus(loan) {
   if (!loan) return { key: 'unknown', text: 'Unknown' };
   if (loan.isArchived) return { key: 'archived', text: 'បានទុកក្នុងបណ្ណសារ' };
@@ -17,14 +25,8 @@ function getLoanComputedStatus(loan) {
 
   const allPaid = schedule.every(p => p.status === 'paid');
   if (allPaid) {
-      if(loan.status !== 'completed') {
-          const loanIndex = loans.findIndex(l => l.loanId === loan.loanId);
-          if (loanIndex > -1) {
-              loans[loanIndex].status = 'completed';
-              persistData(LS_KEYS.loans, loans);
-              logChange(loan.loanId, 'Status Auto-Update', { newStatus: 'completed' });
-          }
-      }
+      // Loan.status hasn't caught up yet (reconciliation runs elsewhere) — still show it as
+      // completed to the user, but don't write anything here.
       return { key: 'completed', text: 'បានបញ្ចប់' };
   }
 
@@ -32,6 +34,31 @@ function getLoanComputedStatus(loan) {
   if (isOverdue) return { key: 'overdue', text: 'មានការយឺត' };
 
   return { key: 'active', text: 'កំពុងដំណើរការ' };
+}
+
+// Batched counterpart to checkAndUpdateLoanStatus(): scans every loan ONCE, and for any
+// non-terminal loan whose schedule is fully paid but whose stored status hasn't caught up yet,
+// flips it to 'completed'. Collects all the changes and issues a single persistData() call at
+// the end instead of one per loan, and is meant to be called once (e.g. right after loans and
+// payments finish loading in main.js's initApp()) rather than from inside a render loop.
+function reconcileLoanStatuses() {
+  const terminal = ['completed', 'refinanced', 'written_off', 'rejected', 'pending'];
+  let changed = false;
+
+  loans.forEach(loan => {
+      if (loan.isArchived || terminal.includes(loan.status)) return;
+      const schedule = buildSchedule(loan);
+      if (!schedule || schedule.length === 0) return;
+      if (schedule.every(p => p.status === 'paid')) {
+          loan.status = 'completed';
+          logChange(loan.loanId, 'Status Auto-Update', { newStatus: 'completed' });
+          changed = true;
+      }
+  });
+
+  if (changed) {
+      persistData(LS_KEYS.loans, loans);
+  }
 }
 
 function getPeriodDays(loan) {

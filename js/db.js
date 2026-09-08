@@ -538,6 +538,43 @@ async function cloudDeleteCustomerDocument(docId, storagePath) {
   await dbDeleteRows('customer_documents', 'id', [docId]);
 }
 
+// ---------------------------------------------------------------------
+// Customer avatar / ID card photos. These used to be embedded directly as base64 data: URIs
+// inside the customer JSON row itself — meaning every load/save of the whole `customers` table,
+// and the in-memory cache kept for every officer's session, carried full-size image bytes for
+// every customer that ever had a photo attached. They now live in the same "customer-documents"
+// Storage bucket already used for other customer documents; only the short storage path string
+// is kept on the customer record (customer.avatar / .idCardFront / .idCardBack). Uses a fixed,
+// kind-based filename with `x-upsert: true` so re-uploading a photo replaces the old file
+// instead of leaving orphaned copies behind in Storage.
+async function cloudUploadCustomerImage(customerId, file, kind) {
+  const { url, headers } = await dbContext();
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  const path = `${customerId}/${kind}.${ext}`;
+  const uploadRes = await fetch(`${url}/storage/v1/object/customer-documents/${encodeURIComponent(path)}`, {
+    method: 'POST',
+    headers: { apikey: headers.apikey, Authorization: headers.Authorization, 'Content-Type': file.type || 'application/octet-stream', 'x-upsert': 'true' },
+    body: file
+  });
+  if (!uploadRes.ok) throw new Error(`Upload failed: HTTP ${uploadRes.status}`);
+  return path;
+}
+
+// Turns whatever is stored on the customer record into something an <img src> can use: a
+// legacy record may still have an inline base64 data: URI (kept working for backward
+// compatibility — nothing migrates old records automatically), while a new-style record has a
+// short storage path that needs to be resolved to a signed URL first.
+async function resolveCustomerImageUrl(value) {
+  if (!value) return '';
+  if (value.startsWith('data:')) return value;
+  try {
+    return await cloudGetCustomerDocumentUrl(value);
+  } catch (e) {
+    console.error('Could not resolve customer image URL:', e);
+    return '';
+  }
+}
+
 // =====================================================================
 // LIVE SYNC (Supabase Realtime) — pushes other people's changes to this
 // browser over a WebSocket, without needing to refresh the page.

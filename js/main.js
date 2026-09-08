@@ -130,6 +130,12 @@ async function initApp() {
   savingsWithdrawals = loadData(LS_KEYS.savingsWithdrawals, true);
   initAppSettings();
 
+  // Bring loan.status up to date for any loan that's fully paid but hasn't been flipped to
+  // 'completed' yet (e.g. the last payment was recorded through some path other than
+  // savePartialPayment). Runs once, right after loans/payments are both loaded — not on every
+  // table/dashboard render (see getLoanComputedStatus() in loans.js for why that mattered).
+  reconcileLoanStatuses();
+
   if (loadingOverlay) loadingOverlay.style.display = 'none';
   updateExchangeUI();
   populateOfficerDropdown('creditOfficer', false, currentUser.username);

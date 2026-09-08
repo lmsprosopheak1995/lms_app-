@@ -273,7 +273,7 @@ function displaySelectedCustomerInfo() {
 }
 
 // ===================== CUSTOMER PROFILE TAB (FIX) =====================
-function renderCustomerProfile() {
+async function renderCustomerProfile() {
     const customerId = document.getElementById('customerProfileSelect').value;
     const contentDiv = document.getElementById('customerProfileContent');
     
@@ -291,9 +291,12 @@ function renderCustomerProfile() {
     contentDiv.style.display = 'grid';
 
     // Populate details
-    document.getElementById('profileAvatarPreview').src = customer.avatar || DEFAULT_AVATAR_SRC;
-    document.getElementById('idCardFrontPreview').src = customer.idCardFront || '';
-    document.getElementById('idCardBackPreview').src = customer.idCardBack || '';
+    document.getElementById('profileAvatarPreview').src = DEFAULT_AVATAR_SRC;
+    document.getElementById('idCardFrontPreview').src = '';
+    document.getElementById('idCardBackPreview').src = '';
+    resolveCustomerImageUrl(customer.avatar).then(src => { document.getElementById('profileAvatarPreview').src = src || DEFAULT_AVATAR_SRC; });
+    resolveCustomerImageUrl(customer.idCardFront).then(src => { document.getElementById('idCardFrontPreview').src = src; });
+    resolveCustomerImageUrl(customer.idCardBack).then(src => { document.getElementById('idCardBackPreview').src = src; });
     document.getElementById('profileDetailName').textContent = customer.name;
     document.getElementById('profileDetailGender').textContent = customer.gender;
     document.getElementById('profileDetailPhone').textContent = customer.phone || 'N/A';
@@ -329,46 +332,51 @@ function renderCustomerProfile() {
     renderCustomerDocuments(customerId);
 }
 
-function handleProfileAvatarUpload(event) {
+async function handleProfileAvatarUpload(event) {
     const customerId = document.getElementById('customerProfileSelect').value;
     if (!customerId) {
         showToast('Please select a customer first.', 'error');
         return;
     }
     const file = event.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            document.getElementById('profileAvatarPreview').src = e.target.result;
-            const customerIndex = customers.findIndex(c => c.id === customerId);
-            if (customerIndex > -1) {
-                customers[customerIndex].avatar = e.target.result;
-                persistData(LS_KEYS.customers, customers);
-                showToast('Avatar updated.', 'success');
-            }
-        };
-        reader.readAsDataURL(file);
+    if (!file) return;
+    event.target.value = '';
+    try {
+        const storagePath = await cloudUploadCustomerImage(customerId, file, 'avatar');
+        const customerIndex = customers.findIndex(c => c.id === customerId);
+        if (customerIndex > -1) {
+            customers[customerIndex].avatar = storagePath;
+            persistData(LS_KEYS.customers, customers);
+            document.getElementById('profileAvatarPreview').src = await resolveCustomerImageUrl(storagePath) || DEFAULT_AVATAR_SRC;
+            showToast('Avatar updated.', 'success');
+        }
+    } catch (e) {
+        console.error('Error uploading avatar:', e);
+        showToast(`ផ្ទុករូបភាពបរាជ័យ: ${String(e.message || e)}`, 'error');
     }
 }
 
-function handleIdCardUpload(side, event) {
+async function handleIdCardUpload(side, event) {
     const customerId = document.getElementById('customerProfileSelect').value;
     if (!customerId) { showToast('សូមជ្រើសរើសអតិថិជនជាមុនសិន', 'error'); return; }
     const file = event.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        const previewId = side === 'front' ? 'idCardFrontPreview' : 'idCardBackPreview';
-        const fieldKey = side === 'front' ? 'idCardFront' : 'idCardBack';
-        document.getElementById(previewId).src = e.target.result;
+    event.target.value = '';
+    const previewId = side === 'front' ? 'idCardFrontPreview' : 'idCardBackPreview';
+    const fieldKey = side === 'front' ? 'idCardFront' : 'idCardBack';
+    try {
+        const storagePath = await cloudUploadCustomerImage(customerId, file, side === 'front' ? 'id_front' : 'id_back');
         const customerIndex = customers.findIndex(c => c.id === customerId);
         if (customerIndex > -1) {
-            customers[customerIndex][fieldKey] = e.target.result;
+            customers[customerIndex][fieldKey] = storagePath;
             persistData(LS_KEYS.customers, customers);
+            document.getElementById(previewId).src = await resolveCustomerImageUrl(storagePath);
             showToast(side === 'front' ? 'រូបថតអត្តសញ្ញាណប័ណ្ណ (មុខ) ត្រូវបានរក្សាទុក។' : 'រូបថតអត្តសញ្ញាណប័ណ្ណ (ក្រោយ) ត្រូវបានរក្សាទុក។', 'success');
         }
-    };
-    reader.readAsDataURL(file);
+    } catch (e) {
+        console.error('Error uploading ID card image:', e);
+        showToast(`ផ្ទុករូបភាពបរាជ័យ: ${String(e.message || e)}`, 'error');
+    }
 }
 
 // Customer documents now live in the Supabase Storage bucket "customer-documents" (the file
@@ -456,10 +464,11 @@ async function deleteCustomerDocument(fileId, storagePath, customerId) {
     }
 }
 
-function printCustomerProfile() {
+async function printCustomerProfile() {
     const customerId = document.getElementById('customerProfileSelect').value;
     if (!customerId) { showToast('សូមជ្រើសរើសអតិថិជនជាមុនសិន', 'error'); return; }
     const customer = getCustomer(customerId);
+    const avatarSrc = await resolveCustomerImageUrl(customer.avatar) || DEFAULT_AVATAR_SRC;
     const customerLoans = loans.filter(l => l.customerId === customerId);
     const loanRows = customerLoans.map(loan => {
         const statusInfo = getLoanComputedStatus(loan);
@@ -489,7 +498,7 @@ function printCustomerProfile() {
         .info-grid div:nth-child(odd) { font-weight:600; }
     </style>
     </head><body>
-        <img class="avatar" src="${esc(customer.avatar || DEFAULT_AVATAR_SRC)}">
+        <img class="avatar" src="${esc(avatarSrc)}">
         <h2>${esc(customer.name)}</h2>
         <div class="info-grid">
             <div>ភេទ</div><div>${esc(customer.gender || '')}</div>
@@ -507,10 +516,15 @@ function printCustomerProfile() {
     win.document.close();
 }
 
-function printCustomerIdCard() {
+async function printCustomerIdCard() {
     const customerId = document.getElementById('customerProfileSelect').value;
     if (!customerId) { showToast('សូមជ្រើសរើសអតិថិជនជាមុនសិន', 'error'); return; }
     const customer = getCustomer(customerId);
+    const [avatarSrc, idFrontSrc, idBackSrc] = await Promise.all([
+        resolveCustomerImageUrl(customer.avatar).then(s => s || DEFAULT_AVATAR_SRC),
+        resolveCustomerImageUrl(customer.idCardFront),
+        resolveCustomerImageUrl(customer.idCardBack)
+    ]);
 
     const win = window.open('', '_blank');
     if (!win) { showToast('សូមអនុញ្ញាត Pop-up ដើម្បី Print', 'error'); return; }
@@ -529,7 +543,7 @@ function printCustomerIdCard() {
     </style>
     </head><body>
         <div class="card">
-            <img class="avatar" src="${esc(customer.avatar || DEFAULT_AVATAR_SRC)}">
+            <img class="avatar" src="${esc(avatarSrc)}">
             <div class="details">
                 <div class="header">កាតអតិថិជន / CUSTOMER CARD</div>
                 <div class="name">${esc(customer.name)}</div>
@@ -540,9 +554,9 @@ function printCustomerIdCard() {
                 <div>ID: ${esc(customer.id)}</div>
             </div>
         </div>
-        ${(customer.idCardFront || customer.idCardBack) ? `<div class="card">
-            ${customer.idCardFront ? `<img class="idphoto" style="width:50%;" src="${esc(customer.idCardFront)}">` : ''}
-            ${customer.idCardBack ? `<img class="idphoto" style="width:50%;" src="${esc(customer.idCardBack)}">` : ''}
+        ${(idFrontSrc || idBackSrc) ? `<div class="card">
+            ${idFrontSrc ? `<img class="idphoto" style="width:50%;" src="${esc(idFrontSrc)}">` : ''}
+            ${idBackSrc ? `<img class="idphoto" style="width:50%;" src="${esc(idBackSrc)}">` : ''}
         </div>` : ''}
         <script>window.onload = () => { window.print(); };<\/script>
     </body></html>`);

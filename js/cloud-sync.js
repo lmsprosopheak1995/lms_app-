@@ -91,8 +91,21 @@ function checkBackupReminder() {
 // this migration is about.
 const CLOUD_SETTINGS_KEY = 'lms_cloudSettings_v1';
 
+// SECURITY NOTE: the anon key below is meant to be public (it's the standard Supabase
+// client-side key, and the project's Row Level Security policies — not secrecy of this key —
+// are what actually control who can read/write which rows). It is NOT a technical bug on its
+// own. What IS worth double-checking, especially before copying this codebase to run a second,
+// independent deployment: every table this app touches (loans, customers, payments, ...) needs
+// an RLS policy that actually restricts access appropriately (e.g. to authenticated
+// app_user_roles users) — an anon key against a table with RLS disabled, or a too-permissive
+// policy, would let anyone with this key read/write that data directly via the REST API,
+// bypassing the app entirely. Verify this in Supabase under Authentication > Policies for every
+// table before treating this deployment (or any clone of it) as production-ready.
+const DEFAULT_SUPABASE_URL = 'https://elspwzalqdwvexjaycsx.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsc3B3emFscWR3dmV4amF5Y3N4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTE3NzUsImV4cCI6MjEwNDI2Nzc3NX0.bBFPMgIGPjkvSnUnTaDf34pcRZkR7OV7BYoo-yr6nBg';
+
 function getCloudSettings() {
-    const defaults = { supabaseUrl: 'https://elspwzalqdwvexjaycsx.supabase.co', supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsc3B3emFscWR3dmV4amF5Y3N4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTE3NzUsImV4cCI6MjEwNDI2Nzc3NX0.bBFPMgIGPjkvSnUnTaDf34pcRZkR7OV7BYoo-yr6nBg', telegramToken: '', telegramChatId: '', telegramEnabled: false };
+    const defaults = { supabaseUrl: DEFAULT_SUPABASE_URL, supabaseKey: DEFAULT_SUPABASE_ANON_KEY, telegramToken: '', telegramChatId: '', telegramEnabled: false };
     try {
         const raw = localStorage.getItem(CLOUD_SETTINGS_KEY);
         return raw ? { ...defaults, ...JSON.parse(raw) } : defaults;
