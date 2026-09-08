@@ -880,6 +880,14 @@
                     <button class="btn btn-primary" onclick="saveCloudSettingsFromForm()"><i class="fas fa-save"></i> រក្សាទុកការកំណត់</button>
                  </div>
                  <hr style="margin: 20px 0;">
+                 <h4><i class="fas fa-tools"></i> Maintenance Mode</h4>
+                 <p>នៅពេលបើក អ្នកប្រើប្រាស់ធម្មតា (មិនរួម <strong>admin</strong>) នឹងមិនអាចចូល ឬបន្តប្រើប្រព័ន្ធបានទេ — រួមទាំងអ្នកដែលកំពុងប្រើប្រាស់ស្រាប់ ក៏នឹងត្រូវបានដកចេញភ្លាមៗ ព្រមទាំងឃើញសារខាងក្រោម។ ការកំណត់នេះមានប្រសិទ្ធភាពលើគ្រប់ browser ភ្លាមៗ។</p>
+                 <div><label class="form-check"><input type="checkbox" id="maintenanceModeEnabled"> <i class="fas fa-tools"></i> បើក Maintenance Mode</label></div>
+                 <div style="margin-top:10px;"><label for="maintenanceMessage"><i class="fas fa-comment-alt"></i> សារជូនដំណឹង (ស្រេចចិត្ត)</label><textarea id="maintenanceMessage" rows="2" placeholder="ប្រព័ន្ធកំពុងថែទាំបណ្ដោះអាសន្ន សូមចូលម្តងទៀតពេលក្រោយ"></textarea></div>
+                 <div style="margin-top:10px; text-align:right;">
+                    <button class="btn btn-warning" onclick="saveMaintenanceModeFromForm()"><i class="fas fa-save"></i> រក្សាទុក Maintenance Mode</button>
+                 </div>
+                 <hr style="margin: 20px 0;">
                  <h4><i class="fas fa-power-off"></i> ផ្ដាច់ Browser នេះចេញពី Cloud</h4>
                  <p style="color: var(--danger);"><strong>ចំណាំ:</strong> នេះលុបតែការកំណត់ Supabase URL/Key និង Session នៅលើ browser នេះប៉ុណ្ណោះ — ទិន្នន័យពិតនៅលើ Cloud មិនត្រូវបានប៉ះពាល់ទេ។ ដើម្បីលុបទិន្នន័យពិត សូមប្រើ Supabase Dashboard។</p>
                  <button class="btn btn-danger" onclick="hardResetApplication()"><i class="fas fa-exclamation-triangle"></i> Disconnect This Browser</button>
