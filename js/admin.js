@@ -151,6 +151,7 @@ function renderLoanRequestsTable() {
                 }
             </td>
             <td class="actions">
+                ${canManage && (r.status === 'pending' || r.status === 'contacted') ? `<button class="btn btn-sm btn-info" onclick="createLoanFromRequest('${esc(r.id)}')" title="បង្កើតកម្ចី"><i class="fas fa-file-invoice-dollar"></i></button>` : ''}
                 <a href="tel:${escJsAttr(r.phone)}" class="btn btn-sm btn-success" title="ទូរស័ព្ទ"><i class="fas fa-phone"></i></a>
                 ${canManage ? `<button class="btn btn-sm btn-danger" onclick="deleteLoanRequest('${esc(r.id)}')"><i class="fas fa-trash-alt"></i></button>` : ''}
             </td>
@@ -173,6 +174,63 @@ function updateLoanRequestStatus(id, status) {
             notifyTelegram(`${icon} <b>សំណើសុំកម្ចីត្រូវបាន${label}</b>\nឈ្មោះ: ${request.name}\nទូរស័ព្ទ: ${request.phone}\nដោយ: ${(currentUser && currentUser.fullName) || 'N/A'}`);
         }
     }
+}
+
+// Bridges a public "loan request" (login-page submission — free-text name/phone/amount/address/
+// purpose, no structured customer record yet) into the real loan-creation flow, instead of the
+// officer having to re-type everything by hand on the Loans tab. Reuses an existing customer if
+// one already shares this phone number; otherwise creates a bare customer record (name + phone
+// only — the request's address is a single free-text line, so it can't be reliably split into
+// the customer profile's separate village/commune/district/province fields, and is surfaced in
+// the toast below instead so the officer can fill those in on the Customers tab if needed).
+// Does NOT itself create the loan — the officer still sets interest rate, term, payment method,
+// etc. and clicks "រក្សាទុក" on the pre-filled Loans form, same approval gate (pending/active
+// based on canApproveLoan) as any other loan.
+async function createLoanFromRequest(id) {
+    if (!hasPermission('canApproveLoan')) { showToast('Permission Denied.', 'error'); return; }
+    const request = loanRequests.find(r => r.id === id);
+    if (!request) return;
+
+    if (!await customConfirm(`តើអ្នកចង់ចាប់ផ្តើមបង្កើតកម្ចីសម្រាប់ "${request.name}" ដែរឬទេ? អ្នកនឹងត្រូវបំពេញលក្ខខណ្ឌកម្ចី (អត្រាការប្រាក់, រយៈពេល...) បន្ថែមទៀត។`)) return;
+
+    let customer = customers.find(c => c.phone && request.phone && c.phone === request.phone);
+    if (!customer) {
+        customer = {
+            id: 'CUST-' + Date.now() + Math.random().toString(36).substr(2, 5),
+            name: request.name,
+            gender: 'ប្រុស',
+            phone: request.phone,
+            village: '', commune: '', district: '', province: '',
+            residency: 'resident',
+            isBlacklisted: false,
+            createdAt: new Date().toISOString()
+        };
+        customers.push(customer);
+        persistData(LS_KEYS.customers, customers);
+        populateCustomerDropdowns();
+        notifyTelegram(`👤 <b>អតិថិជនត្រូវបានបង្កើតពីសំណើសុំកម្ចី</b>\nឈ្មោះ: ${customer.name}\nទូរស័ព្ទ: ${customer.phone || 'N/A'}\nដោយ: ${(currentUser && currentUser.fullName) || 'N/A'}`);
+    }
+
+    request.status = 'approved';
+    persistData(LS_KEYS.loanRequests, loanRequests);
+    renderLoanRequestsTable();
+    notifyTelegram(`✅ <b>សំណើសុំកម្ចីត្រូវបានអនុម័ត</b>\nឈ្មោះ: ${request.name}\nទូរស័ព្ទ: ${request.phone}\nដោយ: ${(currentUser && currentUser.fullName) || 'N/A'}`);
+
+    switchTab('loans');
+    clearForm();
+    clearScheduleAndSummary();
+    document.getElementById('customerSelect').value = customer.id;
+    displaySelectedCustomerInfo();
+    if (request.amount) document.getElementById('loanAmount').value = request.amount;
+    if (request.currency) document.getElementById('currency').value = request.currency;
+
+    const extraInfo = [request.address, request.purpose].filter(Boolean).join(' — ');
+    showToast(
+        extraInfo
+            ? `សូមបំពេញលក្ខខណ្ឌកម្ចី រួច "រក្សាទុក"។ ពីសំណើ៖ ${extraInfo}`
+            : 'សូមបំពេញលក្ខខណ្ឌកម្ចី (អត្រាការប្រាក់, រយៈពេល...) រួច "រក្សាទុក"។',
+        'info'
+    );
 }
 
 async function deleteLoanRequest(id) {
