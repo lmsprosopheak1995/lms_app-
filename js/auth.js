@@ -687,7 +687,7 @@ function toggleForgotPasswordBox() {
 // Toggles one of the three login-page action boxes (ស្នើសុំកម្ចី / ទាក់ទងក្រុមហ៊ុន / សុំជំនួយ),
 // closing the other two so only one is open at a time.
 function toggleLoginActionBox(boxId) {
-    ['loanRequestBox', 'contactCompanyBox', 'helpRequestBox'].forEach(id => {
+    ['loanRequestBox', 'contactCompanyBox', 'helpRequestBox', 'checkStatusBox'].forEach(id => {
         const box = document.getElementById(id);
         if (!box) return;
         box.style.display = (id === boxId && box.style.display === 'none') ? 'block' : 'none';
@@ -742,6 +742,52 @@ function submitLoanRequest(e) {
     document.getElementById('loanRequestBox').style.display = 'none';
     submitBtn.disabled = false;
     submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> ដាក់ស្នើសុំកម្ចី';
+}
+
+// Public "check my loan-request status" lookup on the login page (no login required). Deliberately
+// does NOT select the loan_requests table directly the way an admin screen would — a blanket anon
+// SELECT policy on that table would let any visitor page through every customer's name/phone/amount,
+// not just their own. Instead this calls a Postgres RPC (see schema/loan_request_status_rpc.sql)
+// that runs as SECURITY DEFINER and returns only status/amount/currency/date for rows matching the
+// phone number the visitor typed in — the same "server decides what you can see" pattern proper
+// RLS relies on, just implemented as a function since the underlying table is generic id/data jsonb.
+// Run that SQL file once in the Supabase SQL editor before this feature will return results.
+async function checkLoanRequestStatus(e) {
+    e.preventDefault();
+    const phone = document.getElementById('csPhone').value.trim();
+    const resultsBox = document.getElementById('csResults');
+    if (!phone) return;
+
+    const submitBtn = document.getElementById('csSubmitBtn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> កំពុងស្វែងរក...';
+    resultsBox.innerHTML = '';
+
+    try {
+        const rows = await dbRpc('get_loan_request_status_by_phone', { p_phone: phone });
+        if (!rows || rows.length === 0) {
+            resultsBox.innerHTML = `<p style="font-size:13px; color:#888; text-align:center; margin:0;">រកមិនឃើញសំណើសុំកម្ចីជាមួយលេខទូរស័ព្ទនេះទេ។</p>`;
+        } else {
+            resultsBox.innerHTML = rows.map(r => {
+                const st = LOAN_REQUEST_STATUS[r.status] || LOAN_REQUEST_STATUS.pending;
+                return `
+                    <div style="border:1px solid #eee; border-radius:8px; padding:10px 12px; margin-bottom:8px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span class="status-badge ${st.badgeClass}">${esc(st.label)}</span>
+                            <span style="font-size:12px; color:#888;">${esc(formatDateDMY(r.submitted_at))}</span>
+                        </div>
+                        ${r.amount ? `<div style="margin-top:6px; font-size:13px;">ចំនួនស្នើសុំ: ${esc(fmtMoney(r.amount, r.currency || 'USD'))}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+    } catch (err) {
+        console.error('checkLoanRequestStatus error:', err);
+        resultsBox.innerHTML = `<p style="font-size:13px; color:#c0392b; text-align:center; margin:0;">មិនអាចពិនិត្យស្ថានភាពបានទេ សូមព្យាយាមម្តងទៀត។</p>`;
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-search"></i> ពិនិត្យស្ថានភាព';
+    }
 }
 
 // Lets someone set the Supabase URL/Key on a fresh browser BEFORE logging in (Cloud Sync settings
