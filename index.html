@@ -61,6 +61,7 @@
       <button class="btn btn-info btn-sm login-action-btn" onclick="toggleLoginActionBox('contactCompanyBox')"><i class="fas fa-building"></i> ទាក់ទងក្រុមហ៊ុន</button>
       <button class="btn btn-info btn-sm login-action-btn" onclick="toggleLoginActionBox('helpRequestBox')"><i class="fas fa-life-ring"></i> សុំជំនួយ</button>
       <button class="btn btn-info btn-sm login-action-btn" onclick="toggleLoginActionBox('checkStatusBox')"><i class="fas fa-search"></i> ពិនិត្យស្ថានភាព</button>
+      <button class="btn btn-info btn-sm login-action-btn" onclick="toggleLoginActionBox('downloadScheduleBox')"><i class="fas fa-file-download"></i> តារាងបង់ប្រាក់</button>
     </div>
 
     <div id="loanRequestBox" class="login-action-box" style="display:none; text-align:left;">
@@ -119,6 +120,17 @@
         <button type="submit" id="csSubmitBtn" class="btn btn-info" style="width:100%; margin-top:14px;"><i class="fas fa-search"></i> ពិនិត្យស្ថានភាព</button>
       </form>
       <div id="csResults" style="margin-top:14px;"></div>
+    </div>
+
+    <div id="downloadScheduleBox" class="login-action-box" style="display:none; text-align:left;">
+      <h4 style="margin-top:0;"><i class="fas fa-file-download"></i> ទាញយកតារាងបង់ប្រាក់</h4>
+      <p style="margin:0 0 12px; font-size:13px;">សូមបញ្ចូលលេខទូរស័ព្ទរបស់អ្នក ដើម្បីមើល និងទាញយកតារាងបង់ប្រាក់នៃកម្ចីរបស់អ្នក។</p>
+      <form id="downloadScheduleForm" onsubmit="checkMyLoanSchedule(event)">
+        <label for="dsPhone"><i class="fas fa-phone"></i> លេខទូរស័ព្ទ *</label>
+        <input id="dsPhone" type="tel" required />
+        <button type="submit" id="dsSubmitBtn" class="btn btn-info" style="width:100%; margin-top:14px;"><i class="fas fa-search"></i> ស្វែងរកកម្ចី</button>
+      </form>
+      <div id="dsResults" style="margin-top:14px;"></div>
     </div>
   </div>
 
