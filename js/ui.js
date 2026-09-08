@@ -277,6 +277,11 @@ function generateNotifications() {
         pendingLoans.forEach(loan => {
             createNotification(`pending-${loan.loanId}`, 'fa-gavel', `កម្ចី ${loan.loanId} កំពុងរង់ចាំការអនុម័ត។`, `javascript:goToLoan('${loan.loanId}')`, loan.loanId);
         });
+
+        const pendingRequests = loanRequests.filter(r => r.status === 'pending');
+        pendingRequests.forEach(req => {
+            createNotification(`loanreq-${req.id}`, 'fa-file-signature', `${req.name} បានស្នើសុំកម្ចីថ្មី។`, `javascript:goToLoanRequest('${req.id}')`);
+        });
     }
 
     renderNotifications();
@@ -313,6 +318,11 @@ function renderNotifications() {
 function goToLoan(loanId) {
     switchTab('loans');
     loadLoan(loanId);
+    toggleNotificationPanel();
+}
+function goToLoanRequest() {
+    switchTab('admin');
+    switchSubTab('admin', 'loanRequests');
     toggleNotificationPanel();
 }
 function toggleNotificationPanel() {

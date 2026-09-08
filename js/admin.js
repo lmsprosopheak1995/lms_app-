@@ -166,6 +166,12 @@ function updateLoanRequestStatus(id, status) {
         request.status = status;
         persistData(LS_KEYS.loanRequests, loanRequests);
         renderLoanRequestsTable();
+
+        if (status === 'approved' || status === 'rejected') {
+            const icon = status === 'approved' ? '✅' : '❌';
+            const label = LOAN_REQUEST_STATUS[status] ? LOAN_REQUEST_STATUS[status].label : status;
+            notifyTelegram(`${icon} <b>សំណើសុំកម្ចីត្រូវបាន${label}</b>\nឈ្មោះ: ${request.name}\nទូរស័ព្ទ: ${request.phone}\nដោយ: ${(currentUser && currentUser.fullName) || 'N/A'}`);
+        }
     }
 }
 

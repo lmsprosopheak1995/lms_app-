@@ -730,6 +730,8 @@ function submitLoanRequest(e) {
     loanRequests.push(newRequest);
     persistData(LS_KEYS.loanRequests, loanRequests);
 
+    notifyTelegram(`📩 <b>មានសំណើសុំកម្ចីថ្មី</b>\nឈ្មោះ: ${newRequest.name}\nទូរស័ព្ទ: ${newRequest.phone}${newRequest.amount ? `\nចំនួនស្នើសុំ: ${newRequest.amount} ${newRequest.currency}` : ''}${newRequest.address ? `\nអាសយដ្ឋាន: ${newRequest.address}` : ''}${newRequest.purpose ? `\nគោលបំណង: ${newRequest.purpose}` : ''}`);
+
     showToast('សំណើសុំកម្ចីរបស់អ្នកបានផ្ញើដោយជោគជ័យ! ក្រុមការងារនឹងទាក់ទងទៅអ្នកឆាប់ៗនេះ។', 'success');
     document.getElementById('loanRequestForm').reset();
     document.getElementById('loanRequestBox').style.display = 'none';
