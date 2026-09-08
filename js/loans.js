@@ -1937,6 +1937,8 @@ function printLoanSchedule(mode) {
     // even when pop-ups ARE allowed, so we'd lose the reference needed to write content into the
     // window, call print(), and close() it. The blank tab stays open forever and print never runs.
     const printWindow = window.open('', '_blank');
+    if (!printWindow) { showToast('សូមអនុញ្ញាត Pop-up (Allow Pop-ups) សម្រាប់គេហទំព័រនេះ ដើម្បីអាច Print បាន', 'error'); return; }
+    printWindow.document.write(`<html><head><title>${titleText}</title><style>${pageStyle}</style></head><body>${bodyHtml}</body></html>`);
     printWindow.document.close();
     setTimeout(() => {
         printWindow.focus();
@@ -1953,6 +1955,8 @@ function printReceipt() {
 
     // NOTE: no 'noopener' here — see the comment in printLoanSchedule() above for why.
     const printWindow = window.open('', '_blank');
+    if (!printWindow) { showToast('សូមអនុញ្ញាត Pop-up (Allow Pop-ups) សម្រាប់គេហទំព័រនេះ ដើម្បីអាច Print បាន', 'error'); return; }
+    printWindow.document.write('<html><head><title>Print Receipt</title>');
     printWindow.document.write('<link rel="stylesheet" href="styles.css">');
     printWindow.document.write('<style>body { margin: 20px; } .modal-content { border: none; box-shadow: none; } #receiptActions { display: none; } </style>');
     printWindow.document.write('</head><body>');
