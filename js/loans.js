@@ -933,7 +933,10 @@ function approveLoan() {
         persistData(LS_KEYS.loans, loans);
         logChange(currentLoan.loanId, "Loan Approved");
         showToast(`Loan ${currentLoan.loanId} has been approved.`, 'success');
-        
+
+        const cust = getCustomer(currentLoan.customerId);
+        notifyTelegram(`✅ <b>កម្ចីត្រូវបានអនុម័ត (ព្រមផ្តល់)</b>\nលេខកម្ចី: ${currentLoan.loanId}\nអតិថិជន: ${cust ? cust.name : 'N/A'}\nចំនួនទឹកប្រាក់: ${currentLoan.loanAmount || ''} ${currentLoan.currency || ''}\nដោយ: ${(currentUser && currentUser.fullName) || 'N/A'}`);
+
         displayLoans();
         loadLoan(currentLoan.loanId);
     }
@@ -950,6 +953,9 @@ async function rejectLoan() {
             persistData(LS_KEYS.loans, loans);
             logChange(currentLoan.loanId, "Loan Rejected");
             showToast(`Loan ${currentLoan.loanId} has been rejected.`, 'info');
+
+            const cust = getCustomer(currentLoan.customerId);
+            notifyTelegram(`❌ <b>កម្ចីត្រូវបានបដិសេធ</b>\nលេខកម្ចី: ${currentLoan.loanId}\nអតិថិជន: ${cust ? cust.name : 'N/A'}\nដោយ: ${(currentUser && currentUser.fullName) || 'N/A'}`);
 
             displayLoans();
             loadLoan(currentLoan.loanId);
@@ -968,6 +974,10 @@ async function toggleArchiveLoan(event, loanIdToToggle) {
             loan.isArchived = !loan.isArchived;
             logChange(loan.loanId, action + ' Loan');
             persistData(LS_KEYS.loans, loans);
+
+            const cust = getCustomer(loan.customerId);
+            notifyTelegram(`🗄️ <b>កម្ចីត្រូវបាន${loan.isArchived ? 'ទុកក្នុងសំណុំឯកសារ' : 'ស្តារឡើងវិញ'}</b>\nលេខកម្ចី: ${loan.loanId}\nអតិថិជន: ${cust ? cust.name : 'N/A'}\nដោយ: ${(currentUser && currentUser.fullName) || 'N/A'}`);
+
             if (currentLoan && currentLoan.loanId === loanIdToToggle) {
                 loadLoan(loanIdToToggle);
             }
@@ -1259,6 +1269,10 @@ function processWriteOff() {
         persistData(LS_KEYS.loans, loans);
         logChange(currentLoan.loanId, 'Loan Written Off', { reason });
         showToast(`Loan ${currentLoan.loanId} has been written off.`, 'success');
+
+        const cust = getCustomer(currentLoan.customerId);
+        notifyTelegram(`⚠️ <b>កម្ចីត្រូវបានកាត់ចោល (Write-off)</b>\nលេខកម្ចី: ${currentLoan.loanId}\nអតិថិជន: ${cust ? cust.name : 'N/A'}\nមូលហេតុ: ${reason}\nដោយ: ${(currentUser && currentUser.fullName) || 'N/A'}`);
+
         displayLoans();
         loadLoan(currentLoan.loanId);
         closeWriteOffModal();
@@ -1312,6 +1326,7 @@ function saveCollateral(e) {
         return;
     }
 
+    const isNewCollateral = !collateralId;
     if (collateralId) {
         const index = collaterals.findIndex(c => c.id === collateralId);
         if (index > -1) collaterals[index] = collateralData;
@@ -1322,6 +1337,9 @@ function saveCollateral(e) {
     renderCollateralTable();
     clearCollateralForm();
     document.getElementById('collateralCount').textContent = collaterals.filter(c => c.loanId === currentLoan.loanId).length;
+
+    const collCust = getCustomer(currentLoan.customerId);
+    notifyTelegram(`🏠 <b>${isNewCollateral ? 'បានបន្ថែមទ្រព្យបញ្ចាំ' : 'ទ្រព្យបញ្ចាំត្រូវបានកែប្រែ'}</b>\nលេខកម្ចី: ${currentLoan.loanId}\nអតិថិជន: ${collCust ? collCust.name : 'N/A'}\nប្រភេទ: ${collateralData.type}\nតម្លៃ: ${collateralData.value}\nដោយ: ${(currentUser && currentUser.fullName) || 'N/A'}`);
 }
 
 function renderCollateralTable() {
@@ -1362,10 +1380,14 @@ function editCollateral(collateralId) {
 async function deleteCollateral(collateralId) {
     if (!canManageLoanExtras(currentLoan)) { showToast('Permission Denied.', 'error'); return; }
     if (await customConfirm('Are you sure you want to delete this collateral item?')) {
+        const deletedColl = collaterals.find(c => c.id === collateralId);
         collaterals = collaterals.filter(c => c.id !== collateralId);
         persistData(LS_KEYS.collaterals, collaterals);
         renderCollateralTable();
         document.getElementById('collateralCount').textContent = collaterals.filter(c => c.loanId === currentLoan.loanId).length;
+
+        const collCust = getCustomer(currentLoan.customerId);
+        notifyTelegram(`🗑️ <b>ទ្រព្យបញ្ចាំត្រូវបានលុប</b>\nលេខកម្ចី: ${currentLoan.loanId}\nអតិថិជន: ${collCust ? collCust.name : 'N/A'}${deletedColl ? `\nប្រភេទ: ${deletedColl.type}` : ''}\nដោយ: ${(currentUser && currentUser.fullName) || 'N/A'}`);
     }
 }
 
@@ -1410,6 +1432,7 @@ function saveGuarantor(e) {
         return;
     }
 
+    const isNewGuarantor = !guarantorId;
     if (guarantorId) {
         const index = guarantors.findIndex(g => g.id === guarantorId);
         if (index > -1) guarantors[index] = guarantorData;
@@ -1420,6 +1443,9 @@ function saveGuarantor(e) {
     renderGuarantorTable();
     clearGuarantorForm();
     document.getElementById('guarantorCount').textContent = guarantors.filter(g => g.loanId === currentLoan.loanId).length;
+
+    const guarCust = getCustomer(currentLoan.customerId);
+    notifyTelegram(`🤝 <b>${isNewGuarantor ? 'បានបន្ថែមអ្នកធានា' : 'អ្នកធានាត្រូវបានកែប្រែ'}</b>\nលេខកម្ចី: ${currentLoan.loanId}\nអតិថិជន: ${guarCust ? guarCust.name : 'N/A'}\nអ្នកធានា: ${guarantorData.name}\nទូរស័ព្ទ: ${guarantorData.phone}\nដោយ: ${(currentUser && currentUser.fullName) || 'N/A'}`);
 }
 
 function renderGuarantorTable() {
@@ -1462,10 +1488,14 @@ function editGuarantor(guarantorId) {
 async function deleteGuarantor(guarantorId) {
     if (!canManageLoanExtras(currentLoan)) { showToast('Permission Denied.', 'error'); return; }
     if (await customConfirm('Are you sure you want to delete this guarantor?')) {
+        const deletedGuar = guarantors.find(g => g.id === guarantorId);
         guarantors = guarantors.filter(g => g.id !== guarantorId);
         persistData(LS_KEYS.guarantors, guarantors);
         renderGuarantorTable();
         document.getElementById('guarantorCount').textContent = guarantors.filter(g => g.loanId === currentLoan.loanId).length;
+
+        const guarCust = getCustomer(currentLoan.customerId);
+        notifyTelegram(`🗑️ <b>អ្នកធានាត្រូវបានលុប</b>\nលេខកម្ចី: ${currentLoan.loanId}\nអតិថិជន: ${guarCust ? guarCust.name : 'N/A'}${deletedGuar ? `\nអ្នកធានា: ${deletedGuar.name}` : ''}\nដោយ: ${(currentUser && currentUser.fullName) || 'N/A'}`);
     }
 }
 

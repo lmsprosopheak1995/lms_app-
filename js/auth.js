@@ -160,6 +160,9 @@ async function saveUser() {
       hideUserForm();
       await renderUsersTable();
       showToast('រក្សាទុកព័ត៌មានបានជោគជ័យ!', 'success');
+
+      const roleLabel = (USER_ROLES[newRole] && USER_ROLES[newRole].name) || newRole;
+      notifyTelegram(`${usernameToEdit ? '✏️ <b>គណនីអ្នកប្រើប្រាស់ត្រូវបានកែប្រែ</b>' : '👤 <b>គណនីអ្នកប្រើប្រាស់ថ្មីត្រូវបានបង្កើត</b>'}\nឈ្មោះអ្នកប្រើ: ${usernameToEdit || document.getElementById('newUsername').value.trim()}\nឈ្មោះពេញ: ${newFullName}\nតួនាទី: ${roleLabel}${isFrozen ? '\n🔒 ស្ថានភាព: បានផ្អាក (Frozen)' : ''}\nដោយ: ${(currentUser && currentUser.fullName) || 'N/A'}`);
   } catch (e) {
       console.error('saveUser error:', e);
       showToast(`រក្សាទុកបរាជ័យ: ${String(e.message || e)}`, 'error');
@@ -205,6 +208,8 @@ async function deleteUser(username) {
             await renderUsersTable();
             displayLoans();
             showToast(`អ្នកប្រើប្រាស់ ${username} ត្រូវបានលុប។`, 'success');
+
+            notifyTelegram(`🗑️ <b>គណនីអ្នកប្រើប្រាស់ត្រូវបានលុប</b>\nឈ្មោះអ្នកប្រើ: ${username}${target ? `\nឈ្មោះពេញ: ${target.fullName || 'N/A'}` : ''}\nដោយ: ${(currentUser && currentUser.fullName) || 'N/A'}`);
         } catch (e) {
             console.error('deleteUser error:', e);
             showToast(`ការលុបបរាជ័យ: ${String(e.message || e)}`, 'error');

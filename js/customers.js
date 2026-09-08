@@ -79,6 +79,9 @@ function saveCustomer(e) {
 
     persistData(LS_KEYS.customers, customers);
     showToast('រក្សាទុកព័ត៌មានអតិថិជនបានជោគជ័យ!', 'success');
+
+    notifyTelegram(`${isNewCustomer ? '👤 <b>អតិថិជនថ្មីត្រូវបានបង្កើត</b>' : '✏️ <b>ព័ត៌មានអតិថិជនត្រូវបានកែប្រែ</b>'}\nឈ្មោះ: ${customerData.name}\nទូរស័ព្ទ: ${customerData.phone || 'N/A'}${customerData.isBlacklisted ? '\n⚠️ ស្ថានភាព: បញ្ជីខ្មៅ (Blacklisted)' : ''}\nដោយ: ${(currentUser && currentUser.fullName) || 'N/A'}`);
+
     hideCustomerForm();
     renderCustomersListTable();
     populateCustomerDropdowns();
