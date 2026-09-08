@@ -62,10 +62,39 @@
       <button class="btn btn-info btn-sm login-action-btn" onclick="toggleLoginActionBox('helpRequestBox')"><i class="fas fa-life-ring"></i> សុំជំនួយ</button>
     </div>
 
-    <div id="loanRequestBox" class="login-action-box" style="display:none;">
-      <p style="margin:0 0 10px;"><i class="fas fa-hand-holding-usd"></i> ដើម្បីស្នើសុំកម្ចី សូមទាក់ទងមកកាន់ក្រុមហ៊ុនតាមរយៈ Telegram ឬ ទូរស័ព្ទខាងក្រោម ក្រុមការងារនឹងជួយណែនាំជំហានបន្ទាប់៖</p>
-      <a href="https://t.me/Samross_Ph_Care" target="_blank" rel="noopener" class="btn btn-info btn-sm" style="width:100%; display:block; margin-bottom:8px;"><i class="fab fa-telegram"></i> ស្នើសុំកម្ចីតាម Telegram</a>
-      <p style="margin:0;"><i class="fas fa-phone"></i> 096 666 7292 &nbsp;/&nbsp; 088 887 6150</p>
+    <div id="loanRequestBox" class="login-action-box" style="display:none; text-align:left;">
+      <h4 style="margin-top:0;"><i class="fas fa-hand-holding-usd"></i> ស្នើសុំកម្ចី</h4>
+      <p style="margin:0 0 12px; font-size:13px;">សូមបំពេញព័ត៌មានខាងក្រោម ក្រុមការងារនឹងទាក់ទងទៅអ្នកវិញក្នុងពេលឆាប់ៗ។</p>
+      <form id="loanRequestForm" onsubmit="submitLoanRequest(event)">
+        <label for="lrName"><i class="fas fa-user"></i> ឈ្មោះពេញ *</label>
+        <input id="lrName" required />
+
+        <label for="lrPhone" style="margin-top:10px;"><i class="fas fa-phone"></i> លេខទូរស័ព្ទ *</label>
+        <input id="lrPhone" type="tel" required />
+
+        <div style="display:flex; gap:8px; margin-top:10px;">
+          <div style="flex:2;">
+            <label for="lrAmount"><i class="fas fa-money-bill-wave"></i> ចំនួនទឹកប្រាក់ចង់ខ្ចី</label>
+            <input id="lrAmount" type="number" inputmode="decimal" min="0" step="0.01" />
+          </div>
+          <div style="flex:1;">
+            <label for="lrCurrency"><i class="fas fa-coins"></i> រូបិយប័ណ្ណ</label>
+            <select id="lrCurrency">
+              <option value="USD">USD</option>
+              <option value="KHR">KHR</option>
+            </select>
+          </div>
+        </div>
+
+        <label for="lrAddress" style="margin-top:10px;"><i class="fas fa-map-marker-alt"></i> ភូមិ/ឃុំ/ស្រុក/ខេត្ត</label>
+        <input id="lrAddress" />
+
+        <label for="lrPurpose" style="margin-top:10px;"><i class="fas fa-comment-alt"></i> គោលបំណងខ្ចី</label>
+        <textarea id="lrPurpose" rows="2"></textarea>
+
+        <button type="submit" id="lrSubmitBtn" class="btn btn-success" style="width:100%; margin-top:14px;"><i class="fas fa-paper-plane"></i> ដាក់ស្នើសុំកម្ចី</button>
+      </form>
+      <p style="margin:12px 0 0; font-size:12px; text-align:center;">ឬទាក់ទងផ្ទាល់៖ <a href="https://t.me/Samross_Ph_Care" target="_blank" rel="noopener"><i class="fab fa-telegram"></i> Telegram</a> &nbsp;/&nbsp; <i class="fas fa-phone"></i> 096 666 7292</p>
     </div>
 
     <div id="contactCompanyBox" class="login-action-box" style="display:none;">
@@ -820,6 +849,7 @@
             <div class="sub-tab" onclick="switchSubTab('admin', 'system')"><i class="fas fa-database"></i> ទិន្នន័យប្រព័ន្ធ</div>
             <div class="sub-tab" onclick="switchSubTab('admin', 'holidays')"><i class="fas fa-calendar-times"></i> ការគ្រប់គ្រងថ្ងៃឈប់</div>
             <div class="sub-tab" onclick="switchSubTab('admin', 'loanProducts')"><i class="fas fa-box-open"></i> ប្រភេទផលិតផលកម្ចី</div>
+            <div class="sub-tab" onclick="switchSubTab('admin', 'loanRequests')"><i class="fas fa-hand-holding-usd"></i> សំណើសុំកម្ចី</div>
             <div class="sub-tab" onclick="switchSubTab('admin', 'settings')"><i class="fas fa-cogs"></i> ការកំណត់ផ្សេងៗ</div>
         </div>
 
@@ -956,6 +986,26 @@
                             <tbody id="loanProductsTableBody"></tbody>
                         </table>
                     </div>
+                </div>
+            </div>
+        </div>
+        <div id="loanRequestsSubTab" class="sub-tab-content">
+            <div class="card" style="max-width:1100px; margin:0 auto;">
+                <h4><i class="fas fa-hand-holding-usd"></i> សំណើសុំកម្ចីពីអតិថិជន (តាមរយៈទំព័រចូលប្រព័ន្ធ)</h4>
+                <div class="table-container" style="max-height: 500px;">
+                    <table id="loanRequestsTable">
+                        <thead><tr>
+                            <th><i class="fas fa-calendar-day"></i> កាលបរិច្ឆេទ</th>
+                            <th><i class="fas fa-user"></i> ឈ្មោះ</th>
+                            <th><i class="fas fa-phone"></i> លេខទូរស័ព្ទ</th>
+                            <th><i class="fas fa-money-bill-wave"></i> ចំនួនទឹកប្រាក់</th>
+                            <th><i class="fas fa-map-marker-alt"></i> អាសយដ្ឋាន</th>
+                            <th><i class="fas fa-comment-alt"></i> គោលបំណង</th>
+                            <th><i class="fas fa-toggle-on"></i> ស្ថានភាព</th>
+                            <th><i class="fas fa-cogs"></i> សកម្មភាព</th>
+                        </tr></thead>
+                        <tbody id="loanRequestsTableBody"></tbody>
+                    </table>
                 </div>
             </div>
         </div>
