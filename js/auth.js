@@ -40,16 +40,21 @@ function checkPin() {
 let __usersMemoryCache = [];
 function getUsers() { return __usersMemoryCache; }
 function setUsersCache(users) { __usersMemoryCache = users; }
+// Set only while the user-edit form is open, by showUserForm() below — holds the ONE full
+// row (including pin) an admin is currently editing, fetched directly from app_user_roles
+// rather than from the shared roster. See the comment on refreshUsersCache() for why.
+let __editingUserFullProfile = null;
 
 // Kept as a no-op async function so existing call sites (checkAuth) don't need to change —
 // there's nothing left to migrate locally now that accounts are 100% Supabase-backed.
 async function initializeUsers() {}
 
-function showUserForm(username = null) {
+async function showUserForm(username = null) {
   if (!hasPermission('canManageUsers')) return;
   const users = getUsers();
   const user = username ? users.find(u => u.username === username) : null;
   document.getElementById('userAvatarInput').value = '';
+  __editingUserFullProfile = null;
   if (user) {
       document.getElementById('userFormTitle').innerHTML = `<i class="fas fa-user-edit"></i> កែប្រែព័ត៌មានអ្នកប្រើប្រាស់`;
       document.getElementById('editUsername').value = user.username;
@@ -58,11 +63,27 @@ function showUserForm(username = null) {
       document.getElementById('newUserAuthHint').style.display = 'none';
       document.getElementById('newUserPasswordField').style.display = 'none';
       document.getElementById('newUid').value = user.uid || '';
-      document.getElementById('newPin').value = user.pin || '';
       document.getElementById('newFullName').value = user.fullName;
       document.getElementById('newRole').value = user.role;
       document.getElementById('frozenAccount').checked = user.isFrozen || false;
       document.getElementById('avatarPreview').src = user.avatar || DEFAULT_AVATAR_SRC;
+      document.getElementById('userFormCard').style.display = 'block';
+
+      // The shared roster (getUsers(), from the app_user_roster VIEW) never carries `pin` — see
+      // refreshUsersCache(). To show/edit THIS one user's PIN, fetch their row from the real
+      // table directly instead; RLS allows an admin to read any single row there (see
+      // is_admin() in schema.sql), it just no longer hands out every row's PIN to everyone via
+      // the bulk roster fetch.
+      document.getElementById('newPin').value = '';
+      if (user.uid) {
+          try {
+              __editingUserFullProfile = await fetchUserRoleProfile(user.uid);
+              document.getElementById('newPin').value = __editingUserFullProfile?.pin || '';
+          } catch (e) {
+              console.error('Could not load PIN for editing:', e);
+              showToast('មិនអាចទាញយក PIN បានទេ (សូមព្យាយាមម្តងទៀត)', 'error');
+          }
+      }
   } else {
       document.getElementById('userFormTitle').innerHTML = `<i class="fas fa-user-plus"></i> បន្ថែមអ្នកប្រើប្រាស់ថ្មី`;
       document.getElementById('editUsername').value = '';
@@ -78,8 +99,8 @@ function showUserForm(username = null) {
       document.getElementById('newRole').value = 'officer';
       document.getElementById('frozenAccount').checked = false;
       document.getElementById('avatarPreview').src = DEFAULT_AVATAR_SRC;
+      document.getElementById('userFormCard').style.display = 'block';
   }
-  document.getElementById('userFormCard').style.display = 'block';
 }
 
 function hideUserForm() { document.getElementById('userFormCard').style.display = 'none'; }
@@ -100,6 +121,9 @@ async function saveUser() {
           // Dashboard, or the user can change it themselves via their Profile menu.)
           const existing = getUsers().find(u => u.username === usernameToEdit);
           if (!existing || !existing.uid) { showToast('រកមិនឃើញ Supabase UID សម្រាប់អ្នកប្រើនេះ សូមបើក Users tab ម្តងទៀតដើម្បី Refresh', 'error'); return; }
+          // existing.pin no longer exists (the shared roster excludes it) — fall back to the
+          // full row showUserForm() fetched when this edit form was opened.
+          const existingPin = __editingUserFullProfile?.pin;
           // Un-freezing here also clears the 3-strikes counter (see record_failed_login() in
           // schema.sql) — otherwise a single further mistyped password would hit 3 again
           // immediately and re-freeze the account the admin just unlocked.
@@ -108,7 +132,7 @@ async function saveUser() {
               username: usernameToEdit,
               full_name: newFullName,
               role: newRole,
-              pin: newPin || existing.pin || '1234',
+              pin: newPin || existingPin || '1234',
               is_frozen: isFrozen,
               avatar: newAvatarData || existing.avatar || null,
               failed_attempts: isFrozen ? undefined : 0
@@ -193,13 +217,16 @@ async function deleteUser(username) {
 // Used both by renderUsersTable() (Admin > Users) and once at startup (initApp) — the officer
 // roster (Credit Officer dropdowns, filters, ...) needs every user, not just whoever happens to
 // have already logged in on this particular browser, and not just when an admin happens to open
-// the Users tab.
+// the Users tab. Reads the app_user_roster VIEW (safe columns only) rather than the
+// app_user_roles table directly — see fetchUserRoster() above — because EVERY logged-in user
+// calls this, regardless of role, so it must never carry pin/failed_attempts. An admin editing
+// one specific user's PIN gets it separately, via showUserForm()'s direct per-row fetch.
 async function refreshUsersCache() {
   try {
-      const remoteProfiles = await fetchAllUserRoleProfiles();
+      const remoteProfiles = await fetchUserRoster();
       const mergedUsers = remoteProfiles.map(p => ({
           uid: p.uid, username: p.username, fullName: p.full_name, role: p.role,
-          pin: p.pin, isFrozen: !!p.is_frozen, avatar: p.avatar || null, createdAt: p.created_at
+          isFrozen: !!p.is_frozen, avatar: p.avatar || null, createdAt: p.created_at
       }));
       setUsersCache(mergedUsers);
   } catch (e) {
@@ -223,9 +250,9 @@ async function renderUsersTable() {
 
       const statusCell = `<td class="status-cell"><span class="status-badge ${user.isFrozen ? 'status-unpaid' : 'status-paid'}">${statusText}</span></td>`;
       const actionButtons = `<td class="actions">
-          <button class="btn btn-info btn-sm" onclick="showUserForm('${user.username}')"><i class="fas fa-edit"></i> កែប្រែ</button>
-          <button class="btn btn-warning btn-sm" onclick="resetUserPasswordPrompt('${user.username}')"><i class="fas fa-key"></i> ប្តូរពាក្យសម្ងាត់</button>
-          <button class="btn btn-danger btn-sm" onclick="deleteUser('${user.username}')" ${isCurrentUser ? 'disabled' : ''}><i class="fas fa-trash-alt"></i> លុប</button>
+          <button class="btn btn-info btn-sm" onclick="showUserForm('${escJsAttr(user.username)}')"><i class="fas fa-edit"></i> កែប្រែ</button>
+          <button class="btn btn-warning btn-sm" onclick="resetUserPasswordPrompt('${escJsAttr(user.username)}')"><i class="fas fa-key"></i> ប្តូរពាក្យសម្ងាត់</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteUser('${escJsAttr(user.username)}')" ${isCurrentUser ? 'disabled' : ''}><i class="fas fa-trash-alt"></i> លុប</button>
       </td>`;
 
       tr.innerHTML = `<td><img src="${esc(user.avatar || DEFAULT_AVATAR_SRC)}" class="avatar"></td><td>${index + 1}</td><td>${esc(user.username)}</td><td>${esc(user.fullName)}</td><td><span class="role-badge role-${esc(user.role)}"><i class="${roleInfo.icon}"></i> ${roleInfo.name}</span></td>${statusCell}${actionButtons}`;
@@ -394,11 +421,34 @@ async function fetchUserRoleProfile(uid) {
     return rows[0] || null;
 }
 
+// Full-table fetch (every column, every row this caller's RLS allows). No longer called
+// automatically for the general roster (see fetchUserRoster()/refreshUsersCache() above) —
+// kept in case a future admin-only feature needs the whole table at once; for admins RLS
+// still permits it, for anyone else it now correctly returns only their own row.
 async function fetchAllUserRoleProfiles() {
     const { url, key } = getSupabaseAuthConfig();
     if (!url || !key) throw new Error('NO_SUPABASE_CONFIG');
     const session = await ensureSupabaseSession();
     const res = await fetch(`${url}/rest/v1/${USER_ROLES_TABLE}?select=*&order=created_at.asc`, {
+        headers: { 'apikey': key, 'Authorization': `Bearer ${session?.access_token || key}` }
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+}
+
+// RLS on app_user_roles now only lets a row's own owner (or an admin) read that row at all —
+// otherwise a plain SELECT * would hand every officer's PIN and failed-login counter to every
+// OTHER logged-in officer, since RLS restricts which ROWS you see, not which COLUMNS (see
+// schema.sql). Everyone still needs the basic roster (username/name/role/frozen-status) for
+// dropdowns though, so that comes from this VIEW instead — it deliberately omits pin and
+// failed_attempts from its column list, and runs with the view-owner's privileges so it can
+// still show every row (not just the caller's own) despite the table's tighter RLS.
+const USER_ROSTER_VIEW = 'app_user_roster'; // see schema.sql
+async function fetchUserRoster() {
+    const { url, key } = getSupabaseAuthConfig();
+    if (!url || !key) throw new Error('NO_SUPABASE_CONFIG');
+    const session = await ensureSupabaseSession();
+    const res = await fetch(`${url}/rest/v1/${USER_ROSTER_VIEW}?select=*&order=created_at.asc`, {
         headers: { 'apikey': key, 'Authorization': `Bearer ${session?.access_token || key}` }
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -554,6 +604,21 @@ async function checkAuth() {
               avatar: profile.avatar || null,
               themePreference: profile.theme_preference || 'light'
           };
+
+          // MAINTENANCE MODE: a shared on/off flag + message that lives in the same app_settings
+          // cloud row as the exchange rate (see db.js), so it's the same for every officer and
+          // updates live over Realtime — no per-browser setting to forget. Only 'admin' bypasses
+          // it; every other role is turned away here, both on a fresh login (login() always ends
+          // by calling checkAuth(), which is this function) and on every later page load, so a
+          // maintenance window an admin turns on while someone is mid-session still applies the
+          // next time that tab re-checks auth. The live-kick case (already open tab, mode flipped
+          // on right now) is handled separately in db.js's app_settings Realtime handler.
+          await loadAppSettingsEntity();
+          if (getCloudMaintenanceMode() && currentUser.role !== 'admin') {
+              showMaintenanceBlockedMessage();
+              logout();
+              return;
+          }
       } catch (e) {
           // Can't reach Supabase to verify the session (offline, or the token is no longer
           // valid) — since Supabase is now the only place account data lives, there's nothing
@@ -706,6 +771,15 @@ async function login(){
 // checkAuth() finds is_frozen on an account that somehow still has a valid session.
 function showFrozenAccountMessage() {
     showToast("គណនីរបស់អ្នកត្រូវបានបង្កក ដោយសារព្យាយាមបញ្ចូលពាក្យសម្ងាត់ខុសលើសពី 3 ដង។ សូមទាក់ទងអ្នកគ្រប់គ្រងដើម្បីដោះការបង្កក។", 'error');
+}
+
+// Shown when Maintenance Mode is on and the signed-in (or signing-in) user isn't 'admin' —
+// both when checkAuth() turns them away up front, and when db.js's Realtime handler kicks out
+// someone whose tab was already open when an admin flipped the mode on. Falls back to a
+// generic line if the admin didn't set a custom message.
+function showMaintenanceBlockedMessage() {
+    const customMsg = (typeof getCloudMaintenanceMessage === 'function') ? getCloudMaintenanceMessage() : '';
+    showToast(customMsg || 'ប្រព័ន្ធកំពុងស្ថិតក្នុងអំឡុងពេលថែទាំ (Maintenance) សូមព្យាយាមម្តងទៀតពេលក្រោយ។', 'error');
 }
 
 function logout(){

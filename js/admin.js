@@ -5,6 +5,7 @@
 // ===================== ADMIN FUNCTIONS (Holidays, Products, etc.) =====================
 function saveHoliday(e) {
     e.preventDefault();
+    if (!hasPermission('canManageSystem')) { showToast('Permission Denied.', 'error'); return; }
     const id = document.getElementById('holidayId').value;
     const date = document.getElementById('holidayDate').value;
     const name = document.getElementById('holidayName').value.trim();
@@ -59,6 +60,7 @@ function editHoliday(id) {
 }
 
 async function deleteHoliday(id) {
+    if (!hasPermission('canManageSystem')) { showToast('Permission Denied.', 'error'); return; }
     if (await customConfirm('Are you sure you want to delete this holiday?')) {
         holidays = holidays.filter(h => h.id !== id);
         persistData(LS_KEYS.holidays, holidays);
@@ -73,6 +75,7 @@ function clearHolidayForm() {
 
 function saveLoanProduct(e) {
     e.preventDefault();
+    if (!hasPermission('canManageSystem')) { showToast('Permission Denied.', 'error'); return; }
     const name = document.getElementById('productName').value.trim();
     const interestRate = parseFloat(document.getElementById('productInterestRate').value);
     const loanTerm = parseInt(document.getElementById('productLoanTerm').value);
@@ -106,6 +109,7 @@ function renderLoanProductsTable() {
 }
 
 async function deleteLoanProduct(id) {
+    if (!hasPermission('canManageSystem')) { showToast('Permission Denied.', 'error'); return; }
     if (await customConfirm('Are you sure? This will not affect existing loans.')) {
         loanProducts = loanProducts.filter(p => p.id !== id);
         persistData(LS_KEYS.loanProducts, loanProducts);
@@ -206,12 +210,13 @@ function renderExpenseCategories() {
     const container = document.getElementById('expenseCategoryList');
     container.innerHTML = '';
     appSettings.expenseCategories.forEach(cat => {
-        container.innerHTML += `<div class="attachment-item">${esc(cat)} <button class="btn btn-danger btn-sm" onclick="deleteExpenseCategory('${esc(cat)}')"><i class="fas fa-trash-alt"></i></button></div>`;
+        container.innerHTML += `<div class="attachment-item">${esc(cat)} <button class="btn btn-danger btn-sm" onclick="deleteExpenseCategory('${escJsAttr(cat)}')"><i class="fas fa-trash-alt"></i></button></div>`;
     });
 }
 
 function saveExpenseCategory(e) {
     e.preventDefault();
+    if (!hasPermission('canManageSystem')) { showToast('Permission Denied.', 'error'); return; }
     const newCat = document.getElementById('expenseCategoryName').value.trim();
     if (newCat && !appSettings.expenseCategories.includes(newCat)) {
         appSettings.expenseCategories.push(newCat);
@@ -223,6 +228,7 @@ function saveExpenseCategory(e) {
 }
 
 async function deleteExpenseCategory(categoryName) {
+    if (!hasPermission('canManageSystem')) { showToast('Permission Denied.', 'error'); return; }
     if (await customConfirm(`Are you sure you want to delete category "${categoryName}"?`)) {
         appSettings.expenseCategories = appSettings.expenseCategories.filter(c => c !== categoryName);
         persistData(LS_KEYS.appSettings, appSettings);
@@ -241,6 +247,7 @@ function renderMessageTemplates() {
 
 function saveMessageTemplate(e) {
     e.preventDefault();
+    if (!hasPermission('canManageSystem')) { showToast('Permission Denied.', 'error'); return; }
     const id = document.getElementById('templateId').value;
     const name = document.getElementById('templateName').value.trim();
     const content = document.getElementById('templateContent').value.trim();
@@ -274,6 +281,7 @@ function editMessageTemplate(id) {
 }
 
 async function deleteMessageTemplate(id) {
+    if (!hasPermission('canManageSystem')) { showToast('Permission Denied.', 'error'); return; }
     if(await customConfirm('Are you sure you want to delete this message template?')) {
         appSettings.messageTemplates = appSettings.messageTemplates.filter(t => t.id !== id);
         persistData(LS_KEYS.appSettings, appSettings);

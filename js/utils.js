@@ -18,6 +18,18 @@ function esc(value) {
         .replace(/'/g, '&#39;');
 }
 
+// esc() alone is NOT enough for values placed inside an inline event handler attribute like
+// onclick="fn('${value}')" — the browser HTML-decodes the attribute (turning esc()'s &#39; back
+// into a literal ' ) *before* running it as JS, so a value containing a quote (e.g. a username
+// like "o'brien") still breaks out of the JS string and throws/misbehaves. Use this instead for
+// any free-text value interpolated inside a single-quoted JS argument in an onclick/onchange/etc.
+// attribute: it first backslash-escapes the value for the JS-string context, then esc()'s the
+// result for the HTML-attribute context, so both layers survive the browser's decode-then-run.
+function escJsAttr(value) {
+    const jsSafe = String(value ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    return esc(jsSafe);
+}
+
 // ===================== PERMISSIONS & NOTIFICATIONS =====================
 function hasPermission(action) {
   if (!currentUser || !currentUser.role) return false;

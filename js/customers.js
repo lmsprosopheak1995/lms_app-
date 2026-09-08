@@ -489,7 +489,7 @@ function printCustomerProfile() {
         .info-grid div:nth-child(odd) { font-weight:600; }
     </style>
     </head><body>
-        <img class="avatar" src="${customer.avatar || DEFAULT_AVATAR_SRC}">
+        <img class="avatar" src="${esc(customer.avatar || DEFAULT_AVATAR_SRC)}">
         <h2>${esc(customer.name)}</h2>
         <div class="info-grid">
             <div>ភេទ</div><div>${esc(customer.gender || '')}</div>
@@ -529,7 +529,7 @@ function printCustomerIdCard() {
     </style>
     </head><body>
         <div class="card">
-            <img class="avatar" src="${customer.avatar || DEFAULT_AVATAR_SRC}">
+            <img class="avatar" src="${esc(customer.avatar || DEFAULT_AVATAR_SRC)}">
             <div class="details">
                 <div class="header">កាតអតិថិជន / CUSTOMER CARD</div>
                 <div class="name">${esc(customer.name)}</div>
@@ -541,8 +541,8 @@ function printCustomerIdCard() {
             </div>
         </div>
         ${(customer.idCardFront || customer.idCardBack) ? `<div class="card">
-            ${customer.idCardFront ? `<img class="idphoto" style="width:50%;" src="${customer.idCardFront}">` : ''}
-            ${customer.idCardBack ? `<img class="idphoto" style="width:50%;" src="${customer.idCardBack}">` : ''}
+            ${customer.idCardFront ? `<img class="idphoto" style="width:50%;" src="${esc(customer.idCardFront)}">` : ''}
+            ${customer.idCardBack ? `<img class="idphoto" style="width:50%;" src="${esc(customer.idCardBack)}">` : ''}
         </div>` : ''}
         <script>window.onload = () => { window.print(); };<\/script>
     </body></html>`);

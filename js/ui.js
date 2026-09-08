@@ -229,6 +229,7 @@ function renderAdminTabs() {
     renderExpenseCategories();
     renderMessageTemplates();
     loadCloudSettingsIntoForm();
+    loadMaintenanceSettingsIntoForm();
 }
 
 function toggleFormLock(locked) {

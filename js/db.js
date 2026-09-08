@@ -268,6 +268,8 @@ let __appSettingsRowCache = {};
 function getCloudExchangeRate() { return __appSettingsRowCache.exchange_rate ?? null; }
 function getCloudExchangeRateDate() { return __appSettingsRowCache.exchange_rate_date ?? null; }
 function getCloudMigrationVersion() { return __appSettingsRowCache.migration_version ?? 0; }
+function getCloudMaintenanceMode() { return !!__appSettingsRowCache.maintenance_mode; }
+function getCloudMaintenanceMessage() { return __appSettingsRowCache.maintenance_message || ''; }
 
 async function saveExchangeRateToCloud(rate, dateStr) {
   __appSettingsRowCache.exchange_rate = rate;
@@ -277,12 +279,31 @@ async function saveExchangeRateToCloud(rate, dateStr) {
   } catch (e) { console.error('Could not save exchange rate to cloud:', e); }
 }
 
+// Unlike the other app_settings writers here, this one re-throws on failure instead of just
+// logging — the admin flipping this switch needs to know for sure whether it actually took,
+// since silently failing to turn it off would leave every non-admin locked out with no feedback.
+async function saveMaintenanceModeToCloud(enabled, message) {
+  const prevMode = __appSettingsRowCache.maintenance_mode;
+  const prevMessage = __appSettingsRowCache.maintenance_message;
+  __appSettingsRowCache.maintenance_mode = enabled;
+  __appSettingsRowCache.maintenance_message = message;
+  try {
+    await dbUpsertRows('app_settings', [{ id: 'main', maintenance_mode: enabled, maintenance_message: message }]);
+  } catch (e) {
+    __appSettingsRowCache.maintenance_mode = prevMode;
+    __appSettingsRowCache.maintenance_message = prevMessage;
+    console.error('Could not save maintenance mode to cloud:', e);
+    throw e;
+  }
+}
+
 async function saveMigrationVersionToCloud(version) {
   __appSettingsRowCache.migration_version = version;
   try {
     await dbUpsertRows('app_settings', [{ id: 'main', migration_version: version }]);
   } catch (e) { console.error('Could not save migration version to cloud:', e); }
 }
+
 
 // ---------------------------------------------------------------------
 // Push: called by persistData() every time an entity's in-memory array
@@ -610,6 +631,14 @@ async function refreshEntityFromCloud(table) {
     if (table === 'app_settings') {
       await loadAppSettingsEntity();
       updateExchangeUI();
+      // Live kick-out: an admin can flip Maintenance Mode on while a non-admin's tab is already
+      // open and mid-session — this is what catches that case instantly via Realtime, rather
+      // than waiting for their next page load / checkAuth() to notice.
+      if (getCloudMaintenanceMode() && currentUser && currentUser.role !== 'admin') {
+        showMaintenanceBlockedMessage();
+        logout();
+        return;
+      }
     } else if (table === 'app_user_roles') {
       await refreshUsersCache();
     } else if (table === 'partial_payments') {

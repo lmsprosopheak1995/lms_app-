@@ -437,7 +437,7 @@ function openSavingsDepositModal(accountId, installmentIndex) {
     document.getElementById('savingsDepositNote').value = '';
 
     renderSavingsDepositsTable();
-    document.querySelector('#addSavingsDepositForm button').disabled = installment.remainingAmount < 0.01;
+    document.querySelector('#addSavingsDepositForm button').disabled = !hasPermission('canManagePayments') || installment.remainingAmount < 0.01;
     document.getElementById('savingsDepositModal').style.display = 'flex';
 }
 
@@ -457,6 +457,7 @@ function renderSavingsDepositsTable() {
         tbody.innerHTML = `<tr><td colspan="5" class="center" style="color:#999">No deposits recorded for this installment.</td></tr>`;
         return;
     }
+    const canDelete = hasPermission('canDeleteSavings');
     const fragment = document.createDocumentFragment();
     partials.forEach(p => {
         const tr = document.createElement('tr');
@@ -465,7 +466,7 @@ function renderSavingsDepositsTable() {
             <td class="right">${fmtMoney(p.amount, currentSavingsAccount.currency)}</td>
             <td>${esc(p.note || '')}</td>
             <td>${esc(getOfficerFullName(p.by))}</td>
-            <td><button class="btn btn-danger btn-sm" onclick="deleteSavingsDeposit('${esc(p.id)}')"><i class="fas fa-trash-alt"></i></button></td>
+            <td>${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteSavingsDeposit('${esc(p.id)}')"><i class="fas fa-trash-alt"></i></button>` : ''}</td>
         `;
         fragment.appendChild(tr);
     });
@@ -474,6 +475,7 @@ function renderSavingsDepositsTable() {
 
 function saveSavingsDeposit(e) {
     e.preventDefault();
+    if (!hasPermission('canManagePayments')) { showToast('Permission Denied.', 'error'); return; }
     const { accountId, installmentIndex } = currentSavingsPayment;
     if (!accountId || !installmentIndex) return;
 
@@ -514,6 +516,7 @@ function saveSavingsDeposit(e) {
 }
 
 async function deleteSavingsDeposit(depositId) {
+    if (!hasPermission('canDeleteSavings')) { showToast('Permission Denied.', 'error'); return; }
     const { accountId, installmentIndex } = currentSavingsPayment;
     const paymentKey = `${accountId}-${installmentIndex}`;
     if (!savingsPayments[paymentKey]) return;
@@ -545,7 +548,7 @@ function openSavingsWithdrawModal() {
 
     renderSavingsWithdrawalsTable();
     const available = getSavingsSavedAmount(account);
-    document.querySelector('#addSavingsWithdrawForm button').disabled = available < 0.01;
+    document.querySelector('#addSavingsWithdrawForm button').disabled = !hasPermission('canManagePayments') || available < 0.01;
     document.getElementById('savingsWithdrawModal').style.display = 'flex';
 }
 
@@ -563,6 +566,7 @@ function renderSavingsWithdrawalsTable() {
         tbody.innerHTML = `<tr><td colspan="5" class="center" style="color:#999">មិនទាន់មានការដកប្រាក់ទេ</td></tr>`;
         return;
     }
+    const canDelete = hasPermission('canDeleteSavings');
     const fragment = document.createDocumentFragment();
     list.slice().sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(w => {
         const tr = document.createElement('tr');
@@ -571,7 +575,7 @@ function renderSavingsWithdrawalsTable() {
             <td class="right">${fmtMoney(w.amount, currentSavingsAccount.currency)}</td>
             <td>${esc(w.note || '')}</td>
             <td>${esc(getOfficerFullName(w.by))}</td>
-            <td><button class="btn btn-danger btn-sm" onclick="deleteSavingsWithdrawal('${esc(w.id)}')"><i class="fas fa-trash-alt"></i></button></td>
+            <td>${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteSavingsWithdrawal('${esc(w.id)}')"><i class="fas fa-trash-alt"></i></button>` : ''}</td>
         `;
         fragment.appendChild(tr);
     });
@@ -580,6 +584,7 @@ function renderSavingsWithdrawalsTable() {
 
 function saveSavingsWithdrawal(e) {
     e.preventDefault();
+    if (!hasPermission('canManagePayments')) { showToast('Permission Denied.', 'error'); return; }
     if (!currentSavingsAccount) return;
     const account = currentSavingsAccount;
 
@@ -618,6 +623,7 @@ function saveSavingsWithdrawal(e) {
 }
 
 async function deleteSavingsWithdrawal(withdrawalId) {
+    if (!hasPermission('canDeleteSavings')) { showToast('Permission Denied.', 'error'); return; }
     if (!currentSavingsAccount) return;
     const accountId = currentSavingsAccount.id;
     if (!savingsWithdrawals[accountId]) return;

@@ -256,9 +256,22 @@ function clearScheduleCache(loanId) {
   }
 }
 
+// Schedule entries embed date-sensitive fields (status/overdue/daysLate/lateInterest) computed
+// against "today". scheduleCache is otherwise only invalidated by explicit data changes
+// (payments, edits, ...), so a tab left open across midnight would keep serving yesterday's
+// overdue/late-interest numbers until something else happened to clear it. Wiping the whole
+// cache the first time buildSchedule() runs on a new calendar day fixes that with a single,
+// cheap check, without having to pass forceRecalculate through every call site.
+let __scheduleCacheDate = null;
 function buildSchedule(loan, forceRecalculate = false) {
   if (!loan || !loan.loanAmount || loan.status === 'pending' || loan.status === 'rejected') return [];
-  
+
+  const todayStr = formatDateISO(new Date());
+  if (__scheduleCacheDate !== todayStr) {
+      scheduleCache = {};
+      __scheduleCacheDate = todayStr;
+  }
+
   const cacheKey = loan.loanId;
   if (scheduleCache[cacheKey] && !forceRecalculate) {
       return scheduleCache[cacheKey];
@@ -1217,9 +1230,17 @@ function clearCollateralForm() {
     document.getElementById('collateralId').value = '';
 }
 
+// Shared gate for collateral/guarantor edits: same rule as the loan form itself
+// (canEditThisLoan in loadLoanIntoForm) — must be able to edit loans in general, and
+// either see all loans or own this particular one.
+function canManageLoanExtras(loan) {
+    return !!loan && hasPermission('canEditLoan') && (hasPermission('canViewAllLoans') || loan.creditOfficer === currentUser.username);
+}
+
 function saveCollateral(e) {
     e.preventDefault();
     if (!currentLoan) return;
+    if (!canManageLoanExtras(currentLoan)) { showToast('Permission Denied.', 'error'); return; }
 
     const collateralId = document.getElementById('collateralId').value;
     const collateralData = {
@@ -1256,6 +1277,7 @@ function renderCollateralTable() {
         tbody.innerHTML = `<tr><td colspan="4" class="center">No collateral recorded for this loan.</td></tr>`;
         return;
     }
+    const canManage = canManageLoanExtras(currentLoan);
     loanCollaterals.forEach(c => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -1263,8 +1285,8 @@ function renderCollateralTable() {
             <td>${esc(c.description)}</td>
             <td>${esc(c.value)}</td>
             <td class="actions">
-                <button class="btn btn-info btn-sm" onclick="editCollateral('${esc(c.id)}')"><i class="fas fa-edit"></i></button>
-                <button class="btn btn-danger btn-sm" onclick="deleteCollateral('${esc(c.id)}')"><i class="fas fa-trash-alt"></i></button>
+                ${canManage ? `<button class="btn btn-info btn-sm" onclick="editCollateral('${esc(c.id)}')"><i class="fas fa-edit"></i></button>
+                <button class="btn btn-danger btn-sm" onclick="deleteCollateral('${esc(c.id)}')"><i class="fas fa-trash-alt"></i></button>` : ''}
             </td>
         `;
         tbody.appendChild(tr);
@@ -1282,6 +1304,7 @@ function editCollateral(collateralId) {
 }
 
 async function deleteCollateral(collateralId) {
+    if (!canManageLoanExtras(currentLoan)) { showToast('Permission Denied.', 'error'); return; }
     if (await customConfirm('Are you sure you want to delete this collateral item?')) {
         collaterals = collaterals.filter(c => c.id !== collateralId);
         persistData(LS_KEYS.collaterals, collaterals);
@@ -1314,6 +1337,7 @@ function clearGuarantorForm() {
 function saveGuarantor(e) {
     e.preventDefault();
     if (!currentLoan) return;
+    if (!canManageLoanExtras(currentLoan)) { showToast('Permission Denied.', 'error'); return; }
 
     const guarantorId = document.getElementById('guarantorId').value;
     const guarantorData = {
@@ -1351,6 +1375,7 @@ function renderGuarantorTable() {
         tbody.innerHTML = `<tr><td colspan="5" class="center">No guarantors recorded for this loan.</td></tr>`;
         return;
     }
+    const canManage = canManageLoanExtras(currentLoan);
     loanGuarantors.forEach(g => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -1359,8 +1384,8 @@ function renderGuarantorTable() {
             <td>${esc(g.phone)}</td>
             <td>${esc(g.address)}</td>
             <td class="actions">
-                <button class="btn btn-info btn-sm" onclick="editGuarantor('${esc(g.id)}')"><i class="fas fa-edit"></i></button>
-                <button class="btn btn-danger btn-sm" onclick="deleteGuarantor('${esc(g.id)}')"><i class="fas fa-trash-alt"></i></button>
+                ${canManage ? `<button class="btn btn-info btn-sm" onclick="editGuarantor('${esc(g.id)}')"><i class="fas fa-edit"></i></button>
+                <button class="btn btn-danger btn-sm" onclick="deleteGuarantor('${esc(g.id)}')"><i class="fas fa-trash-alt"></i></button>` : ''}
             </td>
         `;
         tbody.appendChild(tr);
@@ -1379,6 +1404,7 @@ function editGuarantor(guarantorId) {
 }
 
 async function deleteGuarantor(guarantorId) {
+    if (!canManageLoanExtras(currentLoan)) { showToast('Permission Denied.', 'error'); return; }
     if (await customConfirm('Are you sure you want to delete this guarantor?')) {
         guarantors = guarantors.filter(g => g.id !== guarantorId);
         persistData(LS_KEYS.guarantors, guarantors);
@@ -1847,8 +1873,8 @@ function printLoanSchedule(mode) {
                 <h4>${titleText}</h4>
             </div>
             <div class="receipt-info">
-                <div>ឈ្មោះអតិថិជន: <strong>${customer.name}</strong></div>
-                <div>លេខកូដកម្ចី: <strong>${loan.loanId}</strong></div>
+                <div>ឈ្មោះអតិថិជន: <strong>${esc(customer.name)}</strong></div>
+                <div>លេខកូដកម្ចី: <strong>${esc(loan.loanId)}</strong></div>
                 <div>ចំនួនប្រាក់កម្ចី: <strong>${fmtMoney(loan.loanAmount, loan.currency)}</strong></div>
                 <div>${interestLabel}: <strong>${interestValue}</strong></div>
                 <div>ប្រាក់ត្រូវសង/ខែ: <strong>${fmtMoney(firstInstallment.total, loan.currency)}</strong></div>
@@ -1864,12 +1890,12 @@ function printLoanSchedule(mode) {
             <table class="print-info-table">
                 <tr><th>ព័ត៌មានអតិថិជន</th><th>ព័ត៌មានប្រាក់កម្ចី</th><th>សរុបទិន្នន័យ</th></tr>
                 <tr>
-                    <td>ឈ្មោះអតិថិជន: ${customer.name}</td>
+                    <td>ឈ្មោះអតិថិជន: ${esc(customer.name)}</td>
                     <td>ចំនួនប្រាក់កម្ចី: ${fmtMoney(loan.loanAmount, loan.currency)}</td>
                     <td>ប្រាក់ដើមត្រូវសង/ខែ: ${fmtMoney(firstInstallment.principal, loan.currency)}</td>
                 </tr>
                 <tr>
-                    <td>លេខកូដកម្ចី: ${loan.loanId}</td>
+                    <td>លេខកូដកម្ចី: ${esc(loan.loanId)}</td>
                     <td>${interestLabel}: ${interestValue}</td>
                     <td>ប្រាក់ត្រូវសង់សរុប/ខែ: ${fmtMoney(firstInstallment.total, loan.currency)}</td>
                 </tr>
@@ -1903,7 +1929,7 @@ function printLoanSchedule(mode) {
         .right { text-align:right; }
     `;
 
-    const printWindow = window.open('', '_blank');
+    const printWindow = window.open('', '_blank', 'noopener');
     printWindow.document.write(`<html><head><title>${titleText}</title><style>${pageStyle}</style></head><body>${bodyHtml}</body></html>`);
     printWindow.document.close();
     setTimeout(() => {
@@ -1919,7 +1945,7 @@ function printReceipt() {
     const printArea = document.getElementById('receiptPrint');
     if (!printArea) return;
 
-    const printWindow = window.open('', '_blank');
+    const printWindow = window.open('', '_blank', 'noopener');
     printWindow.document.write('<html><head><title>Print Receipt</title>');
     printWindow.document.write('<link rel="stylesheet" href="styles.css">');
     printWindow.document.write('<style>body { margin: 20px; } .modal-content { border: none; box-shadow: none; } #receiptActions { display: none; } </style>');

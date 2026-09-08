@@ -137,6 +137,36 @@ function updateCloudSyncStatusUI() {
         : '<span style="color:var(--danger);"><i class="fas fa-times-circle"></i> មិនទាន់កំណត់ Supabase URL/Key ទេ</span>';
 }
 
+// ===================== MAINTENANCE MODE =====================
+// Shared on/off flag + custom message for the whole system, stored in the same app_settings
+// cloud row as the exchange rate (see db.js). Only role 'admin' can still log in / stay logged
+// in while it's on — everyone else is turned away in checkAuth() (auth.js) and, for anyone
+// already mid-session, kicked out live over Realtime (db.js refreshEntityFromCloud).
+function loadMaintenanceSettingsIntoForm() {
+    const el = id => document.getElementById(id);
+    if (!el('maintenanceModeEnabled')) return; // UI not on screen yet
+    el('maintenanceModeEnabled').checked = getCloudMaintenanceMode();
+    el('maintenanceMessage').value = getCloudMaintenanceMessage();
+}
+
+async function saveMaintenanceModeFromForm() {
+    if (!hasPermission('canManageSystem')) { showToast('Permission Denied.', 'error'); return; }
+    const enabled = document.getElementById('maintenanceModeEnabled').checked;
+    const message = document.getElementById('maintenanceMessage').value.trim();
+
+    if (enabled && !await customConfirm('ការបើក Maintenance Mode នឹងធ្វើឲ្យអ្នកប្រើប្រាស់ទាំងអស់ (លើកលែងតែ admin) មិនអាចចូល ឬបន្តប្រើប្រព័ន្ធបានទេ រួមទាំងអ្នកដែលកំពុងប្រើប្រាស់ស្រាប់នឹងត្រូវបានដកចេញភ្លាមៗ។\nតើអ្នកប្រាកដទេ?')) {
+        return;
+    }
+
+    try {
+        await saveMaintenanceModeToCloud(enabled, message);
+        logChange(null, 'System Event', { event: 'Maintenance Mode Updated', enabled, message });
+        showToast(enabled ? 'បានបើក Maintenance Mode!' : 'បានបិទ Maintenance Mode។ អ្នកប្រើប្រាស់អាចចូលបានធម្មតាវិញ។', 'success');
+    } catch (e) {
+        showToast(`រក្សាទុកបរាជ័យ: ${String((e && e.message) || e)}`, 'error');
+    }
+}
+
 async function testSupabaseConnection() {
     if (!hasPermission('canManageSystem')) { showToast('Permission Denied.', 'error'); return; }
     const url = document.getElementById('cloudSupabaseUrl').value.trim().replace(/\/+$/, '');

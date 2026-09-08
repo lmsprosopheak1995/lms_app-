@@ -88,7 +88,7 @@ function initMap() {
         const lat = parseFloat(loan.latitude);
         const lon = parseFloat(loan.longitude);
         const marker = L.marker([lat, lon]);
-        const popupContent = `<b>Loan ID:</b> ${loan.loanId}<br><b>Customer:</b> ${customer.name}<br><b>Amount:</b> ${fmtMoney(loan.loanAmount, loan.currency)}<br><a href="#" onclick="viewLoanFromMap('${loan.loanId}')" style="margin-top:5px;display:inline-block;">View Details</a>`;
+        const popupContent = `<b>Loan ID:</b> ${esc(loan.loanId)}<br><b>Customer:</b> ${esc(customer.name)}<br><b>Amount:</b> ${fmtMoney(loan.loanAmount, loan.currency)}<br><a href="#" onclick="viewLoanFromMap('${esc(loan.loanId)}')" style="margin-top:5px;display:inline-block;">View Details</a>`;
         marker.bindPopup(popupContent);
         markers.addLayer(marker);
     });
@@ -609,7 +609,7 @@ function printFinancialReport() {
         </div>
     `;
 
-    const printWindow = window.open('', '_blank');
+    const printWindow = window.open('', '_blank', 'noopener');
     printWindow.document.write('<html><head><title>Financial Report</title>');
     printWindow.document.write('<link rel="stylesheet" href="styles.css">');
     printWindow.document.write('<style>body { margin: 20px; font-family: "Noto Sans Khmer", Arial, sans-serif; } table { width: 100%; font-size: 10px; } .summary-row td { font-weight: bold; } .right { text-align: right; } </style>');
