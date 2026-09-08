@@ -226,6 +226,7 @@ function renderAdminTabs() {
     checkBackupReminder();
     renderHolidaysTable();
     renderLoanProductsTable();
+    renderLoanRequestsTable();
     renderExpenseCategories();
     renderMessageTemplates();
     loadCloudSettingsIntoForm();

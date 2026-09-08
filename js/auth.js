@@ -689,6 +689,54 @@ function toggleLoginActionBox(boxId) {
     });
 }
 
+// Public loan-request form on the login page (no login required). Uses the same
+// persistData()/LS_KEYS.loanRequests pipeline the rest of the app uses (see admin.js's
+// saveHoliday/saveExpense for the identical pattern) — persistData() -> scheduleCloudPush()
+// -> dbContext() in db.js, which falls back to the Supabase anon key when there's no logged-in
+// session yet, so this works from the login screen. Requires a `loan_requests` table in
+// Supabase (same generic `id text primary key, data jsonb` shape as holidays/expenses/etc.)
+// with an RLS policy allowing INSERT for the anon role; submitted requests then show up for
+// staff under Admin > សំណើសុំកម្ចី once they log in (see renderLoanRequestsTable() in admin.js).
+function submitLoanRequest(e) {
+    e.preventDefault();
+    const name = document.getElementById('lrName').value.trim();
+    const phone = document.getElementById('lrPhone').value.trim();
+    const amountRaw = document.getElementById('lrAmount').value;
+    const amount = amountRaw === '' ? null : parseFloat(amountRaw);
+    const currency = document.getElementById('lrCurrency').value;
+    const address = document.getElementById('lrAddress').value.trim();
+    const purpose = document.getElementById('lrPurpose').value.trim();
+
+    if (!name || !phone) {
+        showToast('សូមបំពេញឈ្មោះ និងលេខទូរស័ព្ទ', 'error');
+        return;
+    }
+
+    const submitBtn = document.getElementById('lrSubmitBtn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> កំពុងផ្ញើ...';
+
+    const newRequest = {
+        id: 'REQ-' + Date.now(),
+        name, phone,
+        amount: (amount != null && !isNaN(amount)) ? amount : null,
+        currency: currency || 'USD',
+        address: address || '',
+        purpose: purpose || '',
+        status: 'pending',
+        submittedAt: new Date().toISOString()
+    };
+
+    loanRequests.push(newRequest);
+    persistData(LS_KEYS.loanRequests, loanRequests);
+
+    showToast('សំណើសុំកម្ចីរបស់អ្នកបានផ្ញើដោយជោគជ័យ! ក្រុមការងារនឹងទាក់ទងទៅអ្នកឆាប់ៗនេះ។', 'success');
+    document.getElementById('loanRequestForm').reset();
+    document.getElementById('loanRequestBox').style.display = 'none';
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> ដាក់ស្នើសុំកម្ចី';
+}
+
 // Lets someone set the Supabase URL/Key on a fresh browser BEFORE logging in (Cloud Sync settings
 // used to only be editable from inside the app, but login now depends on them being present here
 // first — this breaks that chicken-and-egg problem). Writes into the same CLOUD_SETTINGS_KEY that

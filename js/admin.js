@@ -118,6 +118,66 @@ async function deleteLoanProduct(id) {
     }
 }
 
+// ===================== LOAN REQUESTS (submitted publicly from the login page) =====================
+const LOAN_REQUEST_STATUS = {
+    pending:   { label: 'រង់ចាំ',       badgeClass: 'status-pending' },
+    contacted: { label: 'បានទាក់ទង',   badgeClass: 'status-partial' },
+    approved:  { label: 'អនុម័ត',       badgeClass: 'status-active' },
+    rejected:  { label: 'បដិសេធ',      badgeClass: 'status-rejected' }
+};
+
+function renderLoanRequestsTable() {
+    const tbody = document.getElementById('loanRequestsTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    [...loanRequests].sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt)).forEach(r => {
+        const st = LOAN_REQUEST_STATUS[r.status] || LOAN_REQUEST_STATUS.pending;
+        const canManage = hasPermission('canApproveLoan');
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${formatDateDMY(r.submittedAt)}</td>
+            <td>${esc(r.name)}</td>
+            <td>${esc(r.phone)}</td>
+            <td class="right">${r.amount ? fmtMoney(r.amount, r.currency || 'USD') : '-'}</td>
+            <td>${esc(r.address || '-')}</td>
+            <td>${esc(r.purpose || '-')}</td>
+            <td>
+                ${canManage
+                    ? `<select onchange="updateLoanRequestStatus('${esc(r.id)}', this.value)">
+                        ${Object.entries(LOAN_REQUEST_STATUS).map(([val, cfg]) => `<option value="${val}" ${r.status === val ? 'selected' : ''}>${cfg.label}</option>`).join('')}
+                       </select>`
+                    : `<span class="status-badge ${st.badgeClass}">${st.label}</span>`
+                }
+            </td>
+            <td class="actions">
+                <a href="tel:${escJsAttr(r.phone)}" class="btn btn-sm btn-success" title="ទូរស័ព្ទ"><i class="fas fa-phone"></i></a>
+                ${canManage ? `<button class="btn btn-sm btn-danger" onclick="deleteLoanRequest('${esc(r.id)}')"><i class="fas fa-trash-alt"></i></button>` : ''}
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function updateLoanRequestStatus(id, status) {
+    if (!hasPermission('canApproveLoan')) { showToast('Permission Denied.', 'error'); return; }
+    const request = loanRequests.find(r => r.id === id);
+    if (request) {
+        request.status = status;
+        persistData(LS_KEYS.loanRequests, loanRequests);
+        renderLoanRequestsTable();
+    }
+}
+
+async function deleteLoanRequest(id) {
+    if (!hasPermission('canApproveLoan')) { showToast('Permission Denied.', 'error'); return; }
+    if (await customConfirm('Are you sure you want to delete this loan request?')) {
+        loanRequests = loanRequests.filter(r => r.id !== id);
+        persistData(LS_KEYS.loanRequests, loanRequests);
+        renderLoanRequestsTable();
+    }
+}
+
 // ===================== EXPENSES FUNCTIONS =====================
 function saveExpense(e) {
     e.preventDefault();

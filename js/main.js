@@ -125,6 +125,7 @@ async function initApp() {
   expenses = loadData(LS_KEYS.expenses);
   notifications = loadData(LS_KEYS.notifications);
   loanProducts = loadData(LS_KEYS.loanProducts);
+  loanRequests = loadData(LS_KEYS.loanRequests);
   savingsAccounts = loadData(LS_KEYS.savingsAccounts);
   savingsPayments = loadData(LS_KEYS.savingsPayments, true);
   savingsWithdrawals = loadData(LS_KEYS.savingsWithdrawals, true);

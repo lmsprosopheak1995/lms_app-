@@ -55,6 +55,7 @@ function getEntityConfig(key) {
     [LS_KEYS.expenses]:           { table: 'expenses',              shape: 'array' },
     [LS_KEYS.notifications]:      { table: 'notifications',         shape: 'array' },
     [LS_KEYS.loanProducts]:       { table: 'loan_products',         shape: 'array' },
+    [LS_KEYS.loanRequests]:       { table: 'loan_requests',         shape: 'array' },
     [LS_KEYS.savingsAccounts]:    { table: 'savings_accounts',      shape: 'array' },
 
     [LS_KEYS.payments]:           { table: 'partial_payments',      shape: 'keyed-pair', parentColumn: 'loan_id' },
@@ -140,6 +141,7 @@ function assignGlobal(key, value) {
     case LS_KEYS.expenses: expenses = value; break;
     case LS_KEYS.notifications: notifications = value; break;
     case LS_KEYS.loanProducts: loanProducts = value; break;
+    case LS_KEYS.loanRequests: loanRequests = value; break;
     case LS_KEYS.savingsAccounts: savingsAccounts = value; break;
     case LS_KEYS.payments: payments = value; break;
     case LS_KEYS.savingsPayments: savingsPayments = value; break;
@@ -153,7 +155,8 @@ async function loadAllCloudData() {
   const arrayKeys = [
     LS_KEYS.customers, LS_KEYS.loans, LS_KEYS.refinances, LS_KEYS.holidays,
     LS_KEYS.collaterals, LS_KEYS.guarantors, LS_KEYS.expenses,
-    LS_KEYS.notifications, LS_KEYS.loanProducts, LS_KEYS.savingsAccounts
+    LS_KEYS.notifications, LS_KEYS.loanProducts, LS_KEYS.savingsAccounts,
+    LS_KEYS.loanRequests
   ];
 
   await Promise.all(arrayKeys.map(async key => {

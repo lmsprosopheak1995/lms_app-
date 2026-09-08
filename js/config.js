@@ -24,6 +24,7 @@ const LS_KEYS = {
     loanHistory: 'lms_loanHistory_v3', expenses: 'lms_expenses_v1', notifications: 'lms_notifications_v1',
     loanProducts: 'lms_loanProducts_v1', appSettings: 'lms_appSettings_v1',
     customers: 'lms_customers_v1',
+    loanRequests: 'lms_loanRequests_v1',
     migrationVersion: 'lms_migration_version',
     theme: 'lms_theme_v1',
     savingsAccounts: 'lms_savingsAccounts_v1', savingsPayments: 'lms_savingsPayments_v1', savingsIdCounter: 'lms_savingsIdCounter_v1', savingsWithdrawals: 'lms_savingsWithdrawals_v1'
@@ -49,6 +50,7 @@ let loanHistory = {};
 let expenses = [];
 let notifications = [];
 let loanProducts = [];
+let loanRequests = [];
 let appSettings = {};
 
 let currentUser = null;
