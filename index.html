@@ -260,6 +260,7 @@
             <div><label for="loanId"><i class="fas fa-id-card"></i> លេខកម្ចី</label><input id="loanId" type="text" placeholder="Generated Automatically" readonly/></div>
             <div><label for="creditOfficer"><i class="fas fa-user-tie"></i> មន្ត្រីឥណទាន</label><select id="creditOfficer"></select></div>
             <div><label for="loanDate"><i class="fas fa-calendar-alt"></i> កាលបរិច្ឆេទកម្ចី</label><input id="loanDate" type="date" required/></div>
+            <div><label for="firstPaymentDate"><i class="fas fa-calendar-plus"></i> ថ្ងៃបង់ប្រាក់លើកទី១ (ស្រេចចិត្ត)</label><input id="firstPaymentDate" type="date"/><small style="color:var(--muted,#6c757d);">ទុកទទេ = គណនាស្វ័យប្រវត្តិ (កាលបរិច្ឆេទកម្ចី + ១ រយៈពេល)</small></div>
             <div><label for="currency"><i class="fas fa-money-bill"></i> រូបិយប័ណ្ណ</label><select id="currency"><option value="KHR">រៀល (៛)</option><option value="USD">ដុល្លារ ($)</option></select></div>
             <div><label for="loanAmount"><i class="fas fa-dollar-sign"></i> ប្រាក់កម្ចី</label><input id="loanAmount" type="number" inputmode="decimal" min="1" step="0.01" required/></div>
             <div><label for="interestRate"><i class="fas fa-percent" id="interestRateIcon"></i> អត្រាការប្រាក់</label><div class="input-group"><input id="interestRate" type="number" inputmode="decimal" min="0" step="0.01" required/><select id="interestRateType" onchange="updateInterestRateTypeUI()"><option value="percent">ភាគរយ %</option><option value="fixed">ចំនួនថេរ</option></select></div></div>
@@ -270,6 +271,10 @@
             <div><label for="loanTerm"><i class="fas fa-clock"></i> រយៈពេល (ខែ)</label><input id="loanTerm" type="number" inputmode="decimal" min="1" required/></div><div><label for="interestUnit"><i class="fas fa-calculator"></i> ឯកតាការប្រាក់</label><select id="interestUnit"><option value="month">ខែ</option><option value="day">ថ្ងៃ</option><option value="week">សប្តាហ៍</option><option value="year">ឆ្នាំ</option></select></div><div><label for="paymentMethod"><i class="fas fa-credit-card"></i> វិធីបង់</label><select id="paymentMethod"><option value="annuity">រំលស់ស្មើ (Annuity)</option><option value="equal-principal">ដើមថេរ (Equal Principal)</option></select></div>
             <div><label for="calculationType"><i class="fas fa-cogs"></i> ប្រភេទការគណនា</label><select id="calculationType"><option value="fixed">តារាងថេរ (Fixed Schedule)</option><option value="dynamic">សមតុល្យថយចុះថាមវន្ត (Dynamic Declining Balance)</option></select></div>
             <div><label for="paymentDateType"><i class="fas fa-calendar-day"></i> របៀបកំណត់ថ្ងៃបង់</label><select id="paymentDateType"><option value="monthly">តាមថ្ងៃខ្ចី</option><option value="fixed-day">ថ្ងៃកំណត់ប្រចាំខែ</option><option value="every-x-days">រាល់ X ថ្ងៃ</option></select></div><div id="fixedDayInput" style="display:none"><label for="fixedDayOfMonth"><i class="fas fa-calendar-check"></i> ថ្ងៃកំណត់ (1-28)</label><input id="fixedDayOfMonth" type="number" inputmode="decimal" min="1" max="28" value="15"/></div><div id="everyXDaysInput" style="display:none"><label for="everyXDays"><i class="fas fa-calendar-week"></i> រាល់ (ថ្ងៃ)</label><input id="everyXDays" type="number" inputmode="decimal" min="1" value="14"/></div>
+            <div style="display:flex; align-items:center; gap:6px; align-self:end; padding-bottom:8px;">
+                <input type="checkbox" id="waiveFirstInterest" style="width:auto;"/>
+                <label for="waiveFirstInterest" style="margin:0;">លើកលែងការប្រាក់ខែដំបូង</label>
+            </div>
         </div>
         <div class="extra-details-section">
             <h4 style="margin-top:0;"><i class="fas fa-info-circle"></i> ព័ត៌មានបន្ថែម</h4>
