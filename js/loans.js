@@ -1638,7 +1638,7 @@ async function renderAttachments(loanId) {
             files.forEach(file => {
                 const item = document.createElement('div');
                 item.className = 'attachment-item';
-                item.innerHTML = `<span><i class="fas fa-file"></i> ${esc(file.file_name)}</span><div><button class="btn btn-info btn-sm" onclick="viewAttachment('${esc(file.id)}','${esc(file.storage_path)}')"><i class="fas fa-eye"></i></button><button class="btn btn-danger btn-sm" style="margin-left:4px;" onclick="deleteAttachment('${esc(file.id)}','${esc(file.storage_path)}','${esc(loanId)}')"><i class="fas fa-trash-alt"></i></button></div>`;
+                item.innerHTML = `<span><i class="fas fa-file"></i> ${esc(file.file_name)}</span><div><button class="btn btn-info btn-sm" onclick="viewAttachment('${escJsAttr(file.id)}','${escJsAttr(file.storage_path)}')"><i class="fas fa-eye"></i></button><button class="btn btn-danger btn-sm" style="margin-left:4px;" onclick="deleteAttachment('${escJsAttr(file.id)}','${escJsAttr(file.storage_path)}','${escJsAttr(loanId)}')"><i class="fas fa-trash-alt"></i></button></div>`;
                 attachmentList.appendChild(item);
             });
         }

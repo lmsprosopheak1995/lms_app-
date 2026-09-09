@@ -90,12 +90,12 @@ function populateDynamicSelectors() {
     const provinces = [...new Set(customers.map(c => c.province).filter(p => p))].sort();
     const provinceSelect = document.getElementById('reportProvinceFilter');
     provinceSelect.innerHTML = '<option value="all">ទាំងអស់</option>';
-    provinces.forEach(p => provinceSelect.innerHTML += `<option value="${p}">${p}</option>`);
+    provinces.forEach(p => provinceSelect.innerHTML += `<option value="${esc(p)}">${esc(p)}</option>`);
 
     const districts = [...new Set(customers.map(c => c.district).filter(d => d))].sort();
     const districtSelect = document.getElementById('reportDistrictFilter');
     districtSelect.innerHTML = '<option value="all">ទាំងអស់</option>';
-    districts.forEach(d => districtSelect.innerHTML += `<option value="${d}">${d}</option>`);
+    districts.forEach(d => districtSelect.innerHTML += `<option value="${esc(d)}">${esc(d)}</option>`);
 }
 
 async function initApp() {

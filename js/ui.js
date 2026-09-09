@@ -320,10 +320,19 @@ function goToLoan(loanId) {
     loadLoan(loanId);
     toggleNotificationPanel();
 }
-function goToLoanRequest() {
+function goToLoanRequest(requestId) {
     switchTab('admin');
     switchSubTab('admin', 'loanRequests');
     toggleNotificationPanel();
+    if (requestId) {
+        const row = Array.from(document.querySelectorAll('#loanRequestsTableBody tr'))
+            .find(tr => tr.querySelector(`[onclick*="'${requestId}'"]`));
+        if (row) {
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            row.classList.add('selected-row');
+            setTimeout(() => row.classList.remove('selected-row'), 3000);
+        }
+    }
 }
 function toggleNotificationPanel() {
     const panel = document.getElementById('notificationPanel');

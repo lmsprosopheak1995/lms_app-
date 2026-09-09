@@ -433,8 +433,8 @@ async function renderCustomerDocuments(customerId) {
                 const item = document.createElement('div');
                 item.className = 'attachment-item';
                 item.innerHTML = `<span><i class="fas fa-file"></i> ${esc(file.file_name)}</span><div>
-                    <button class="btn btn-info btn-sm" onclick="viewCustomerDocument('${esc(file.storage_path)}')"><i class="fas fa-eye"></i></button>
-                    <button class="btn btn-danger btn-sm" style="margin-left:4px;" onclick="deleteCustomerDocument('${esc(file.id)}', '${esc(file.storage_path)}', '${esc(customerId)}')"><i class="fas fa-trash-alt"></i></button>
+                    <button class="btn btn-info btn-sm" onclick="viewCustomerDocument('${escJsAttr(file.storage_path)}')"><i class="fas fa-eye"></i></button>
+                    <button class="btn btn-danger btn-sm" style="margin-left:4px;" onclick="deleteCustomerDocument('${escJsAttr(file.id)}', '${escJsAttr(file.storage_path)}', '${escJsAttr(customerId)}')"><i class="fas fa-trash-alt"></i></button>
                 </div>`;
                 listDiv.appendChild(item);
             });
