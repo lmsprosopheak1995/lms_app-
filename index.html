@@ -1192,6 +1192,10 @@
                 <div><label for="partialPaymentDate">កាលបរិច្ឆេទ</label><input type="date" id="partialPaymentDate" required /></div>
                 <div><label for="partialPaymentAmount">ចំនួនទឹកប្រាក់</label><input type="number" inputmode="decimal" step="0.01" id="partialPaymentAmount" required /></div>
                 <div style="grid-column: 1 / -1;"><label for="partialPaymentNote">កំណត់ចំណាំ</label><input type="text" id="partialPaymentNote" /></div>
+                <div style="grid-column: 1 / -1; display:flex; align-items:center; gap:6px;">
+                    <input type="checkbox" id="partialPaymentIsPenalty" style="width:auto;" />
+                    <label for="partialPaymentIsPenalty" style="margin:0;">ចាត់ទុកជាការទូទាត់ប្រាក់ពិន័យ (Penalty Payment)</label>
+                </div>
             </div>
              <div class="modal-actions" style="margin-top:10px; padding-top:10px; border-top:1px solid #ddd"><button type="submit" class="btn btn-success">រក្សាទុកការបង់ប្រាក់</button></div>
         </form>
