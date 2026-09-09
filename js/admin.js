@@ -152,7 +152,7 @@ function renderLoanRequestsTable() {
             </td>
             <td class="actions">
                 ${canManage && (r.status === 'pending' || r.status === 'contacted') ? `<button class="btn btn-sm btn-info" onclick="createLoanFromRequest('${esc(r.id)}')" title="បង្កើតកម្ចី"><i class="fas fa-file-invoice-dollar"></i></button>` : ''}
-                <a href="tel:${escJsAttr(r.phone)}" class="btn btn-sm btn-success" title="ទូរស័ព្ទ"><i class="fas fa-phone"></i></a>
+                <a href="tel:${esc(r.phone)}" class="btn btn-sm btn-success" title="ទូរស័ព្ទ"><i class="fas fa-phone"></i></a>
                 ${canManage ? `<button class="btn btn-sm btn-danger" onclick="deleteLoanRequest('${esc(r.id)}')"><i class="fas fa-trash-alt"></i></button>` : ''}
             </td>
         `;

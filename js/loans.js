@@ -125,6 +125,7 @@ function openPaymentModal(loanId, installmentIndex) {
     document.getElementById('partialPaymentDate').value = formatDateISO(new Date());
     document.getElementById('partialPaymentAmount').value = installment.remainingAmount > 0 ? installment.remainingAmount.toFixed(2) : '';
     document.getElementById('partialPaymentNote').value = '';
+    document.getElementById('partialPaymentIsPenalty').checked = false;
 
     renderPartialPaymentsTable();
 
@@ -153,7 +154,7 @@ function renderPartialPaymentsTable() {
         tr.innerHTML = `
             <td>${formatDateDMY(p.date)}</td>
             <td class="right">${fmtMoney(p.amount, currentLoan.currency)}</td>
-            <td>${esc(p.note || '')}</td>
+            <td>${p.isPenaltyPayment ? '<span class="status-badge status-unpaid" style="margin-right:4px;">ពិន័យ</span>' : ''}${esc(p.note || '')}</td>
             <td>${esc(getOfficerFullName(p.by))}</td>
             <td>${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deletePartialPayment('${esc(p.id)}')"><i class="fas fa-trash-alt"></i></button>` : ''}</td>
         `;
@@ -213,6 +214,13 @@ function savePartialPayment(e) {
     const amount = parseFloat(document.getElementById('partialPaymentAmount').value);
     const date = document.getElementById('partialPaymentDate').value;
     const note = document.getElementById('partialPaymentNote').value.trim();
+    // Structured flag instead of guessing from free-text `note` — see buildFixedSchedule/
+    // buildDynamicSchedule, which used to look for the substring "penalty" inside `note`. That
+    // was unreliable: a note like "no penalty this time" or "customer complained about penalty"
+    // would wrongly suppress the penalty forever, while a genuine penalty payment recorded
+    // without that exact word would never be recognized. This checkbox is the single source of
+    // truth now.
+    const isPenaltyPayment = document.getElementById('partialPaymentIsPenalty').checked;
 
     if(!amount || !date || amount <= 0) {
         showToast('Please enter a valid amount and date.', 'error');
@@ -229,6 +237,7 @@ function savePartialPayment(e) {
         amount,
         date,
         note,
+        isPenaltyPayment,
         by: currentUser.username,
         ts: new Date().toISOString()
     };
@@ -395,7 +404,11 @@ function buildFixedSchedule(loan) {
           // *** BUG FIX: Calculate late interest on overdue PRINCIPAL only ***
           lateInterest = getLateInterest(loan, dueDate, principal, daysLate);
           
-          const penaltyAlreadyPaid = partials.some(p => p.note && p.note.toLowerCase().includes('penalty'));
+          // Tracked via the explicit `isPenaltyPayment` flag set in savePartialPayment() —
+          // NOT by searching `note` text, which was unreliable (a note that merely mentions the
+          // word "penalty" without actually being one would wrongly suppress it, and a genuine
+          // penalty payment recorded without that exact word would never be recognized).
+          const penaltyAlreadyPaid = partials.some(p => p.isPenaltyPayment === true);
           if(!penaltyAlreadyPaid && loan.penaltyFee > 0) {
               penalty = (loan.penaltyType === 'percent')
                   ? (principal) * (loan.penaltyFee / 100)
@@ -487,7 +500,9 @@ function buildDynamicSchedule(loan) {
           // *** BUG FIX: Calculate late interest on overdue PRINCIPAL only ***
           lateInterest = getLateInterest(loan, dueDate, principal, daysLate);
           // *** BUG FIX: Don't re-charge penalty if it was already paid (mirrors buildFixedSchedule) ***
-          const penaltyAlreadyPaid = partials.some(p => p.note && p.note.toLowerCase().includes('penalty'));
+          // Tracked via the explicit `isPenaltyPayment` flag (see buildFixedSchedule for why
+          // note-text matching was replaced).
+          const penaltyAlreadyPaid = partials.some(p => p.isPenaltyPayment === true);
           if (!penaltyAlreadyPaid && loan.penaltyFee > 0) { penalty = (loan.penaltyType === 'percent') ? (principal) * (loan.penaltyFee / 100) : loan.penaltyFee; }
       }
       const total = totalDueBeforeLate + lateInterest + penalty;
