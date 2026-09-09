@@ -225,10 +225,6 @@ function switchTab(t) {
         renderCustomersListTable();
         hideCustomerForm();
     }
-    else if (t === 'customerProfile') {
-        populateCustomerDropdowns();
-        renderCustomerProfile();
-    }
      else if (t === 'clientAccount') { 
         populateCustomerDropdowns(); 
         renderClientAccountView(); 
