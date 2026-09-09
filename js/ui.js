@@ -26,14 +26,8 @@ setInterval(updateHeaderClock, 1000);
 // actual rendered height so .tabs's `top: var(--app-header-height)` always lines up.
 function syncStickyHeaderHeight() {
     const header = document.querySelector('.app-header');
-    const tabs = document.querySelector('.tabs');
     if (!header || header.offsetHeight === 0) return; // hidden (e.g. still on the login screen)
     document.documentElement.style.setProperty('--app-header-height', header.offsetHeight + 'px');
-    // Table column headers (th) are sticky too (see styles.css) so long lists like the customer
-    // table stay readable while scrolling — but they need to stick just below the frozen
-    // header+tabs stack, not at the very top of the window, or they'd end up hidden behind it.
-    const tabsHeight = tabs ? tabs.offsetHeight : 0;
-    document.documentElement.style.setProperty('--sticky-stack-height', (header.offsetHeight + tabsHeight) + 'px');
 }
 window.addEventListener('resize', debounce(syncStickyHeaderHeight, 150));
 if (document.querySelector('.app-header')) {
