@@ -172,10 +172,23 @@ tfoot tr.summary-row td { font-weight: 700; background: var(--input-bg); border-
   margin-bottom: 20px;
   overflow-x: auto; /* Allow horizontal scrolling for tabs */
   -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  scrollbar-width: thin; /* Firefox: slim, visible scrollbar instead of the OS-default hidden one */
+  scrollbar-color: #ffee00 #e9ecef; /* Firefox: thumb color / track color */
 }
 body.dark-mode .tabs {
     background-color: #2c3e50;
+    scrollbar-color: #ccb800 #2c3e50;
 }
+/* Chrome/Edge/Safari: same idea via the -webkit- scrollbar pseudo-elements, so the drag
+   handle under the tab menu is always visible (not just on hover/trackpad-scroll) and matches
+   the yellow theme instead of the browser's default gray bar. */
+.tabs::-webkit-scrollbar { height: 8px; }
+.tabs::-webkit-scrollbar-track { background: #e9ecef; border-radius: 4px; }
+.tabs::-webkit-scrollbar-thumb { background: #ffee00; border-radius: 4px; }
+.tabs::-webkit-scrollbar-thumb:hover { background: #e6d600; }
+body.dark-mode .tabs::-webkit-scrollbar-track { background: #2c3e50; }
+body.dark-mode .tabs::-webkit-scrollbar-thumb { background: #ccb800; }
+body.dark-mode .tabs::-webkit-scrollbar-thumb:hover { background: #b8a600; }
 .tab {
   display: inline-flex;
   align-items: center;
