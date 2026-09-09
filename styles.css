@@ -113,6 +113,9 @@ td.center { text-align: center; }
 tfoot tr.summary-row td { font-weight: 700; background: var(--input-bg); border-top: 2px solid var(--thead); }
 .actions button { padding: 4px 8px; margin: 2px; }
 .app-header { display:flex; justify-content:space-between; align-items:center; padding: 8px 12px; background-color: var(--thead); color: white; flex-wrap: wrap; gap: 10px; }
+.header-clock { text-align: center; color: #fff; line-height: 1.2; }
+.header-clock-time { font-size: 1.2em; font-weight: 700; letter-spacing: 1px; }
+.header-clock-date { font-size: 0.8em; opacity: 0.85; }
 #userInfo { font-weight: bold; display: flex; align-items: center; gap: 12px;}
 
 /* Base badge shape — previously missing, so status text had no pill styling in either theme */
