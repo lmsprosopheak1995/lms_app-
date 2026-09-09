@@ -124,6 +124,7 @@ const HISTORY_FIELD_LABELS = {
     paymentDateType: 'ប្រភេទកាលបរិច្ឆេទបង់ប្រាក់', creditOfficer: 'មន្ត្រីឥណទាន',
     calculationType: 'របៀបគណនា', fixedDayOfMonth: 'ថ្ងៃទីកំណត់ក្នុងខែ', everyXDays: 'រៀងរាល់ (ថ្ងៃ)',
     penaltyFee: 'ប្រាក់ពិន័យ', penaltyType: 'ប្រភេទប្រាក់ពិន័យ', latitude: 'រយៈទទឹង', longitude: 'រយៈបណ្តោយ',
+    firstPaymentDate: 'ថ្ងៃបង់ប្រាក់លើកទី១', waiveFirstInterest: 'លើកលែងការប្រាក់ខែដំបូង',
     customerId: 'លេខសម្គាល់អតិថិជន', loanId: 'លេខសម្គាល់កម្ចី', processedBy: 'ដំណើរការដោយ',
     processedAt: 'ដំណើរការនៅ', status: 'ស្ថានភាព', isArchived: 'ទុកក្នុងបណ្ណសារ',
     newStatus: 'ស្ថានភាពថ្មី', reason: 'មូលហេតុ', installment: 'រំលោះទី', paymentId: 'លេខសម្គាល់ការទូទាត់',

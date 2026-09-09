@@ -331,6 +331,10 @@ function buildFixedSchedule(loan) {
   const rate = Number(loan.interestRate) / 100;
   let pmtDate = parseDate(loan.loanDate);
   const originalDay = pmtDate.getDate();
+  // Optional officer-chosen date for installment #1 (see saveLoan form field
+  // `firstPaymentDate`). When set, every installment date is anchored off this date instead of
+  // the loan date — otherwise behavior is unchanged (first installment = loanDate + 1 period).
+  const anchorDate = loan.firstPaymentDate ? parseDate(loan.firstPaymentDate) : null;
 
   let monthlyRate;
   switch (loan.interestUnit) {
@@ -348,16 +352,20 @@ function buildFixedSchedule(loan) {
   for (let i = 1; i <= term; i++) {
       let isAdjusted = false;
       switch (loan.paymentDateType) {
-          case 'monthly': pmtDate = addMonthsClamped(loan.loanDate, i, originalDay); break;
+          case 'monthly':
+              pmtDate = anchorDate ? addMonthsClamped(anchorDate, i - 1, anchorDate.getDate()) : addMonthsClamped(loan.loanDate, i, originalDay);
+              break;
           case 'fixed-day':
-              let baseDate = addMonthsClamped(parseDate(loan.loanDate), i - 1);
+              let baseDate = addMonthsClamped(anchorDate || parseDate(loan.loanDate), i - 1);
               baseDate.setDate(loan.fixedDayOfMonth || 15);
-              if (i === 1 && baseDate < parseDate(loan.loanDate)) {
+              if (i === 1 && baseDate < (anchorDate || parseDate(loan.loanDate))) {
                   baseDate = addMonthsClamped(baseDate, 1);
               }
               pmtDate = baseDate;
               break;
-          case 'every-x-days': pmtDate = addDays(loan.loanDate, i * (loan.everyXDays || 14)); break;
+          case 'every-x-days':
+              pmtDate = anchorDate ? addDays(anchorDate, (i - 1) * (loan.everyXDays || 14)) : addDays(loan.loanDate, i * (loan.everyXDays || 14));
+              break;
       }
 
       while(holidays.some(h => h.date === formatDateISO(pmtDate))) {
@@ -365,7 +373,11 @@ function buildFixedSchedule(loan) {
           isAdjusted = true;
       }
 
-      const interest = loan.interestRateType === 'fixed' ? (Number(loan.interestRate) || 0) : balance * monthlyRate;
+      let interest = loan.interestRateType === 'fixed' ? (Number(loan.interestRate) || 0) : balance * monthlyRate;
+      // Optional: waive interest on installment #1 only (see "waiveFirstInterest" loan form
+      // checkbox). For an annuity loan this means installment #1's fixed payment amount goes
+      // almost entirely to principal instead of interest, same as any other interest reduction.
+      if (i === 1 && loan.waiveFirstInterest) interest = 0;
       let principal = (loan.paymentMethod === 'annuity' && annuityPayment > 0) ? (annuityPayment - interest) : (Number(loan.loanAmount) / term);
 
       if (i === term || (balance - principal) < 1) { principal = balance; }
@@ -432,6 +444,8 @@ function buildDynamicSchedule(loan) {
   const rate = Number(loan.interestRate) / 100;
   let pmtDate = parseDate(loan.loanDate);
   const originalDay = pmtDate.getDate();
+  // See buildFixedSchedule() for what this does.
+  const anchorDate = loan.firstPaymentDate ? parseDate(loan.firstPaymentDate) : null;
 
   let monthlyRate;
   switch (loan.interestUnit) {
@@ -449,23 +463,29 @@ function buildDynamicSchedule(loan) {
 
       let isAdjusted = false;
        switch (loan.paymentDateType) {
-          case 'monthly': pmtDate = addMonthsClamped(loan.loanDate, i, originalDay); break;
+          case 'monthly':
+              pmtDate = anchorDate ? addMonthsClamped(anchorDate, i - 1, anchorDate.getDate()) : addMonthsClamped(loan.loanDate, i, originalDay);
+              break;
           case 'fixed-day':
-              let baseDate = addMonthsClamped(parseDate(loan.loanDate), i - 1);
+              let baseDate = addMonthsClamped(anchorDate || parseDate(loan.loanDate), i - 1);
               baseDate.setDate(loan.fixedDayOfMonth || 15);
-              if (i === 1 && baseDate < parseDate(loan.loanDate)) {
+              if (i === 1 && baseDate < (anchorDate || parseDate(loan.loanDate))) {
                   baseDate = addMonthsClamped(baseDate, 1);
               }
               pmtDate = baseDate;
               break;
-          case 'every-x-days': pmtDate = addDays(loan.loanDate, i * (loan.everyXDays || 14)); break;
+          case 'every-x-days':
+              pmtDate = anchorDate ? addDays(anchorDate, (i - 1) * (loan.everyXDays || 14)) : addDays(loan.loanDate, i * (loan.everyXDays || 14));
+              break;
       }
       while(holidays.some(h => h.date === formatDateISO(pmtDate))) {
           pmtDate = addDays(pmtDate, 1);
           isAdjusted = true;
       }
 
-      const interest = loan.interestRateType === 'fixed' ? (Number(loan.interestRate) || 0) : runningPrincipal * monthlyRate;
+      let interest = loan.interestRateType === 'fixed' ? (Number(loan.interestRate) || 0) : runningPrincipal * monthlyRate;
+      // See buildFixedSchedule() for what this does.
+      if (i === 1 && loan.waiveFirstInterest) interest = 0;
       let principal = (Number(loan.loanAmount) / term);
       if (runningPrincipal < principal) {
           principal = runningPrincipal;
@@ -528,6 +548,12 @@ function createLoanDataFromForm() {
         penaltyFee: Number(document.getElementById('penaltyFee').value) || 0, penaltyType: document.getElementById('penaltyType').value,
         latitude: document.getElementById('latitude').value.trim(),
         longitude: document.getElementById('longitude').value.trim(),
+        // Optional: officer-chosen date for installment #1 (blank = auto, same as before — see
+        // buildFixedSchedule/buildDynamicSchedule). Stored as null rather than '' so it reads the
+        // same as an old loan that predates this field.
+        firstPaymentDate: document.getElementById('firstPaymentDate').value || null,
+        // Optional: waive interest on installment #1 only.
+        waiveFirstInterest: document.getElementById('waiveFirstInterest').checked,
     };
 }
 
@@ -680,6 +706,15 @@ function validate() {
   }
   if (document.getElementById('paymentDateType').value === 'every-x-days' && Number(document.getElementById('everyXDays').value) < 1) {
       errors.push("រាល់ X ថ្ងៃ (>=1)");
+  }
+
+  const firstPaymentDateValue = document.getElementById('firstPaymentDate').value;
+  if (firstPaymentDateValue && loanDateValue) {
+      const firstPaymentDate = parseDate(firstPaymentDateValue); firstPaymentDate.setHours(0, 0, 0, 0);
+      const loanDate = parseDate(loanDateValue); loanDate.setHours(0, 0, 0, 0);
+      if (firstPaymentDate < loanDate) {
+          errors.push("ថ្ងៃបង់ប្រាក់លើកទី១ មិនអាចមុនកាលបរិច្ឆេទកម្ចីបានទេ");
+      }
   }
 
   if (errors.length) {
@@ -896,6 +931,8 @@ function loadLoan(loanIdToLoad){
       form.fixedDayOfMonth.value=loan.fixedDayOfMonth||15; form.everyXDays.value=loan.everyXDays||14;
       document.getElementById('fixedDayInput').style.display="fixed-day"===loan.paymentDateType?"block":"none";
       document.getElementById('everyXDaysInput').style.display="every-x-days"===loan.paymentDateType?"block":"none";
+      form.firstPaymentDate.value = loan.firstPaymentDate || '';
+      form.waiveFirstInterest.checked = !!loan.waiveFirstInterest;
 
       const statusInfo = getLoanComputedStatus(loan);
       const isActionable = ['active', 'overdue'].includes(statusInfo.key);
