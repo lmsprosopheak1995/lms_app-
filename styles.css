@@ -112,7 +112,14 @@ td.center { text-align: center; }
 .right div { line-height: 1.3; }
 tfoot tr.summary-row td { font-weight: 700; background: var(--input-bg); border-top: 2px solid var(--thead); }
 .actions button { padding: 4px 8px; margin: 2px; }
-.app-header { display:flex; justify-content:space-between; align-items:center; padding: 8px 12px; background-color: var(--thead); color: white; flex-wrap: wrap; gap: 10px; }
+.app-header { display:flex; justify-content:space-between; align-items:center; padding: 8px 12px; background-color: var(--thead); color: white; flex-wrap: wrap; gap: 10px;
+  /* Freeze the header bar (logo/clock/profile/logout) at the very top on scroll, same idea as
+     the sticky .tabs bar below it — see syncStickyHeaderHeight() in ui.js for how --app-header-height
+     is kept in sync with this element's actual (possibly wrapped, 2-line) height. */
+  position: sticky;
+  top: 0;
+  z-index: 60;
+}
 .header-clock { text-align: center; color: #fff; line-height: 1.2; }
 .header-clock-time { font-size: 1.2em; font-weight: 700; letter-spacing: 1px; }
 .header-clock-date { font-size: 0.8em; opacity: 0.85; }
@@ -177,10 +184,12 @@ tfoot tr.summary-row td { font-weight: 700; background: var(--input-bg); border-
   -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
   scrollbar-width: thin; /* Firefox: slim, visible scrollbar instead of the OS-default hidden one */
   scrollbar-color: #ffee00 #e9ecef; /* Firefox: thumb color / track color */
-  /* Pin just this tab bar to the top of the viewport on scroll (not the header above it),
-     so the tab menu stays reachable while everything else scrolls normally. */
+  /* Pin just this tab bar below the sticky header on scroll, so header + tabs both stay
+     visible together while the title and page content scroll underneath. --app-header-height
+     is set at runtime by syncStickyHeaderHeight() in ui.js since the header's height can change
+     (e.g. it wraps to two lines on narrow screens). */
   position: sticky;
-  top: 0;
+  top: var(--app-header-height, 60px);
   z-index: 50;
   box-shadow: 0 2px 6px rgba(0,0,0,0.08); /* subtle separation from content once it's stuck */
 }
