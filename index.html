@@ -183,7 +183,6 @@
       <div class="tab active" onclick="switchTab('dashboard')"><i class="fas fa-tachometer-alt"></i> ផ្ទាំងព័ត៌មាន</div>
       <div class="tab" onclick="switchTab('loans')"><i class="fas fa-hand-holding-usd"></i> កម្ចី</div>
       <div class="tab" onclick="switchTab('customers')"><i class="fas fa-users"></i> អតិថិជន</div>
-      <div class="tab" onclick="switchTab('customerProfile')"><i class="fas fa-id-badge"></i> ប្រវត្តិរូបអតិថិជន</div>
       <div class="tab" onclick="switchTab('clientAccount')"><i class="fas fa-user-circle"></i> គណនីអតិថិជន</div>
       <div class="tab" onclick="switchTab('collections')"><i class="fas fa-calendar-check"></i> ការប្រមូលប្រាក់</div>
       <div class="tab" onclick="switchTab('customerReport')"><i class="fas fa-users"></i> តារាងព័ត៌មានអតិថិជន</div>
@@ -341,6 +340,12 @@
 
     <!-- ===================== CUSTOMERS TAB START (NEW UI) ===================== -->
     <div id="customersTab" class="tab-content">
+      <div class="sub-tabs">
+          <div class="sub-tab active" onclick="switchSubTab('customers', 'customersList'); renderCustomersListTable(); hideCustomerForm();"><i class="fas fa-list-ul"></i> បញ្ជីអតិថិជន</div>
+          <div class="sub-tab" onclick="switchSubTab('customers', 'customerProfile'); populateCustomerDropdowns(); renderCustomerProfile();"><i class="fas fa-id-badge"></i> ប្រវត្តិរូបអតិថិជន</div>
+      </div>
+
+      <div id="customersListSubTab" class="sub-tab-content active">
       <div id="customerFormCard" class="card" style="max-width: 1000px; margin: 0 auto 20px; display: none;">
         <form id="customerForm">
             <h4 id="customerFormTitle" style="text-align: left; justify-content: flex-start;"><i class="fas fa-user-plus"></i> បន្ថែមអតិថិជនថ្មី</h4>
@@ -391,11 +396,12 @@
           </table>
         </div>
       </div>
-    </div>
-    <!-- ===================== CUSTOMERS TAB END (NEW UI) ===================== -->
+      <!-- ===================== CUSTOMERS LIST SUB-TAB END ===================== -->
+      </div>
+      <!-- ===================== CUSTOMERS TAB END (NEW UI) ===================== -->
 
-    <!-- ===================== CUSTOMER PROFILE TAB (NEW) ===================== -->
-    <div id="customerProfileTab" class="tab-content">
+      <!-- ===================== CUSTOMER PROFILE SUB-TAB (merged into Customers tab) ===================== -->
+      <div id="customerProfileSubTab" class="sub-tab-content">
         <div class="card">
             <label for="customerProfileSelect"><h4><i class="fas fa-user-check"></i> ជ្រើសរើសអតិថិជនដើម្បីមើលប្រវត្តិរូប</h4></label>
             <select id="customerProfileSelect">
@@ -470,8 +476,10 @@
                 </div>
             </div>
         </div>
+      </div>
+      <!-- ===================== CUSTOMER PROFILE SUB-TAB END ===================== -->
     </div>
-    <!-- ===================== CUSTOMER PROFILE TAB END ===================== -->
+    <!-- ===================== CUSTOMERS TAB (WITH SUB-TABS) END ===================== -->
 
     <!-- ===================== CLIENT ACCOUNT TAB START (NEW) ===================== -->
     <div id="clientAccountTab" class="tab-content">
