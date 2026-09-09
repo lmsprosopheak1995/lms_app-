@@ -495,6 +495,89 @@ body.dark-mode .metric-title { color: #aaa; }
     #expensesTab > div, #holidaysSubTab > div, #loanProductsSubTab > div {
         grid-template-columns: 1fr;
     }
+
+    /* --- Sticky header + tabs on phones ---
+       Both stay pinned on scroll (see .app-header / .tabs), so on a small screen every extra
+       pixel of height they take up is screen space permanently taken away from the content
+       below. Shrink avatar/text/padding so the frozen strip stays as thin as possible, and let
+       long usernames/role names truncate instead of forcing the header to wrap to 2-3 lines. */
+    .app-header {
+        padding: 6px 8px;
+        gap: 8px;
+    }
+    .header-avatar {
+        width: 28px;
+        height: 28px;
+    }
+    #userInfo {
+        gap: 8px;
+        min-width: 0; /* allow the name below to actually shrink/truncate inside the flex box */
+    }
+    #userInfo > div {
+        min-width: 0;
+    }
+    #userInfo > div > div {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 32vw;
+    }
+    .role-badge {
+        padding: 2px 7px;
+        font-size: 10px;
+    }
+    .header-clock-time {
+        font-size: 0.95em;
+    }
+    .header-clock-date {
+        font-size: 0.7em;
+    }
+    /* Profile / Logout: icon-only on phones, full text still available via title tooltip */
+    #profileBtn, #logoutBtn {
+        padding: 7px 10px;
+        font-size: 0;
+        gap: 0;
+    }
+    #profileBtn .fas, #logoutBtn .fas {
+        font-size: 15px;
+    }
+    .tabs {
+        padding: 3px;
+        margin-bottom: 12px;
+    }
+    .tab {
+        padding: 7px 10px;
+        font-size: 12px;
+        margin-right: 4px;
+    }
+
+    /* The notification dropdown used a fixed 70px top offset sized for the old (taller, static)
+       header; now that the header is sticky and shorter on phones, anchor it to the header's
+       real height instead so it sits right under the header instead of overlapping it, and cap
+       its width so it doesn't run off the edge of narrow screens. */
+    #notificationPanel {
+        top: calc(var(--app-header-height, 60px) + 8px) !important;
+        right: 8px !important;
+        width: calc(100vw - 16px) !important;
+        max-width: 350px;
+    }
+}
+
+@media screen and (max-width: 420px) {
+    /* On very narrow phones even the role badge text competes for space with the name — drop it
+       down to just the icon so the username stays readable instead of getting squeezed. */
+    .role-badge {
+        font-size: 0;
+        padding: 3px 5px;
+        gap: 0;
+    }
+    .role-badge .fas {
+        font-size: 11px;
+    }
+    #userInfo > div > div {
+        max-width: 26vw;
+        font-size: 0.85em;
+    }
 }
 
 /* Dark Mode Toggle Switch */
