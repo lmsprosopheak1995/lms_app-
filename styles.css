@@ -94,7 +94,7 @@ body.dark-mode .form-data-display {
 table { width: 100%; border-collapse: collapse; margin: 0 auto; background: var(--card); font-size: 13px; }
 th, td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; /* Removed min-width for flexibility */ white-space: nowrap; vertical-align: middle;}
 td.customer-name-cell { display: flex; align-items: center; gap: 8px; }
-th { position: sticky; top: var(--sticky-stack-height, 100px); background: #ffee00; color: #212529; font-weight: 700; z-index: 10; }
+th { position: sticky; top: 0; background: #ffee00; color: #212529; font-weight: 700; z-index: 10; }
 th .fas { margin-right: 8px; opacity: 0.8; }
 th[data-sortable] { cursor: pointer; user-select: none; }
 th[data-sortable]::after { content: ' '; display: inline-block; width: 16px; height: 16px; vertical-align: middle; margin-left: 4px; }
