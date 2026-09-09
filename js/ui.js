@@ -17,7 +17,24 @@ function updateHeaderClock() {
 updateHeaderClock();
 setInterval(updateHeaderClock, 1000);
 
-// ===================== DARK MODE THEME =====================
+// ===================== STICKY HEADER + TABS =====================
+// .app-header and .tabs are both `position: sticky` (see styles.css) so they stay pinned to the
+// top of the screen together while the rest of the page scrolls. The tabs bar needs to know
+// exactly how tall the header is so it can sit right below it instead of overlapping it — and
+// that height isn't fixed (it can wrap to two lines on narrow screens, or change if the
+// username/notification bell content reflows). This keeps a CSS var in sync with the header's
+// actual rendered height so .tabs's `top: var(--app-header-height)` always lines up.
+function syncStickyHeaderHeight() {
+    const header = document.querySelector('.app-header');
+    if (!header || header.offsetHeight === 0) return; // hidden (e.g. still on the login screen)
+    document.documentElement.style.setProperty('--app-header-height', header.offsetHeight + 'px');
+}
+window.addEventListener('resize', debounce(syncStickyHeaderHeight, 150));
+if (document.querySelector('.app-header')) {
+    new ResizeObserver(syncStickyHeaderHeight).observe(document.querySelector('.app-header'));
+}
+
+
 function applyTheme(theme) {
     if (theme === 'dark') {
         document.body.classList.add('dark-mode');

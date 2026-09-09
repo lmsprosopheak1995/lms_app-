@@ -648,6 +648,7 @@ async function checkAuth() {
       }
 
       document.getElementById("loginSection").style.display = "none"; document.getElementById("appSection").style.display = "block";
+      syncStickyHeaderHeight();
       updateUserInfoHeader();
       document.getElementById("adminTabButton").style.display = hasPermission('canManageSystem') ? 'inline-flex' : 'none';
       document.getElementById('exchangeRateInput').readOnly = !hasPermission('canManageSystem');
