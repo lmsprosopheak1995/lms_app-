@@ -2,6 +2,21 @@
 // ui.js — Theme switching, custom confirm/prompt modals, audit-log/history modal, notification panel, tab switching.
 // =====================================================================
 
+// ===================== HEADER CLOCK =====================
+// Live time + date shown in the middle of the app header. Purely a display element — reads
+// nothing from currentUser/loans/etc. — so it's safe to just start ticking as soon as this
+// script loads, whether or not the person is logged in yet.
+function updateHeaderClock() {
+    const timeEl = document.getElementById('headerClockTime');
+    const dateEl = document.getElementById('headerClockDate');
+    if (!timeEl || !dateEl) return;
+    const now = new Date();
+    timeEl.textContent = now.toLocaleTimeString('en-GB'); // HH:MM:SS
+    dateEl.textContent = formatDateDMY(now); // DD/MM/YYYY
+}
+updateHeaderClock();
+setInterval(updateHeaderClock, 1000);
+
 // ===================== DARK MODE THEME =====================
 function applyTheme(theme) {
     if (theme === 'dark') {
