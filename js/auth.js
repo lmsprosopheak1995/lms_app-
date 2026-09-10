@@ -728,8 +728,16 @@ function lrRenderTermsList() {
 
 function lrUpdateTermHint() {
     const hint = document.getElementById('lrTermHint');
-    if (!hint) return;
-    hint.textContent = `អប្បបរមា ${LR_TERMS.termMinDays} ថ្ងៃ / អតិបរមា ${LR_TERMS.termMaxDays} ថ្ងៃ`;
+    const unitSel = document.getElementById('lrTermUnit');
+    if (!hint || !unitSel) return;
+    if (unitSel.value === 'month') {
+        // LR_TERMS is stored in days; convert to whole months for the hint when "ខែ" is selected.
+        const minMonths = Math.max(1, Math.round(LR_TERMS.termMinDays / 30));
+        const maxMonths = Math.round(LR_TERMS.termMaxDays / 30);
+        hint.textContent = `អប្បបរមា ${minMonths} ខែ / អតិបរមា ${maxMonths} ខែ`;
+    } else {
+        hint.textContent = `អប្បបរមា ${LR_TERMS.termMinDays} ថ្ងៃ / អតិបរមា ${LR_TERMS.termMaxDays} ថ្ងៃ`;
+    }
 }
 
 function lrUpdateAmountHint() {
@@ -805,7 +813,9 @@ function submitLoanRequest(e) {
     const amount = amountRaw === '' ? null : parseFloat(amountRaw);
     const currency = document.getElementById('lrCurrency').value;
     const purpose = document.getElementById('lrPurpose').value.trim();
-    const termDays = document.getElementById('lrTerm').value || null;
+    const termValueRaw = document.getElementById('lrTerm').value || null;
+    const termUnit = document.getElementById('lrTermUnit').value || 'day';
+    const termDays = termValueRaw ? (termUnit === 'month' ? Number(termValueRaw) * 30 : Number(termValueRaw)) : null;
     const collateral = document.getElementById('lrCollateral').value || '';
     const province = document.getElementById('lrProvince').value.trim();
     const district = document.getElementById('lrDistrict').value.trim();
@@ -835,6 +845,8 @@ function submitLoanRequest(e) {
         amount: (amount != null && !isNaN(amount)) ? amount : null,
         currency: currency || 'KHR',
         termDays: termDays ? Number(termDays) : null,
+        termValueRaw: termValueRaw ? Number(termValueRaw) : null,
+        termUnit,
         collateral,
         village, commune, district, province,
         address,
@@ -847,10 +859,12 @@ function submitLoanRequest(e) {
     persistData(LS_KEYS.loanRequests, loanRequests);
 
     const collateralLabels = { none: 'គ្មានវត្ថុបញ្ចាំ', property: 'ប័ណ្ណដី/ផ្ទះ', vehicle: 'ប័ណ្ណរថយន្ត/ម៉ូតូ', guarantor: 'អ្នកធានា', other: 'ផ្សេងៗ' };
-    notifyTelegram(`📩 <b>មានសំណើសុំកម្ចីថ្មី</b>\nឈ្មោះ: ${newRequest.name}${newRequest.onBehalf ? ` (ស្នើសុំដោយ: ${newRequest.requesterName})` : ''}\nទូរស័ព្ទ: ${newRequest.phone}${newRequest.amount ? `\nចំនួនស្នើសុំ: ${newRequest.amount} ${newRequest.currency}` : ''}${newRequest.termDays ? `\nរយៈពេល: ${newRequest.termDays} ថ្ងៃ` : ''}${newRequest.collateral ? `\nការធានា: ${collateralLabels[newRequest.collateral] || newRequest.collateral}` : ''}${newRequest.address ? `\nអាសយដ្ឋាន: ${newRequest.address}` : ''}${newRequest.purpose ? `\nគោលបំណង/ចំណូល: ${newRequest.purpose}` : ''}`);
+    const termDisplay = newRequest.termValueRaw ? `${newRequest.termValueRaw} ${newRequest.termUnit === 'month' ? 'ខែ' : 'ថ្ងៃ'}` : '';
+    notifyTelegram(`📩 <b>មានសំណើសុំកម្ចីថ្មី</b>\nឈ្មោះ: ${newRequest.name}${newRequest.onBehalf ? ` (ស្នើសុំដោយ: ${newRequest.requesterName})` : ''}\nទូរស័ព្ទ: ${newRequest.phone}${newRequest.amount ? `\nចំនួនស្នើសុំ: ${newRequest.amount} ${newRequest.currency}` : ''}${termDisplay ? `\nរយៈពេល: ${termDisplay}` : ''}${newRequest.collateral ? `\nការធានា: ${collateralLabels[newRequest.collateral] || newRequest.collateral}` : ''}${newRequest.address ? `\nអាសយដ្ឋាន: ${newRequest.address}` : ''}${newRequest.purpose ? `\nគោលបំណង/ចំណូល: ${newRequest.purpose}` : ''}`);
 
     showToast('សំណើសុំកម្ចីរបស់អ្នកបានផ្ញើដោយជោគជ័យ! ក្រុមការងារនឹងទាក់ទងទៅអ្នកឆាប់ៗនេះ។', 'success');
     document.getElementById('loanRequestForm').reset();
+    lrUpdateTermHint();
     document.getElementById('lrBorrowerNameWrap').style.display = 'none';
     lrSelectCurrency('KHR');
     document.getElementById('loanRequestBox').style.display = 'none';

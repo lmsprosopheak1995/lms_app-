@@ -147,7 +147,7 @@ function renderLoanRequestsTable() {
             <td>${nameDisplay}</td>
             <td>${esc(r.phone)}</td>
             <td>${esc(r.purpose || '-')}</td>
-            <td>${r.termDays ? `${r.termDays} ថ្ងៃ` : '-'}</td>
+            <td>${r.termValueRaw ? `${r.termValueRaw} ${r.termUnit === 'month' ? 'ខែ' : 'ថ្ងៃ'}` : (r.termDays ? `${r.termDays} ថ្ងៃ` : '-')}</td>
             <td class="right">${r.amount ? fmtMoney(r.amount, r.currency || 'USD') : '-'}</td>
             <td>${r.collateral ? esc(LR_COLLATERAL_LABELS[r.collateral] || r.collateral) : '-'}</td>
             <td>${esc(addressDisplay)}</td>
