@@ -146,11 +146,11 @@ function renderLoanRequestsTable() {
             <td>${formatDateDMY(r.submittedAt)}</td>
             <td>${nameDisplay}</td>
             <td>${esc(r.phone)}</td>
-            <td class="right">${r.amount ? fmtMoney(r.amount, r.currency || 'USD') : '-'}</td>
+            <td>${esc(r.purpose || '-')}</td>
             <td>${r.termDays ? `${r.termDays} ថ្ងៃ` : '-'}</td>
+            <td class="right">${r.amount ? fmtMoney(r.amount, r.currency || 'USD') : '-'}</td>
             <td>${r.collateral ? esc(LR_COLLATERAL_LABELS[r.collateral] || r.collateral) : '-'}</td>
             <td>${esc(addressDisplay)}</td>
-            <td>${esc(r.purpose || '-')}</td>
             <td>
                 ${canManage
                     ? `<select onchange="updateLoanRequestStatus('${esc(r.id)}', this.value)">

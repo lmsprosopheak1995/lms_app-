@@ -701,17 +701,12 @@ function toggleLoginActionBox(boxId) {
 
 // ===================== PUBLIC LOAN REQUEST WIZARD (login page) =====================
 // PLACEHOLDER eligibility numbers — replace with the real product terms whenever they're ready.
-// Everything else (terms checklist text, term dropdown options, the min/max hint under the
-// amount field) is generated FROM this object, so editing it here is the only change needed.
+// Everything else (terms checklist text, the min/max hints under the term and amount fields)
+// is generated FROM this object, so editing it here is the only change needed.
 const LR_TERMS = {
     amountMinKHR: 200000, amountMaxKHR: 1000000,
     amountMinUSD: 50,     amountMaxUSD: 250,
-    termOptions: [ // { label, days } — shown in the "រយៈពេលខ្ចី" dropdown on the form step
-        { label: '1 ខែ (30 ថ្ងៃ)', days: 30 },
-        { label: '3 ខែ (90 ថ្ងៃ)', days: 90 },
-        { label: '6 ខែ (180 ថ្ងៃ)', days: 180 },
-        { label: '12 ខែ (360 ថ្ងៃ)', days: 360 }
-    ],
+    termMinDays: 30, termMaxDays: 360, // shown as a hint under the "រយៈពេលខ្ចី (ថ្ងៃ)" field, which the visitor types in by hand
     monthlyRatePercent: 3, // "គំរូ" — flat placeholder rate shown on the terms screen
     minAgeYears: 18
 };
@@ -721,7 +716,7 @@ function lrRenderTermsList() {
     if (!list) return;
     const items = [
         `ទំហំកម្ចី អប្បបរមា ${LR_TERMS.amountMinKHR.toLocaleString()}៛ (${LR_TERMS.amountMinUSD}$) អតិបរមា ${LR_TERMS.amountMaxKHR.toLocaleString()}៛ (${LR_TERMS.amountMaxUSD}$)`,
-        `រយៈពេលកម្ចី ចាប់ពី ${LR_TERMS.termOptions[0].days} ដល់ ${LR_TERMS.termOptions[LR_TERMS.termOptions.length - 1].days} ថ្ងៃ`,
+        `រយៈពេលកម្ចី ចាប់ពី ${LR_TERMS.termMinDays} ដល់ ${LR_TERMS.termMaxDays} ថ្ងៃ`,
         `អត្រាការប្រាក់ អតិបរមា ${LR_TERMS.monthlyRatePercent}% ក្នុងមួយខែ`,
         `ត្រូវមានអាយុចាប់ពី ${LR_TERMS.minAgeYears} ឆ្នាំឡើងទៅ`,
         'មានទីលំនៅអចិន្ត្រៃយ៍ក្នុងប្រទេសកម្ពុជា',
@@ -731,11 +726,10 @@ function lrRenderTermsList() {
     list.innerHTML = items.map(t => `<li><i class="fas fa-check-circle"></i> ${t}</li>`).join('');
 }
 
-function lrPopulateTermSelect() {
-    const sel = document.getElementById('lrTerm');
-    if (!sel) return;
-    sel.innerHTML = '<option value="">-- ជ្រើសរើសរយៈពេល --</option>' +
-        LR_TERMS.termOptions.map(o => `<option value="${o.days}">${esc(o.label)}</option>`).join('');
+function lrUpdateTermHint() {
+    const hint = document.getElementById('lrTermHint');
+    if (!hint) return;
+    hint.textContent = `អប្បបរមា ${LR_TERMS.termMinDays} ថ្ងៃ / អតិបរមា ${LR_TERMS.termMaxDays} ថ្ងៃ`;
 }
 
 function lrUpdateAmountHint() {
@@ -747,15 +741,15 @@ function lrUpdateAmountHint() {
         : `អប្បបរមា ${LR_TERMS.amountMinKHR.toLocaleString()}៛ / អតិបរមា ${LR_TERMS.amountMaxKHR.toLocaleString()}៛`;
 }
 
-// Switches between the two visual steps of the wizard. Re-renders the terms list / term
-// dropdown / amount hint each time "terms" is (re)shown so LR_TERMS edits always take effect
-// without needing a page reload.
+// Switches between the two visual steps of the wizard. Re-renders the terms list / term hint /
+// amount hint each time a step is (re)shown so LR_TERMS edits always take effect without
+// needing a page reload.
 function lrGoToStep(step) {
     const termsStep = document.getElementById('lrStepTerms');
     const formStep = document.getElementById('lrStepForm');
     if (!termsStep || !formStep) return;
     if (step === 'form') {
-        lrPopulateTermSelect();
+        lrUpdateTermHint();
         lrUpdateAmountHint();
         termsStep.style.display = 'none';
         formStep.style.display = 'block';
