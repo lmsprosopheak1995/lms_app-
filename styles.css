@@ -93,6 +93,10 @@ h2 { padding: 0 10px; }
 
 .lr-hint { font-size: 11px; color: var(--text-color-subtle, #888); margin-top: 4px; }
 
+.lr-term-row { display: flex; gap: 8px; align-items: stretch; }
+.lr-term-row input { flex: 2; }
+.lr-term-row select { flex: 1; min-width: 80px; }
+
 .lr-address-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
 .lr-address-grid label { font-size: 12.5px; }
 @media (max-width: 420px) { .lr-address-grid { grid-template-columns: 1fr; } }
