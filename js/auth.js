@@ -685,10 +685,10 @@ function toggleForgotPasswordBox() {
     box.style.display = (box.style.display === 'none') ? 'block' : 'none';
 }
 
-// Toggles one of the three login-page action boxes (ស្នើសុំកម្ចី / ទាក់ទងក្រុមហ៊ុន / សុំជំនួយ),
-// closing the other two so only one is open at a time.
+// Toggles one of the login-page action boxes (ស្នើសុំកម្ចី / សុំជំនួយ / ពិនិត្យស្ថានភាព / តារាងបង់ប្រាក់),
+// closing the others so only one is open at a time.
 function toggleLoginActionBox(boxId) {
-    ['loanRequestBox', 'contactCompanyBox', 'helpRequestBox', 'checkStatusBox', 'downloadScheduleBox'].forEach(id => {
+    ['loanRequestBox', 'helpRequestBox', 'checkStatusBox', 'downloadScheduleBox'].forEach(id => {
         const box = document.getElementById(id);
         if (!box) return;
         const opening = (id === boxId && box.style.display === 'none');
