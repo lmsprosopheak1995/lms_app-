@@ -2090,7 +2090,6 @@ function printLoanSchedule(mode) {
             <p>សូមបញ្ជាក់រាល់ពេលបង់ប្រាក់៖ សូមពិនិត្យឈ្មោះគណនី និងលេខគណនីឲ្យបានច្បាស់លាស់ មុននឹងធ្វើការផ្ទេរប្រាក់។ បន្ទាប់ពីផ្ទេរប្រាក់រួច សូមផ្ញើវិក្កយបត្រ (Receipt) មកកាន់ Facebook: Hem Sopheak ឬ តេលេក្រាម <a href="https://t.me/Samross_Ph_Care">@Samross_Ph_Care</a> (Hem Sopheak)។</p>
             <p class="contact-line">សូមទាក់ទងមក តេលេក្រាម <a href="https://t.me/Samross_Ph_Care">@Samross_Ph_Care</a> (Hem Sopheak) ឬ Facebook: Hem Sopheak — ខលទូរសព្ទ 0888876150 / 0966667292</p>
             <p>សូមអគុណ!</p>
-            <p>សូមអគុណ!</p>
         </div>
         <div class="print-qr-section">
             <div class="print-qr-item">
