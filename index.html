@@ -64,39 +64,88 @@
       <button class="btn btn-info btn-sm login-action-btn" onclick="toggleLoginActionBox('downloadScheduleBox')"><i class="fas fa-file-download"></i> តារាងបង់ប្រាក់</button>
     </div>
 
-    <div id="loanRequestBox" class="login-action-box" style="display:none; text-align:left;">
-      <h4 style="margin-top:0;"><i class="fas fa-hand-holding-usd"></i> ស្នើសុំកម្ចី</h4>
-      <p style="margin:0 0 12px; font-size:13px;">សូមបំពេញព័ត៌មានខាងក្រោម ក្រុមការងារនឹងទាក់ទងទៅអ្នកវិញក្នុងពេលឆាប់ៗ។</p>
-      <form id="loanRequestForm" onsubmit="submitLoanRequest(event)">
-        <label for="lrName"><i class="fas fa-user"></i> ឈ្មោះពេញ *</label>
-        <input id="lrName" required />
+    <!-- Two-step public loan-request wizard: an eligibility/terms screen first (lrStepTerms),
+         then the application form itself (lrStepForm). Placeholder eligibility numbers below
+         (amount range, term range, rate) live in the LR_TERMS object at the top of auth.js —
+         edit them there, not here, so the terms card and the term/amount hints in the form
+         stay in sync automatically. -->
+    <div id="loanRequestBox" class="login-action-box lr-wizard" style="display:none; text-align:left;">
 
-        <label for="lrPhone" style="margin-top:10px;"><i class="fas fa-phone"></i> លេខទូរស័ព្ទ *</label>
-        <input id="lrPhone" type="tel" required />
+      <div class="lr-step" id="lrStepTerms">
+        <div class="lr-terms-icon"><i class="fas fa-hand-holding-usd"></i></div>
+        <h4 class="lr-terms-title">លក្ខខណ្ឌកម្ចី</h4>
+        <p class="lr-terms-intro">ការបំពេញពាក្យស្នើសុំកម្ចីនេះ គឺដើម្បីឲ្យក្រុមហ៊ុនស្គាល់ពីតម្រូវការរបស់លោកអ្នក។ ការដាក់ពាក្យស្នើសុំកម្ចីនេះ មិនមែនជាការអនុម័តកម្ចីនោះទេ សូមអានលក្ខខណ្ឌខាងក្រោម៖</p>
+        <ul class="lr-terms-list" id="lrTermsList"><!-- populated from LR_TERMS by JS --></ul>
+        <div class="lr-terms-note"><i class="fas fa-info-circle"></i> ការស្នើសុំកម្ចីមិនមែនជាការធានាការអនុម័តនោះទេ។ ក្រុមការងារនឹងទាក់ទងទៅលោកអ្នកវិញ ដើម្បីបញ្ជាក់ព័ត៌មានបន្ថែម។</div>
+        <div class="lr-terms-actions">
+          <button type="button" class="btn btn-muted" onclick="toggleLoginActionBox('loanRequestBox')"><i class="fas fa-times"></i> បដិសេធ</button>
+          <button type="button" class="btn btn-success" onclick="lrGoToStep('form')"><i class="fas fa-check"></i> យល់ព្រម</button>
+        </div>
+      </div>
 
-        <div style="display:flex; gap:8px; margin-top:10px;">
-          <div style="flex:2;">
-            <label for="lrAmount"><i class="fas fa-money-bill-wave"></i> ចំនួនទឹកប្រាក់ចង់ខ្ចី</label>
-            <input id="lrAmount" type="number" inputmode="decimal" min="0" step="0.01" />
-          </div>
-          <div style="flex:1;">
-            <label for="lrCurrency"><i class="fas fa-coins"></i> រូបិយប័ណ្ណ</label>
-            <select id="lrCurrency">
-              <option value="USD">USD</option>
-              <option value="KHR">KHR</option>
-            </select>
-          </div>
+      <div class="lr-step" id="lrStepForm" style="display:none;">
+        <div class="lr-step-header">
+          <button type="button" class="lr-back-btn" onclick="lrGoToStep('terms')" title="ត្រឡប់ក្រោយ"><i class="fas fa-arrow-left"></i></button>
+          <h4><i class="fas fa-hand-holding-usd"></i> ស្នើសុំកម្ចី</h4>
         </div>
 
-        <label for="lrAddress" style="margin-top:10px;"><i class="fas fa-map-marker-alt"></i> ភូមិ/ឃុំ/ស្រុក/ខេត្ត</label>
-        <input id="lrAddress" />
+        <form id="loanRequestForm" onsubmit="submitLoanRequest(event)">
+          <div class="lr-toggle-row">
+            <span><i class="fas fa-user-friends"></i> ស្នើសុំជំនួសអ្នកដទៃ</span>
+            <label class="theme-switch"><input type="checkbox" id="lrOnBehalf" onchange="lrToggleOnBehalf()"><span class="slider round"></span></label>
+          </div>
 
-        <label for="lrPurpose" style="margin-top:10px;"><i class="fas fa-comment-alt"></i> គោលបំណងខ្ចី</label>
-        <textarea id="lrPurpose" rows="2"></textarea>
+          <div id="lrBorrowerNameWrap" style="display:none;">
+            <label for="lrBorrowerName"><i class="fas fa-user"></i> ឈ្មោះអ្នកខ្ចី *</label>
+            <input id="lrBorrowerName" />
+          </div>
 
-        <button type="submit" id="lrSubmitBtn" class="btn btn-success" style="width:100%; margin-top:14px;"><i class="fas fa-paper-plane"></i> ដាក់ស្នើសុំកម្ចី</button>
-      </form>
-      <p style="margin:12px 0 0; font-size:12px; text-align:center;">ឬទាក់ទងផ្ទាល់៖ <a href="https://t.me/Samross_Ph_Care" target="_blank" rel="noopener"><i class="fab fa-telegram"></i> Telegram</a> &nbsp;/&nbsp; <i class="fas fa-phone"></i> 096 666 7292</p>
+          <label for="lrName"><i class="fas fa-user"></i> <span id="lrNameLabel">ឈ្មោះពេញ *</span></label>
+          <input id="lrName" required />
+
+          <label for="lrPhone" style="margin-top:10px;"><i class="fas fa-phone"></i> លេខទូរស័ព្ទ *</label>
+          <input id="lrPhone" type="tel" required />
+
+          <label style="margin-top:10px;"><i class="fas fa-coins"></i> រូបិយប័ណ្ណប្រាក់កម្ចី</label>
+          <div class="lr-currency-toggle" id="lrCurrencyToggle">
+            <button type="button" class="lr-currency-btn active" data-currency="KHR" onclick="lrSelectCurrency('KHR')">រៀល</button>
+            <button type="button" class="lr-currency-btn" data-currency="USD" onclick="lrSelectCurrency('USD')">ដុល្លារ</button>
+          </div>
+          <input type="hidden" id="lrCurrency" value="KHR" />
+
+          <label for="lrPurpose" style="margin-top:10px;"><i class="fas fa-briefcase"></i> ប្រភេទអាជីវកម្ម/ចំណូលទូទៅ</label>
+          <input id="lrPurpose" placeholder="ឧ. លក់ដូរ, កសិកម្ម, បុគ្គលិក..." />
+
+          <label for="lrTerm" style="margin-top:10px;"><i class="fas fa-clock"></i> រយៈពេលខ្ចី</label>
+          <select id="lrTerm">
+            <option value="">-- ជ្រើសរើសរយៈពេល --</option>
+          </select>
+
+          <label for="lrAmount" style="margin-top:10px;"><i class="fas fa-money-bill-wave"></i> ទំហំទឹកប្រាក់ស្នើសុំ</label>
+          <input id="lrAmount" type="number" inputmode="decimal" min="0" step="0.01" />
+          <div class="lr-hint" id="lrAmountHint"></div>
+
+          <label for="lrCollateral" style="margin-top:10px;"><i class="fas fa-file-contract"></i> គោលបំណងនៃការធានាកម្ចី</label>
+          <select id="lrCollateral">
+            <option value="">-- ជ្រើសរើសប្រភេទការធានា --</option>
+            <option value="none">គ្មានវត្ថុបញ្ចាំ</option>
+            <option value="property">ប័ណ្ណដី/ផ្ទះ</option>
+            <option value="vehicle">ប័ណ្ណរថយន្ត/ម៉ូតូ</option>
+            <option value="guarantor">អ្នកធានា</option>
+            <option value="other">ផ្សេងៗ</option>
+          </select>
+
+          <div class="lr-address-grid">
+            <div><label for="lrProvince"><i class="fas fa-map-marker-alt"></i> ខេត្ត/រាជធានី</label><input id="lrProvince" /></div>
+            <div><label for="lrDistrict">ក្រុង/ស្រុក/ខណ្ឌ</label><input id="lrDistrict" /></div>
+            <div><label for="lrCommune">ឃុំ/សង្កាត់</label><input id="lrCommune" /></div>
+            <div><label for="lrVillage">ភូមិ</label><input id="lrVillage" /></div>
+          </div>
+
+          <button type="submit" id="lrSubmitBtn" class="btn btn-success" style="width:100%; margin-top:14px;"><i class="fas fa-paper-plane"></i> ដាក់ស្នើសុំកម្ចី</button>
+        </form>
+        <p style="margin:12px 0 0; font-size:12px; text-align:center;">ឬទាក់ទងផ្ទាល់៖ <a href="https://t.me/Samross_Ph_Care" target="_blank" rel="noopener"><i class="fab fa-telegram"></i> Telegram</a> &nbsp;/&nbsp; <i class="fas fa-phone"></i> 096 666 7292</p>
+      </div>
     </div>
 
     <div id="contactCompanyBox" class="login-action-box" style="display:none;">
@@ -1040,8 +1089,10 @@
                             <th><i class="fas fa-user"></i> ឈ្មោះ</th>
                             <th><i class="fas fa-phone"></i> លេខទូរស័ព្ទ</th>
                             <th><i class="fas fa-money-bill-wave"></i> ចំនួនទឹកប្រាក់</th>
+                            <th><i class="fas fa-clock"></i> រយៈពេល</th>
+                            <th><i class="fas fa-file-contract"></i> ការធានា</th>
                             <th><i class="fas fa-map-marker-alt"></i> អាសយដ្ឋាន</th>
-                            <th><i class="fas fa-comment-alt"></i> គោលបំណង</th>
+                            <th><i class="fas fa-comment-alt"></i> គោលបំណង/ចំណូល</th>
                             <th><i class="fas fa-toggle-on"></i> ស្ថានភាព</th>
                             <th><i class="fas fa-cogs"></i> សកម្មភាព</th>
                         </tr></thead>
