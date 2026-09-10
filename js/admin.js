@@ -126,6 +126,8 @@ const LOAN_REQUEST_STATUS = {
     rejected:  { label: 'បដិសេធ',      badgeClass: 'status-rejected' }
 };
 
+const LR_COLLATERAL_LABELS = { none: 'គ្មានវត្ថុបញ្ចាំ', property: 'ប័ណ្ណដី/ផ្ទះ', vehicle: 'ប័ណ្ណរថយន្ត/ម៉ូតូ', guarantor: 'អ្នកធានា', other: 'ផ្សេងៗ' };
+
 function renderLoanRequestsTable() {
     const tbody = document.getElementById('loanRequestsTableBody');
     if (!tbody) return;
@@ -134,13 +136,20 @@ function renderLoanRequestsTable() {
     [...loanRequests].sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt)).forEach(r => {
         const st = LOAN_REQUEST_STATUS[r.status] || LOAN_REQUEST_STATUS.pending;
         const canManage = hasPermission('canApproveLoan');
+        // Older requests (submitted before this form was expanded) only ever had a single
+        // free-text `address` line and no `village`/`commune`/`district`/`province` parts —
+        // fall back to that so old rows still display correctly.
+        const addressDisplay = [r.village, r.commune, r.district, r.province].filter(Boolean).join(', ') || r.address || '-';
+        const nameDisplay = r.onBehalf && r.requesterName ? `${esc(r.name)}<br><span style="font-size:11px; color:var(--text-color-subtle,#888);">ស្នើសុំដោយ: ${esc(r.requesterName)}</span>` : esc(r.name);
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${formatDateDMY(r.submittedAt)}</td>
-            <td>${esc(r.name)}</td>
+            <td>${nameDisplay}</td>
             <td>${esc(r.phone)}</td>
             <td class="right">${r.amount ? fmtMoney(r.amount, r.currency || 'USD') : '-'}</td>
-            <td>${esc(r.address || '-')}</td>
+            <td>${r.termDays ? `${r.termDays} ថ្ងៃ` : '-'}</td>
+            <td>${r.collateral ? esc(LR_COLLATERAL_LABELS[r.collateral] || r.collateral) : '-'}</td>
+            <td>${esc(addressDisplay)}</td>
             <td>${esc(r.purpose || '-')}</td>
             <td>
                 ${canManage
@@ -176,22 +185,25 @@ function updateLoanRequestStatus(id, status) {
     }
 }
 
-// Bridges a public "loan request" (login-page submission — free-text name/phone/amount/address/
-// purpose, no structured customer record yet) into the real loan-creation flow, instead of the
-// officer having to re-type everything by hand on the Loans tab. Reuses an existing customer if
-// one already shares this phone number; otherwise creates a bare customer record (name + phone
-// only — the request's address is a single free-text line, so it can't be reliably split into
-// the customer profile's separate village/commune/district/province fields, and is surfaced in
-// the toast below instead so the officer can fill those in on the Customers tab if needed).
-// Does NOT itself create the loan — the officer still sets interest rate, term, payment method,
-// etc. and clicks "រក្សាទុក" on the pre-filled Loans form, same approval gate (pending/active
-// based on canApproveLoan) as any other loan.
+// Bridges a public "loan request" (login-page submission) into the real loan-creation flow,
+// instead of the officer having to re-type everything by hand on the Loans tab. Reuses an
+// existing customer if one already shares this phone number; otherwise creates a customer
+// record. Newer requests (submitted through the expanded wizard) carry separate
+// village/commune/district/province fields, which get copied straight onto the new customer;
+// older requests only had a single free-text `address` line, which is surfaced in the toast
+// below instead so the officer can fill those parts in on the Customers tab if needed.
+// Does NOT itself create the loan — the officer still sets interest rate, payment method, etc.
+// and clicks "រក្សាទុក" on the pre-filled Loans form, same approval gate (pending/active based
+// on canApproveLoan) as any other loan. The requested term (in days) is copied over too, but
+// the officer should double check it against the product's actual unit (ខែ/ថ្ងៃ/...).
 async function createLoanFromRequest(id) {
     if (!hasPermission('canApproveLoan')) { showToast('Permission Denied.', 'error'); return; }
     const request = loanRequests.find(r => r.id === id);
     if (!request) return;
 
     if (!await customConfirm(`តើអ្នកចង់ចាប់ផ្តើមបង្កើតកម្ចីសម្រាប់ "${request.name}" ដែរឬទេ? អ្នកនឹងត្រូវបំពេញលក្ខខណ្ឌកម្ចី (អត្រាការប្រាក់, រយៈពេល...) បន្ថែមទៀត។`)) return;
+
+    const hasStructuredAddress = !!(request.village || request.commune || request.district || request.province);
 
     let customer = customers.find(c => c.phone && request.phone && c.phone === request.phone);
     if (!customer) {
@@ -200,7 +212,7 @@ async function createLoanFromRequest(id) {
             name: request.name,
             gender: 'ប្រុស',
             phone: request.phone,
-            village: '', commune: '', district: '', province: '',
+            village: request.village || '', commune: request.commune || '', district: request.district || '', province: request.province || '',
             residency: 'resident',
             isBlacklisted: false,
             createdAt: new Date().toISOString()
@@ -224,10 +236,14 @@ async function createLoanFromRequest(id) {
     if (request.amount) document.getElementById('loanAmount').value = request.amount;
     if (request.currency) document.getElementById('currency').value = request.currency;
 
-    const extraInfo = [request.address, request.purpose].filter(Boolean).join(' — ');
+    const extraBits = [
+        request.collateral ? `ការធានា: ${LR_COLLATERAL_LABELS[request.collateral] || request.collateral}` : '',
+        !hasStructuredAddress && request.address ? `អាសយដ្ឋាន: ${request.address}` : '',
+        request.purpose ? `គោលបំណង/ចំណូល: ${request.purpose}` : ''
+    ].filter(Boolean).join(' — ');
     showToast(
-        extraInfo
-            ? `សូមបំពេញលក្ខខណ្ឌកម្ចី រួច "រក្សាទុក"។ ពីសំណើ៖ ${extraInfo}`
+        extraBits
+            ? `សូមបំពេញលក្ខខណ្ឌកម្ចី (អត្រាការប្រាក់, រយៈពេល...) រួច "រក្សាទុក"។ ពីសំណើ៖ ${extraBits}`
             : 'សូមបំពេញលក្ខខណ្ឌកម្ចី (អត្រាការប្រាក់, រយៈពេល...) រួច "រក្សាទុក"។',
         'info'
     );

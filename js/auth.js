@@ -691,8 +691,106 @@ function toggleLoginActionBox(boxId) {
     ['loanRequestBox', 'contactCompanyBox', 'helpRequestBox', 'checkStatusBox', 'downloadScheduleBox'].forEach(id => {
         const box = document.getElementById(id);
         if (!box) return;
-        box.style.display = (id === boxId && box.style.display === 'none') ? 'block' : 'none';
+        const opening = (id === boxId && box.style.display === 'none');
+        box.style.display = opening ? 'block' : 'none';
+        // Whenever the loan-request wizard opens (or gets closed via "បដិសេធ" on the terms
+        // step), always reset it back to the terms step for the next visitor/attempt.
+        if (id === 'loanRequestBox') lrResetWizard();
     });
+}
+
+// ===================== PUBLIC LOAN REQUEST WIZARD (login page) =====================
+// PLACEHOLDER eligibility numbers — replace with the real product terms whenever they're ready.
+// Everything else (terms checklist text, term dropdown options, the min/max hint under the
+// amount field) is generated FROM this object, so editing it here is the only change needed.
+const LR_TERMS = {
+    amountMinKHR: 200000, amountMaxKHR: 1000000,
+    amountMinUSD: 50,     amountMaxUSD: 250,
+    termOptions: [ // { label, days } — shown in the "រយៈពេលខ្ចី" dropdown on the form step
+        { label: '1 ខែ (30 ថ្ងៃ)', days: 30 },
+        { label: '3 ខែ (90 ថ្ងៃ)', days: 90 },
+        { label: '6 ខែ (180 ថ្ងៃ)', days: 180 },
+        { label: '12 ខែ (360 ថ្ងៃ)', days: 360 }
+    ],
+    monthlyRatePercent: 3, // "គំរូ" — flat placeholder rate shown on the terms screen
+    minAgeYears: 18
+};
+
+function lrRenderTermsList() {
+    const list = document.getElementById('lrTermsList');
+    if (!list) return;
+    const items = [
+        `ទំហំកម្ចី អប្បបរមា ${LR_TERMS.amountMinKHR.toLocaleString()}៛ (${LR_TERMS.amountMinUSD}$) អតិបរមា ${LR_TERMS.amountMaxKHR.toLocaleString()}៛ (${LR_TERMS.amountMaxUSD}$) (គំរូ)`,
+        `រយៈពេលកម្ចី ចាប់ពី ${LR_TERMS.termOptions[0].days} ដល់ ${LR_TERMS.termOptions[LR_TERMS.termOptions.length - 1].days} ថ្ងៃ (គំរូ)`,
+        `អត្រាការប្រាក់ អតិបរមា ${LR_TERMS.monthlyRatePercent}% ក្នុងមួយខែ (គំរូ)`,
+        `ត្រូវមានអាយុចាប់ពី ${LR_TERMS.minAgeYears} ឆ្នាំឡើងទៅ`,
+        'មានទីលំនៅអចិន្ត្រៃយ៍ក្នុងប្រទេសកម្ពុជា',
+        'មានការងារធ្វើ ឬ មុខរបរផ្តល់ចំណូលច្បាស់លាស់',
+        'មិនស្ថិតក្នុងបញ្ជីខ្មៅ (Blacklist) នៅគ្រឹះស្ថានហិរញ្ញវត្ថុផ្សេងៗ'
+    ];
+    list.innerHTML = items.map(t => `<li><i class="fas fa-check-circle"></i> ${t}</li>`).join('');
+}
+
+function lrPopulateTermSelect() {
+    const sel = document.getElementById('lrTerm');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">-- ជ្រើសរើសរយៈពេល --</option>' +
+        LR_TERMS.termOptions.map(o => `<option value="${o.days}">${esc(o.label)}</option>`).join('');
+}
+
+function lrUpdateAmountHint() {
+    const hint = document.getElementById('lrAmountHint');
+    if (!hint) return;
+    const currency = document.getElementById('lrCurrency').value;
+    hint.textContent = currency === 'USD'
+        ? `អប្បបរមា ${LR_TERMS.amountMinUSD}$ / អតិបរមា ${LR_TERMS.amountMaxUSD}$ (គំរូ)`
+        : `អប្បបរមា ${LR_TERMS.amountMinKHR.toLocaleString()}៛ / អតិបរមា ${LR_TERMS.amountMaxKHR.toLocaleString()}៛ (គំរូ)`;
+}
+
+// Switches between the two visual steps of the wizard. Re-renders the terms list / term
+// dropdown / amount hint each time "terms" is (re)shown so LR_TERMS edits always take effect
+// without needing a page reload.
+function lrGoToStep(step) {
+    const termsStep = document.getElementById('lrStepTerms');
+    const formStep = document.getElementById('lrStepForm');
+    if (!termsStep || !formStep) return;
+    if (step === 'form') {
+        lrPopulateTermSelect();
+        lrUpdateAmountHint();
+        termsStep.style.display = 'none';
+        formStep.style.display = 'block';
+    } else {
+        lrRenderTermsList();
+        formStep.style.display = 'none';
+        termsStep.style.display = 'block';
+    }
+}
+
+function lrResetWizard() {
+    const termsStep = document.getElementById('lrStepTerms');
+    const formStep = document.getElementById('lrStepForm');
+    if (!termsStep || !formStep) return;
+    lrRenderTermsList();
+    termsStep.style.display = 'block';
+    formStep.style.display = 'none';
+}
+
+function lrSelectCurrency(currency) {
+    document.getElementById('lrCurrency').value = currency;
+    document.querySelectorAll('#lrCurrencyToggle .lr-currency-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.currency === currency);
+    });
+    lrUpdateAmountHint();
+}
+
+// When submitting on behalf of someone else, "ឈ្មោះពេញ" switches to meaning the *requester*
+// (the person filling the form), and a separate required "ឈ្មោះអ្នកខ្ចី" field appears for the
+// actual borrower — mirrors the toggle shown in the reference design.
+function lrToggleOnBehalf() {
+    const onBehalf = document.getElementById('lrOnBehalf').checked;
+    document.getElementById('lrBorrowerNameWrap').style.display = onBehalf ? 'block' : 'none';
+    document.getElementById('lrBorrowerName').required = onBehalf;
+    document.getElementById('lrNameLabel').textContent = onBehalf ? 'ឈ្មោះអ្នកស្នើសុំ (អ្នកតំណាង) *' : 'ឈ្មោះពេញ *';
 }
 
 // Public loan-request form on the login page (no login required). Uses the same
@@ -705,16 +803,23 @@ function toggleLoginActionBox(boxId) {
 // staff under Admin > សំណើសុំកម្ចី once they log in (see renderLoanRequestsTable() in admin.js).
 function submitLoanRequest(e) {
     e.preventDefault();
-    const name = document.getElementById('lrName').value.trim();
+    const onBehalf = document.getElementById('lrOnBehalf').checked;
+    const borrowerName = document.getElementById('lrBorrowerName').value.trim();
+    const name = document.getElementById('lrName').value.trim(); // requester's name when onBehalf, else the borrower's own name
     const phone = document.getElementById('lrPhone').value.trim();
     const amountRaw = document.getElementById('lrAmount').value;
     const amount = amountRaw === '' ? null : parseFloat(amountRaw);
     const currency = document.getElementById('lrCurrency').value;
-    const address = document.getElementById('lrAddress').value.trim();
     const purpose = document.getElementById('lrPurpose').value.trim();
+    const termDays = document.getElementById('lrTerm').value || null;
+    const collateral = document.getElementById('lrCollateral').value || '';
+    const province = document.getElementById('lrProvince').value.trim();
+    const district = document.getElementById('lrDistrict').value.trim();
+    const commune = document.getElementById('lrCommune').value.trim();
+    const village = document.getElementById('lrVillage').value.trim();
 
-    if (!name || !phone) {
-        showToast('សូមបំពេញឈ្មោះ និងលេខទូរស័ព្ទ', 'error');
+    if (!name || !phone || (onBehalf && !borrowerName)) {
+        showToast('សូមបំពេញព័ត៌មានដែលមានសញ្ញា * ឲ្យបានគ្រប់ (ឈ្មោះ, ឈ្មោះអ្នកខ្ចី, លេខទូរស័ព្ទ)', 'error');
         return;
     }
 
@@ -722,12 +827,23 @@ function submitLoanRequest(e) {
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> កំពុងផ្ញើ...';
 
+    // `address` is kept as a single joined line too, alongside the separate parts, so any older
+    // code/report still reading request.address (e.g. an export or older admin build) keeps
+    // working — see createLoanFromRequest() in admin.js for where the separate parts get used.
+    const address = [village, commune, district, province].filter(Boolean).join(', ');
+
     const newRequest = {
         id: 'REQ-' + Date.now(),
-        name, phone,
+        name: onBehalf ? borrowerName : name,
+        requesterName: onBehalf ? name : '',
+        onBehalf,
+        phone,
         amount: (amount != null && !isNaN(amount)) ? amount : null,
-        currency: currency || 'USD',
-        address: address || '',
+        currency: currency || 'KHR',
+        termDays: termDays ? Number(termDays) : null,
+        collateral,
+        village, commune, district, province,
+        address,
         purpose: purpose || '',
         status: 'pending',
         submittedAt: new Date().toISOString()
@@ -736,10 +852,13 @@ function submitLoanRequest(e) {
     loanRequests.push(newRequest);
     persistData(LS_KEYS.loanRequests, loanRequests);
 
-    notifyTelegram(`📩 <b>មានសំណើសុំកម្ចីថ្មី</b>\nឈ្មោះ: ${newRequest.name}\nទូរស័ព្ទ: ${newRequest.phone}${newRequest.amount ? `\nចំនួនស្នើសុំ: ${newRequest.amount} ${newRequest.currency}` : ''}${newRequest.address ? `\nអាសយដ្ឋាន: ${newRequest.address}` : ''}${newRequest.purpose ? `\nគោលបំណង: ${newRequest.purpose}` : ''}`);
+    const collateralLabels = { none: 'គ្មានវត្ថុបញ្ចាំ', property: 'ប័ណ្ណដី/ផ្ទះ', vehicle: 'ប័ណ្ណរថយន្ត/ម៉ូតូ', guarantor: 'អ្នកធានា', other: 'ផ្សេងៗ' };
+    notifyTelegram(`📩 <b>មានសំណើសុំកម្ចីថ្មី</b>\nឈ្មោះ: ${newRequest.name}${newRequest.onBehalf ? ` (ស្នើសុំដោយ: ${newRequest.requesterName})` : ''}\nទូរស័ព្ទ: ${newRequest.phone}${newRequest.amount ? `\nចំនួនស្នើសុំ: ${newRequest.amount} ${newRequest.currency}` : ''}${newRequest.termDays ? `\nរយៈពេល: ${newRequest.termDays} ថ្ងៃ` : ''}${newRequest.collateral ? `\nការធានា: ${collateralLabels[newRequest.collateral] || newRequest.collateral}` : ''}${newRequest.address ? `\nអាសយដ្ឋាន: ${newRequest.address}` : ''}${newRequest.purpose ? `\nគោលបំណង/ចំណូល: ${newRequest.purpose}` : ''}`);
 
     showToast('សំណើសុំកម្ចីរបស់អ្នកបានផ្ញើដោយជោគជ័យ! ក្រុមការងារនឹងទាក់ទងទៅអ្នកឆាប់ៗនេះ។', 'success');
     document.getElementById('loanRequestForm').reset();
+    document.getElementById('lrBorrowerNameWrap').style.display = 'none';
+    lrSelectCurrency('KHR');
     document.getElementById('loanRequestBox').style.display = 'none';
     submitBtn.disabled = false;
     submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> ដាក់ស្នើសុំកម្ចី';
