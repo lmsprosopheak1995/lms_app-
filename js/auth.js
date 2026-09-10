@@ -720,9 +720,9 @@ function lrRenderTermsList() {
     const list = document.getElementById('lrTermsList');
     if (!list) return;
     const items = [
-        `ទំហំកម្ចី អប្បបរមា ${LR_TERMS.amountMinKHR.toLocaleString()}៛ (${LR_TERMS.amountMinUSD}$) អតិបរមា ${LR_TERMS.amountMaxKHR.toLocaleString()}៛ (${LR_TERMS.amountMaxUSD}$) (គំរូ)`,
-        `រយៈពេលកម្ចី ចាប់ពី ${LR_TERMS.termOptions[0].days} ដល់ ${LR_TERMS.termOptions[LR_TERMS.termOptions.length - 1].days} ថ្ងៃ (គំរូ)`,
-        `អត្រាការប្រាក់ អតិបរមា ${LR_TERMS.monthlyRatePercent}% ក្នុងមួយខែ (គំរូ)`,
+        `ទំហំកម្ចី អប្បបរមា ${LR_TERMS.amountMinKHR.toLocaleString()}៛ (${LR_TERMS.amountMinUSD}$) អតិបរមា ${LR_TERMS.amountMaxKHR.toLocaleString()}៛ (${LR_TERMS.amountMaxUSD}$)`,
+        `រយៈពេលកម្ចី ចាប់ពី ${LR_TERMS.termOptions[0].days} ដល់ ${LR_TERMS.termOptions[LR_TERMS.termOptions.length - 1].days} ថ្ងៃ`,
+        `អត្រាការប្រាក់ អតិបរមា ${LR_TERMS.monthlyRatePercent}% ក្នុងមួយខែ`,
         `ត្រូវមានអាយុចាប់ពី ${LR_TERMS.minAgeYears} ឆ្នាំឡើងទៅ`,
         'មានទីលំនៅអចិន្ត្រៃយ៍ក្នុងប្រទេសកម្ពុជា',
         'មានការងារធ្វើ ឬ មុខរបរផ្តល់ចំណូលច្បាស់លាស់',
@@ -743,8 +743,8 @@ function lrUpdateAmountHint() {
     if (!hint) return;
     const currency = document.getElementById('lrCurrency').value;
     hint.textContent = currency === 'USD'
-        ? `អប្បបរមា ${LR_TERMS.amountMinUSD}$ / អតិបរមា ${LR_TERMS.amountMaxUSD}$ (គំរូ)`
-        : `អប្បបរមា ${LR_TERMS.amountMinKHR.toLocaleString()}៛ / អតិបរមា ${LR_TERMS.amountMaxKHR.toLocaleString()}៛ (គំរូ)`;
+        ? `អប្បបរមា ${LR_TERMS.amountMinUSD}$ / អតិបរមា ${LR_TERMS.amountMaxUSD}$`
+        : `អប្បបរមា ${LR_TERMS.amountMinKHR.toLocaleString()}៛ / អតិបរមា ${LR_TERMS.amountMaxKHR.toLocaleString()}៛`;
 }
 
 // Switches between the two visual steps of the wizard. Re-renders the terms list / term
