@@ -2074,6 +2074,13 @@ function printLoanSchedule(mode) {
 
     const titleText = mode === 'unpaid' ? 'តារាងបង់ប្រាក់ (មិនទាន់បង់) - LOAN SCHEDULE' : 'តារាងបង់ប្រាក់ប្រាក់កម្ចី - LOAN SCHEDULE';
 
+    // Late-payment fee notice + contact info, shown under the schedule table on every printout.
+    const footerNoteHtml = `
+        <div class="print-footer-note">
+            <p>ប្រសិនបើប្រាក់កម្ចីរបស់អ្នកមិនទាន់បានបង់ទាន់ពេលវេលា—សូមចងចាំថា ថ្លៃសេវាបន្ថែមលើការទូទាត់យឺតដែលមានអត្រា 2.25% ក្នុងមួយខែ នឹងត្រូវបានគណនាជារៀងរាល់ថ្ងៃ។ ដូច្នេះ សូមធ្វើការទូទាត់ឲ្យបានទាន់ពេលវេលា ដើម្បីជៀសវាងការគិតថ្លៃសេវាបន្ថែម និងរក្សាប្រវត្តិខ្ចីប្រាក់របស់អ្នក។</p>
+            <p>សូមទាក់ទងមក តេលេក្រាម <a href="https://t.me/Samross_Ph_Care">https://t.me/Samross_Ph_Care</a> ឬ ខលទូរសព្ទ 0888876150 / 0966667292</p>
+        </div>`;
+
     let bodyHtml;
     if (paperSize === '80mm') {
         bodyHtml = `
@@ -2091,7 +2098,8 @@ function printLoanSchedule(mode) {
                 <thead><tr><th>ល.រ</th><th>ថ្ងៃ</th><th>ដើម</th><th>ការប្រាក់</th><th>សរុប</th><th>នៅសល់</th></tr></thead>
                 <tbody>${rowsHtml}</tbody>
                 <tfoot><tr><td colspan="2">សរុប</td><td class="right">${fmtMoney(totals.principal, loan.currency)}</td><td class="right">${fmtMoney(totals.interest, loan.currency)}</td><td class="right">${fmtMoney(totals.total, loan.currency)}</td><td></td></tr></tfoot>
-            </table>`;
+            </table>
+            ${footerNoteHtml}`;
     } else {
         bodyHtml = `
             <div class="receipt-header"><h2>${titleText}</h2></div>
@@ -2112,7 +2120,8 @@ function printLoanSchedule(mode) {
                 <thead><tr><th>ស.រ</th><th>ថ្ងៃត្រូវបង់</th><th>ប្រាក់ដើមមុនបង់</th><th>ប្រាក់ដើមត្រូវសង</th><th>ការប្រាក់ត្រូវសង</th><th>ប្រាក់ត្រូវសង់សរុប</th><th>ប្រាក់ដើមនៅសល់</th></tr></thead>
                 <tbody>${rowsHtml}</tbody>
                 <tfoot><tr><td colspan="2">សរុប (TOTAL)</td><td></td><td class="right">${fmtMoney(totals.principal, loan.currency)}</td><td class="right">${fmtMoney(totals.interest, loan.currency)}</td><td class="right">${fmtMoney(totals.total, loan.currency)}</td><td></td></tr></tfoot>
-            </table>`;
+            </table>
+            ${footerNoteHtml}`;
     }
 
     const pageStyle = paperSize === '80mm' ? `
@@ -2124,6 +2133,9 @@ function printLoanSchedule(mode) {
         table.print-schedule-table { width:100%; border-collapse:collapse; }
         table.print-schedule-table th, table.print-schedule-table td { border-bottom:1px dashed #000; padding:2px; font-size:9px; }
         .right { text-align:right; }
+        .print-footer-note { margin-top:8px; padding-top:6px; border-top:1px dashed #000; font-size:8px; line-height:1.5; }
+        .print-footer-note p { margin:0 0 4px; }
+        .print-footer-note a { color:#000; }
     ` : `
         @page { size: A4; margin: 15mm; }
         body { font-family: 'Khmer OS', Arial, sans-serif; font-size: 13px; color:#000; }
@@ -2135,6 +2147,10 @@ function printLoanSchedule(mode) {
         table.print-schedule-table thead th { background:#f0f0f0; }
         tfoot td { font-weight:bold; }
         .right { text-align:right; }
+        .print-footer-note { margin-top:10px; padding:10px 12px; border:1px solid #333; border-radius:4px; font-size:12px; line-height:1.6; background:#fafafa; }
+        .print-footer-note p { margin:0 0 6px; }
+        .print-footer-note p:last-child { margin-bottom:0; font-weight:bold; }
+        .print-footer-note a { color:#000; }
     `;
 
     // NOTE: no 'noopener' here — passing it makes window.open() return null in modern Chrome/Edge
