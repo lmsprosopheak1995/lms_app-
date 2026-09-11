@@ -211,4 +211,66 @@ async function initApp() {
   document.querySelectorAll('th[data-sortable]').forEach(th => { th.addEventListener('click', () => { const table = th.closest('table'); if (!table) return; const tbody = table.querySelector('tbody'); if (!tbody) return; const column = th.cellIndex; const sortDir = th.dataset.sortDir === 'asc' ? 'desc' : 'asc'; table.querySelectorAll('th').forEach(h => delete h.dataset.sortDir); th.dataset.sortDir = sortDir; Array.from(tbody.querySelectorAll('tr')).sort((a, b) => { let aVal = a.cells[column] ? a.cells[column].textContent.trim() : ''; let bVal = b.cells[column] ? b.cells[column].textContent.trim() : ''; const aNum = parseFloat(aVal.replace(/[^0-9.-]+/g, "")); const bNum = parseFloat(bVal.replace(/[^0-9.-]+/g, "")); if (!isNaN(aNum) && !isNaN(bNum) && aVal.indexOf('/') === -1) { return sortDir === 'asc' ? aNum - bNum : bNum - aNum; } return sortDir === 'asc' ? aVal.localeCompare(bVal, undefined, {numeric: true}) : bVal.localeCompare(aVal, undefined, {numeric: true}); }).forEach(tr => tbody.appendChild(tr)); }); });
 }
 
+// ===================== MANUAL DATA REFRESH =====================
+// Wired to the "Refresh" button in the header (see index.html). Re-pulls every entity from
+// Supabase (same call initApp makes on load) and re-renders the currently visible views, without
+// touching in-progress forms so the user doesn't lose unsaved input while they click it.
+let isRefreshingAppData = false;
+async function refreshAppData() {
+  if (isRefreshingAppData) return;
+  isRefreshingAppData = true;
+
+  const btn = document.getElementById('refreshDataBtn');
+  const icon = document.getElementById('refreshDataIcon');
+  if (btn) btn.disabled = true;
+  if (icon) icon.classList.add('fa-spin');
+
+  const loadingOverlay = document.getElementById('appLoadingOverlay');
+  if (loadingOverlay) loadingOverlay.style.display = 'flex';
+
+  try {
+    await loadAllCloudData();
+
+    loans = loadData(LS_KEYS.loans);
+    customers = loadData(LS_KEYS.customers);
+    payments = loadData(LS_KEYS.payments, true);
+    refinances = loadData(LS_KEYS.refinances);
+    holidays = loadData(LS_KEYS.holidays);
+    collaterals = loadData(LS_KEYS.collaterals);
+    guarantors = loadData(LS_KEYS.guarantors);
+    loanHistory = loadData(LS_KEYS.loanHistory, true);
+    expenses = loadData(LS_KEYS.expenses);
+    notifications = loadData(LS_KEYS.notifications);
+    loanProducts = loadData(LS_KEYS.loanProducts);
+    loanRequests = loadData(LS_KEYS.loanRequests);
+    savingsAccounts = loadData(LS_KEYS.savingsAccounts);
+    savingsPayments = loadData(LS_KEYS.savingsPayments, true);
+    savingsWithdrawals = loadData(LS_KEYS.savingsWithdrawals, true);
+    initAppSettings();
+
+    reconcileLoanStatuses();
+
+    updateExchangeUI();
+    populateOfficerDropdown('creditOfficer', false, currentUser.username);
+    populateOfficerDropdown('collectionsOfficerFilter', true);
+    populateCustomerDropdowns();
+    populateLoanProductDropdown();
+    populateDynamicSelectors();
+    populateExpenseCategoryDropdown();
+    displayLoans();
+    generateNotifications();
+    renderDashboard();
+
+    showToast('ទិន្នន័យត្រូវបានធ្វើបច្ចុប្បន្នភាពរួចរាល់។', 'success');
+  } catch (e) {
+    console.error('Could not refresh data from the cloud database:', e);
+    showToast('មិនអាចទាញយកទិន្នន័យពី Cloud បានទេ សូមពិនិត្យការតភ្ជាប់អ៊ីនធឺណិត។', 'error');
+  } finally {
+    if (loadingOverlay) loadingOverlay.style.display = 'none';
+    if (icon) icon.classList.remove('fa-spin');
+    if (btn) btn.disabled = false;
+    isRefreshingAppData = false;
+  }
+}
+
 checkAuth();
