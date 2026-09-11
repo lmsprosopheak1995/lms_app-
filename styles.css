@@ -36,10 +36,11 @@ body.dark-mode {
 }
 
 * { box-sizing: border-box; }
+html { height: 100%; }
 body { 
   font-family: 'Noto Sans Khmer', Arial, sans-serif; 
   margin: 0; 
-  padding: 8px; /* Adjusted for mobile */
+  padding: 0; /* fill the whole screen, no dark margin around the app */
   background: var(--bg);
   color: var(--text-color);
   min-height: 100vh;
@@ -47,13 +48,15 @@ body {
   transition: background-color 0.3s, color 0.3s;
 }
 .main-container {
-  max-width: 1500px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: 100%;
+  min-height: 100vh;
+  margin: 0;
   background: var(--card);
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  border-radius: 0;
+  box-shadow: none;
   overflow: hidden;
-  border: 1px solid var(--border);
+  border: none;
 }
 h2, h3, h4 { margin: 6px 0 12px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 1.2em; }
 h2 { padding: 0 10px; }
