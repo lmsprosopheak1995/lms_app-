@@ -168,16 +168,26 @@ tfoot tr.summary-row td { font-weight: 700; background: var(--input-bg); border-
    overrides its light-theme colors, since the header background is dark navy regardless of
    theme. */
 .header-quick-tabs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.header-quick-tab {
+.tab.header-quick-tab {
   color: #fff;
   background: rgba(255,255,255,0.08);
   border: 1px solid rgba(255,255,255,0.2);
   margin-right: 0;
 }
-.header-quick-tab:hover {
+.tab.header-quick-tab:hover {
   background: rgba(255,255,255,0.2);
 }
-.header-quick-tab.active {
+.tab.header-quick-tab.active {
+  background-color: #ffee00;
+  color: #212529;
+}
+/* The header itself stays dark navy in both themes (see --thead), so keep these header
+   buttons on the light-on-dark palette even when body.dark-mode's higher-specificity .tab
+   rules would otherwise win. */
+body.dark-mode .tab.header-quick-tab:hover {
+  background: rgba(255,255,255,0.2);
+}
+body.dark-mode .tab.header-quick-tab.active {
   background-color: #ffee00;
   color: #212529;
 }
