@@ -47,6 +47,8 @@ body {
   font-size: 14px; /* Base font size for mobile */
   transition: background-color 0.3s, color 0.3s;
 }
+.app-footer { text-align: center; font-size: 12px; color: var(--muted, #6c757d); padding: 12px 8px 20px; }
+.app-footer p { margin: 3px 0; }
 .main-container {
   width: 100%;
   max-width: 100%;
