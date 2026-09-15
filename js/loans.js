@@ -780,6 +780,18 @@ function clearForm(){
 
 function clearScheduleAndSummary(){document.getElementById('scheduleTableBody').innerHTML=`<tr><td colspan="14" class="center" style="color:#999">មិនមានតារាងបង់ប្រាក់</td></tr>`;document.getElementById('totalPrincipal').textContent="";document.getElementById('totalInterest').textContent="";document.getElementById('totalLateInterestSummary').textContent="";document.getElementById('totalServiceFeeSummary').textContent="";document.getElementById('totalAdminFeeSummary').textContent="";document.getElementById('totalInsuranceFeeSummary').textContent="";document.getElementById('totalPrincipalInterest').textContent="";document.getElementById("paidCount").textContent="0";document.getElementById("lateCount").textContent="0";document.getElementById("unpaidCount").textContent="0"}
 
+// The loan create/edit form lives in a popup (see #loanFormModal in index.html) rather than
+// inline on the loans page, so opening it for a brand-new loan needs an explicit trigger
+// (the "បង្កើតកម្ចីថ្មី" button) — unlike loadLoan(), which opens it as a side effect of
+// selecting an existing loan to view/edit.
+function openNewLoanForm() {
+    clearForm();
+    clearScheduleAndSummary();
+    openLoanFormModal();
+}
+function openLoanFormModal() { document.getElementById('loanFormModal').style.display = 'flex'; }
+function closeLoanFormModal() { document.getElementById('loanFormModal').style.display = 'none'; }
+
 function createLoanTableRow(loan, index) {
   const tr = document.createElement("tr");
   tr.className = 'clickable-row';
@@ -913,8 +925,8 @@ function loadLoan(loanIdToLoad){
       const rowToSelect = Array.from(document.querySelectorAll('#loansTableBody tr')).find(row => row.querySelector('td:nth-child(3)')?.textContent === loanIdToLoad);
       if(rowToSelect) {
         rowToSelect.classList.add('selected-row');
-        document.getElementById('loanForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
+      openLoanFormModal();
 
       document.getElementById('customerSelect').value = loan.customerId;
       displaySelectedCustomerInfo();
