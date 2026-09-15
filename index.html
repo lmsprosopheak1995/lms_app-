@@ -280,84 +280,9 @@
             </select></div>
             <div><label for="filterCurrency"><i class="fas fa-money-bill"></i> ត្រងតាមរូបិយប័ណ្ណ</label><select id="filterCurrency"><option value="all">ទាំងអស់</option><option value="USD">ដុល្លារ ($)</option><option value="KHR">រៀល (៛)</option></select></div>
         </div>
-        <form id="loanForm" class="card" style="max-width:1000px;margin:0 auto 16px;">
-        <div class="grid autofit">
-            <div style="grid-column: 1 / -1;">
-                <label for="loanProductSelect"><i class="fas fa-box-open"></i> ជ្រើសរើសប្រភេទកម្ចី (Template)</label>
-                <select id="loanProductSelect">
-                    <option value="">-- បញ្ចូលព័ត៌មានដោយដៃ --</option>
-                </select>
-            </div>
-            
-            <div style="grid-column: 1 / -1; border: 1px dashed var(--info); padding: 10px; border-radius: 8px; background: var(--input-bg);">
-                <h4 style="margin-top:0;"><i class="fas fa-user-check"></i> ជ្រើសរើសអតិថិជន</h4>
-                <div class="grid autofit">
-                    <div>
-                        <label for="customerSelect"><i class="fas fa-search"></i> ស្វែងរក និងជ្រើសរើសអតិថិជន</label>
-                        <select id="customerSelect" required>
-                            <option value="">-- សូមជ្រើសរើស --</option>
-                        </select>
-                    </div>
-                    <div style="align-self: end;">
-                        <button type="button" class="btn btn-sm" onclick="switchTab('customers')"><i class="fas fa-user-plus"></i> បង្កើតអតិថិជនថ្មី</button>
-                    </div>
-                </div>
-                <div id="selectedCustomerInfo" style="font-size: 13px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd;">
-                    <!-- ព័ត៌មានអតិថិជនដែលបានជ្រើសរើសនឹងបង្ហាញនៅទីនេះ -->
-                </div>
-            </div>
-
-            <div><label for="loanId"><i class="fas fa-id-card"></i> លេខកម្ចី</label><input id="loanId" type="text" placeholder="Generated Automatically" readonly/></div>
-            <div><label for="creditOfficer"><i class="fas fa-user-tie"></i> មន្ត្រីឥណទាន</label><select id="creditOfficer"></select></div>
-            <div><label for="loanDate"><i class="fas fa-calendar-alt"></i> កាលបរិច្ឆេទកម្ចី</label><input id="loanDate" type="date" required/></div>
-            <div><label for="firstPaymentDate"><i class="fas fa-calendar-plus"></i> ថ្ងៃបង់ប្រាក់លើកទី១ (ស្រេចចិត្ត)</label><input id="firstPaymentDate" type="date"/><small style="color:var(--muted,#6c757d);">ទុកទទេ = គណនាស្វ័យប្រវត្តិ (កាលបរិច្ឆេទកម្ចី + ១ រយៈពេល)</small></div>
-            <div><label for="currency"><i class="fas fa-money-bill"></i> រូបិយប័ណ្ណ</label><select id="currency"><option value="KHR">រៀល (៛)</option><option value="USD">ដុល្លារ ($)</option></select></div>
-            <div><label for="loanAmount"><i class="fas fa-dollar-sign"></i> ប្រាក់កម្ចី</label><input id="loanAmount" type="number" inputmode="decimal" min="1" step="0.01" required/></div>
-            <div><label for="interestRate"><i class="fas fa-percent" id="interestRateIcon"></i> អត្រាការប្រាក់</label><div class="input-group"><input id="interestRate" type="number" inputmode="decimal" min="0" step="0.01" required/><select id="interestRateType" onchange="updateInterestRateTypeUI()"><option value="percent">ភាគរយ %</option><option value="fixed">ចំនួនថេរ</option></select></div></div>
-            <div><label for="serviceRate"><i class="fas fa-concierge-bell"></i> អត្រាសេវា (%/ខែ)</label><input id="serviceRate" type="number" inputmode="decimal" min="0" step="0.01" value="0"/></div>
-            <div><label for="adminFee"><i class="fas fa-landmark"></i> សេវារដ្ឋបាល (ប្រចាំខែ)</label><input id="adminFee" type="number" inputmode="decimal" min="0" step="0.01" value="0"/></div>
-            <div><label for="insuranceFee"><i class="fas fa-shield-alt"></i> សេវាធានារ៉ាប់រង (ប្រចាំខែ)</label><input id="insuranceFee" type="number" inputmode="decimal" min="0" step="0.01" value="0"/></div>
-            <div><label for="penaltyFee"><i class="fas fa-exclamation-circle"></i> ការពិន័យបង់យឺត</label><div class="input-group"><input id="penaltyFee" type="number" inputmode="decimal" min="0" step="0.01" value="0"/><select id="penaltyType"><option value="fixed">Fixed</option><option value="percent">% of Installment Principal</option></select></div></div>
-            <div><label for="loanTerm"><i class="fas fa-clock"></i> រយៈពេល (ខែ)</label><input id="loanTerm" type="number" inputmode="decimal" min="1" required/></div><div><label for="interestUnit"><i class="fas fa-calculator"></i> ឯកតាការប្រាក់</label><select id="interestUnit"><option value="month">ខែ</option><option value="day">ថ្ងៃ</option><option value="week">សប្តាហ៍</option><option value="year">ឆ្នាំ</option></select></div><div><label for="paymentMethod"><i class="fas fa-credit-card"></i> វិធីបង់</label><select id="paymentMethod"><option value="annuity">រំលស់ស្មើ (Annuity)</option><option value="equal-principal">ដើមថេរ (Equal Principal)</option></select></div>
-            <div><label for="calculationType"><i class="fas fa-cogs"></i> ប្រភេទការគណនា</label><select id="calculationType"><option value="fixed">តារាងថេរ (Fixed Schedule)</option><option value="dynamic">សមតុល្យថយចុះថាមវន្ត (Dynamic Declining Balance)</option></select></div>
-            <div><label for="paymentDateType"><i class="fas fa-calendar-day"></i> របៀបកំណត់ថ្ងៃបង់</label><select id="paymentDateType"><option value="monthly">តាមថ្ងៃខ្ចី</option><option value="fixed-day">ថ្ងៃកំណត់ប្រចាំខែ</option><option value="every-x-days">រាល់ X ថ្ងៃ</option></select></div><div id="fixedDayInput" style="display:none"><label for="fixedDayOfMonth"><i class="fas fa-calendar-check"></i> ថ្ងៃកំណត់ (1-28)</label><input id="fixedDayOfMonth" type="number" inputmode="decimal" min="1" max="28" value="15"/></div><div id="everyXDaysInput" style="display:none"><label for="everyXDays"><i class="fas fa-calendar-week"></i> រាល់ (ថ្ងៃ)</label><input id="everyXDays" type="number" inputmode="decimal" min="1" value="14"/></div>
-            <div style="display:flex; align-items:center; gap:6px; align-self:end; padding-bottom:8px;">
-                <input type="checkbox" id="waiveFirstInterest" style="width:auto;"/>
-                <label for="waiveFirstInterest" style="margin:0;">លើកលែងការប្រាក់ខែដំបូង</label>
-            </div>
+        <div style="max-width:1000px;margin:0 auto 16px;text-align:right;">
+            <button type="button" class="btn btn-success" onclick="openNewLoanForm()"><i class="fas fa-plus-circle"></i> បង្កើតកម្ចីថ្មី</button>
         </div>
-        <div class="extra-details-section">
-            <h4 style="margin-top:0;"><i class="fas fa-info-circle"></i> ព័ត៌មានបន្ថែម</h4>
-            <div class="grid autofit">
-                <div><label><i class="fas fa-file-signature"></i> វត្ថុធានា</label><button type="button" class="btn btn-sm" onclick="openCollateralModal()"><i class="fas fa-folder-open"></i> Manage Collateral (<span id="collateralCount">0</span>)</button></div>
-                <div><label><i class="fas fa-user-check"></i> អ្នកធានា</label><button type="button" class="btn btn-sm" onclick="openGuarantorModal()"><i class="fas fa-users"></i> Manage Guarantors (<span id="guarantorCount">0</span>)</button></div>
-                <div><label><i class="fas fa-map-marker-alt"></i> Latitude</label><input type="text" id="latitude" placeholder="e.g., 11.5564"/></div>
-                <div><label><i class="fas fa-map-marker-alt"></i> Longitude</label><div class="input-group"><input type="text" id="longitude" placeholder="e.g., 104.9282"/><button type="button" class="btn btn-info btn-sm" onclick="getCurrentLocation()" title="Get Current Location" style="border-radius: 0 4px 4px 0;"><i class="fas fa-crosshairs"></i></button></div></div>
-            </div>
-        </div>
-        <div class="attachments-section">
-            <h4 style="margin-top:0;"><i class="fas fa-paperclip"></i> ឯកសារភ្ជាប់ (Attachments)</h4>
-            <div id="attachmentList" style="margin-bottom:8px;"></div>
-            <label for="attachmentInput"><i class="fas fa-plus-circle"></i> បន្ថែមឯកសារថ្មី:</label>
-            <input type="file" id="attachmentInput" multiple />
-        </div>
-        <div class="refinance-section" id="refinanceSection" style="display:none;"><h4 style="margin-top:0;"><i class="fas fa-sync-alt"></i> ការកែលម្អកម្ចី</h4><div class="grid autofit"><div><label for="refinanceLoanId"><i class="fas fa-id-card"></i> លេខកម្ចីដើម</label><input type="text" id="refinanceLoanId" readonly /></div><div><label for="refinanceDate"><i class="fas fa-calendar-alt"></i> កាលបរិច្ឆេទកែលម្អ</label><input type="date" id="refinanceDate" /></div><div><label for="refinanceReason"><i class="fas fa-question-circle"></i> មូលហេតុ</label><select id="refinanceReason"><option value="extend">ពន្យារពេល</option><option value="adjust_rate">កែអត្រាការប្រាក់</option><option value="additional">ប្រាក់កម្ចីបន្ថែម</option><option value="other">ផ្សេងៗ</option></select></div><div><label for="refinanceNotes"><i class="fas fa-sticky-note"></i> កំណត់ចំណាំ</label><textarea id="refinanceNotes" rows="1"></textarea></div></div></div>
-        
-        <div style="margin-top:10px; padding: 10px; border: 2px dashed var(--info); border-radius: 8px; background: var(--input-bg); display:none;" id="approvalActions">
-            <h4 style="margin: 0 0 10px 0; text-align: left;"><i class="fas fa-gavel"></i> សកម្មភាពអនុម័ត</h4>
-            <button type="button" id="approveBtn" class="btn btn-success" onclick="approveLoan()"><i class="fas fa-check-circle"></i> អនុម័តកម្ចី</button>
-            <button type="button" id="rejectBtn" class="btn btn-danger" onclick="rejectLoan()"><i class="fas fa-times-circle"></i> បដិសេធកម្ចី</button>
-        </div>
-
-        <div style="margin-top:10px" id="formActions">
-            <button type="submit" id="saveLoanBtn" class="btn btn-success"><i class="fas fa-save"></i> រក្សាទុក</button>
-            <button type="button" id="resetForm" class="btn btn-muted" style="margin-left:8px"><i class="fas fa-eraser"></i> សម្អាតទម្រង់</button>
-            <button type="button" id="refinanceBtn" class="btn btn-manager" style="margin-left:8px;display:none;" onclick="initiateRefinance()"><i class="fas fa-sync-alt"></i> កែលម្អកម្ចី</button>
-            <button type="button" id="payoffBtn" class="btn btn-info" style="margin-left:8px;display:none;" onclick="openPayoffModal()"><i class="fas fa-fast-forward"></i> Early Payoff</button>
-            <button type="button" id="writeOffBtn" class="btn btn-danger" style="margin-left:8px;display:none;" onclick="openWriteOffModal()"><i class="fas fa-times-circle"></i> Write-Off</button>
-            <button type="button" id="historyBtn" class="btn btn-muted" style="margin-left:8px;display:none;" onclick="openHistoryModal()"><i class="fas fa-history"></i> View History</button>
-        </div>
-        </form>
         <h3><i class="fas fa-table"></i> តារាងព័ត៌មានអតិថិជន (ទូទៅ)</h3>
         <div id="batchActionsContainer" style="margin-bottom: 10px; display: none; max-width: 1000px; margin: 0 auto 10px auto;">
             <button class="btn btn-info btn-sm" onclick="batchPrintSchedules()"><i class="fas fa-print"></i> បោះពុម្ពតារាងបង់ប្រាក់</button>
@@ -1232,6 +1157,91 @@
     </div>
 
     <!-- MODALS -->
+    <div class="modal" id="loanFormModal">
+      <div class="modal-content modal-lg">
+        <h4><i class="fas fa-hand-holding-usd"></i> ព័ត៌មានកម្ចី</h4>
+        <form id="loanForm">
+        <div class="grid autofit">
+            <div style="grid-column: 1 / -1;">
+                <label for="loanProductSelect"><i class="fas fa-box-open"></i> ជ្រើសរើសប្រភេទកម្ចី (Template)</label>
+                <select id="loanProductSelect">
+                    <option value="">-- បញ្ចូលព័ត៌មានដោយដៃ --</option>
+                </select>
+            </div>
+            
+            <div style="grid-column: 1 / -1; border: 1px dashed var(--info); padding: 10px; border-radius: 8px; background: var(--input-bg);">
+                <h4 style="margin-top:0;"><i class="fas fa-user-check"></i> ជ្រើសរើសអតិថិជន</h4>
+                <div class="grid autofit">
+                    <div>
+                        <label for="customerSelect"><i class="fas fa-search"></i> ស្វែងរក និងជ្រើសរើសអតិថិជន</label>
+                        <select id="customerSelect" required>
+                            <option value="">-- សូមជ្រើសរើស --</option>
+                        </select>
+                    </div>
+                    <div style="align-self: end;">
+                        <button type="button" class="btn btn-sm" onclick="switchTab('customers')"><i class="fas fa-user-plus"></i> បង្កើតអតិថិជនថ្មី</button>
+                    </div>
+                </div>
+                <div id="selectedCustomerInfo" style="font-size: 13px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd;">
+                    <!-- ព័ត៌មានអតិថិជនដែលបានជ្រើសរើសនឹងបង្ហាញនៅទីនេះ -->
+                </div>
+            </div>
+
+            <div><label for="loanId"><i class="fas fa-id-card"></i> លេខកម្ចី</label><input id="loanId" type="text" placeholder="Generated Automatically" readonly/></div>
+            <div><label for="creditOfficer"><i class="fas fa-user-tie"></i> មន្ត្រីឥណទាន</label><select id="creditOfficer"></select></div>
+            <div><label for="loanDate"><i class="fas fa-calendar-alt"></i> កាលបរិច្ឆេទកម្ចី</label><input id="loanDate" type="date" required/></div>
+            <div><label for="firstPaymentDate"><i class="fas fa-calendar-plus"></i> ថ្ងៃបង់ប្រាក់លើកទី១ (ស្រេចចិត្ត)</label><input id="firstPaymentDate" type="date"/><small style="color:var(--muted,#6c757d);">ទុកទទេ = គណនាស្វ័យប្រវត្តិ (កាលបរិច្ឆេទកម្ចី + ១ រយៈពេល)</small></div>
+            <div><label for="currency"><i class="fas fa-money-bill"></i> រូបិយប័ណ្ណ</label><select id="currency"><option value="KHR">រៀល (៛)</option><option value="USD">ដុល្លារ ($)</option></select></div>
+            <div><label for="loanAmount"><i class="fas fa-dollar-sign"></i> ប្រាក់កម្ចី</label><input id="loanAmount" type="number" inputmode="decimal" min="1" step="0.01" required/></div>
+            <div><label for="interestRate"><i class="fas fa-percent" id="interestRateIcon"></i> អត្រាការប្រាក់</label><div class="input-group"><input id="interestRate" type="number" inputmode="decimal" min="0" step="0.01" required/><select id="interestRateType" onchange="updateInterestRateTypeUI()"><option value="percent">ភាគរយ %</option><option value="fixed">ចំនួនថេរ</option></select></div></div>
+            <div><label for="serviceRate"><i class="fas fa-concierge-bell"></i> អត្រាសេវា (%/ខែ)</label><input id="serviceRate" type="number" inputmode="decimal" min="0" step="0.01" value="0"/></div>
+            <div><label for="adminFee"><i class="fas fa-landmark"></i> សេវារដ្ឋបាល (ប្រចាំខែ)</label><input id="adminFee" type="number" inputmode="decimal" min="0" step="0.01" value="0"/></div>
+            <div><label for="insuranceFee"><i class="fas fa-shield-alt"></i> សេវាធានារ៉ាប់រង (ប្រចាំខែ)</label><input id="insuranceFee" type="number" inputmode="decimal" min="0" step="0.01" value="0"/></div>
+            <div><label for="penaltyFee"><i class="fas fa-exclamation-circle"></i> ការពិន័យបង់យឺត</label><div class="input-group"><input id="penaltyFee" type="number" inputmode="decimal" min="0" step="0.01" value="0"/><select id="penaltyType"><option value="fixed">Fixed</option><option value="percent">% of Installment Principal</option></select></div></div>
+            <div><label for="loanTerm"><i class="fas fa-clock"></i> រយៈពេល (ខែ)</label><input id="loanTerm" type="number" inputmode="decimal" min="1" required/></div><div><label for="interestUnit"><i class="fas fa-calculator"></i> ឯកតាការប្រាក់</label><select id="interestUnit"><option value="month">ខែ</option><option value="day">ថ្ងៃ</option><option value="week">សប្តាហ៍</option><option value="year">ឆ្នាំ</option></select></div><div><label for="paymentMethod"><i class="fas fa-credit-card"></i> វិធីបង់</label><select id="paymentMethod"><option value="annuity">រំលស់ស្មើ (Annuity)</option><option value="equal-principal">ដើមថេរ (Equal Principal)</option></select></div>
+            <div><label for="calculationType"><i class="fas fa-cogs"></i> ប្រភេទការគណនា</label><select id="calculationType"><option value="fixed">តារាងថេរ (Fixed Schedule)</option><option value="dynamic">សមតុល្យថយចុះថាមវន្ត (Dynamic Declining Balance)</option></select></div>
+            <div><label for="paymentDateType"><i class="fas fa-calendar-day"></i> របៀបកំណត់ថ្ងៃបង់</label><select id="paymentDateType"><option value="monthly">តាមថ្ងៃខ្ចី</option><option value="fixed-day">ថ្ងៃកំណត់ប្រចាំខែ</option><option value="every-x-days">រាល់ X ថ្ងៃ</option></select></div><div id="fixedDayInput" style="display:none"><label for="fixedDayOfMonth"><i class="fas fa-calendar-check"></i> ថ្ងៃកំណត់ (1-28)</label><input id="fixedDayOfMonth" type="number" inputmode="decimal" min="1" max="28" value="15"/></div><div id="everyXDaysInput" style="display:none"><label for="everyXDays"><i class="fas fa-calendar-week"></i> រាល់ (ថ្ងៃ)</label><input id="everyXDays" type="number" inputmode="decimal" min="1" value="14"/></div>
+            <div style="display:flex; align-items:center; gap:6px; align-self:end; padding-bottom:8px;">
+                <input type="checkbox" id="waiveFirstInterest" style="width:auto;"/>
+                <label for="waiveFirstInterest" style="margin:0;">លើកលែងការប្រាក់ខែដំបូង</label>
+            </div>
+        </div>
+        <div class="extra-details-section">
+            <h4 style="margin-top:0;"><i class="fas fa-info-circle"></i> ព័ត៌មានបន្ថែម</h4>
+            <div class="grid autofit">
+                <div><label><i class="fas fa-file-signature"></i> វត្ថុធានា</label><button type="button" class="btn btn-sm" onclick="openCollateralModal()"><i class="fas fa-folder-open"></i> Manage Collateral (<span id="collateralCount">0</span>)</button></div>
+                <div><label><i class="fas fa-user-check"></i> អ្នកធានា</label><button type="button" class="btn btn-sm" onclick="openGuarantorModal()"><i class="fas fa-users"></i> Manage Guarantors (<span id="guarantorCount">0</span>)</button></div>
+                <div><label><i class="fas fa-map-marker-alt"></i> Latitude</label><input type="text" id="latitude" placeholder="e.g., 11.5564"/></div>
+                <div><label><i class="fas fa-map-marker-alt"></i> Longitude</label><div class="input-group"><input type="text" id="longitude" placeholder="e.g., 104.9282"/><button type="button" class="btn btn-info btn-sm" onclick="getCurrentLocation()" title="Get Current Location" style="border-radius: 0 4px 4px 0;"><i class="fas fa-crosshairs"></i></button></div></div>
+            </div>
+        </div>
+        <div class="attachments-section">
+            <h4 style="margin-top:0;"><i class="fas fa-paperclip"></i> ឯកសារភ្ជាប់ (Attachments)</h4>
+            <div id="attachmentList" style="margin-bottom:8px;"></div>
+            <label for="attachmentInput"><i class="fas fa-plus-circle"></i> បន្ថែមឯកសារថ្មី:</label>
+            <input type="file" id="attachmentInput" multiple />
+        </div>
+        <div class="refinance-section" id="refinanceSection" style="display:none;"><h4 style="margin-top:0;"><i class="fas fa-sync-alt"></i> ការកែលម្អកម្ចី</h4><div class="grid autofit"><div><label for="refinanceLoanId"><i class="fas fa-id-card"></i> លេខកម្ចីដើម</label><input type="text" id="refinanceLoanId" readonly /></div><div><label for="refinanceDate"><i class="fas fa-calendar-alt"></i> កាលបរិច្ឆេទកែលម្អ</label><input type="date" id="refinanceDate" /></div><div><label for="refinanceReason"><i class="fas fa-question-circle"></i> មូលហេតុ</label><select id="refinanceReason"><option value="extend">ពន្យារពេល</option><option value="adjust_rate">កែអត្រាការប្រាក់</option><option value="additional">ប្រាក់កម្ចីបន្ថែម</option><option value="other">ផ្សេងៗ</option></select></div><div><label for="refinanceNotes"><i class="fas fa-sticky-note"></i> កំណត់ចំណាំ</label><textarea id="refinanceNotes" rows="1"></textarea></div></div></div>
+        
+        <div style="margin-top:10px; padding: 10px; border: 2px dashed var(--info); border-radius: 8px; background: var(--input-bg); display:none;" id="approvalActions">
+            <h4 style="margin: 0 0 10px 0; text-align: left;"><i class="fas fa-gavel"></i> សកម្មភាពអនុម័ត</h4>
+            <button type="button" id="approveBtn" class="btn btn-success" onclick="approveLoan()"><i class="fas fa-check-circle"></i> អនុម័តកម្ចី</button>
+            <button type="button" id="rejectBtn" class="btn btn-danger" onclick="rejectLoan()"><i class="fas fa-times-circle"></i> បដិសេធកម្ចី</button>
+        </div>
+
+        <div class="modal-actions" id="formActions">
+            <button type="submit" id="saveLoanBtn" class="btn btn-success"><i class="fas fa-save"></i> រក្សាទុក</button>
+            <button type="button" id="resetForm" class="btn btn-muted"><i class="fas fa-eraser"></i> សម្អាតទម្រង់</button>
+            <button type="button" id="refinanceBtn" class="btn btn-manager" style="display:none;" onclick="initiateRefinance()"><i class="fas fa-sync-alt"></i> កែលម្អកម្ចី</button>
+            <button type="button" id="payoffBtn" class="btn btn-info" style="display:none;" onclick="openPayoffModal()"><i class="fas fa-fast-forward"></i> Early Payoff</button>
+            <button type="button" id="writeOffBtn" class="btn btn-danger" style="display:none;" onclick="openWriteOffModal()"><i class="fas fa-times-circle"></i> Write-Off</button>
+            <button type="button" id="historyBtn" class="btn btn-muted" style="display:none;" onclick="openHistoryModal()"><i class="fas fa-history"></i> View History</button>
+            <button type="button" class="btn btn-muted" onclick="closeLoanFormModal()"><i class="fas fa-times"></i> បិទ</button>
+        </div>
+        </form>
+      </div>
+    </div>
+
     <div class="modal" id="paymentModal">
       <div class="modal-content modal-lg">
         <h4><i class="fas fa-hand-holding-usd"></i> គ្រប់គ្រងការបង់ប្រាក់</h4>
