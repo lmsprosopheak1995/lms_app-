@@ -162,6 +162,26 @@ tfoot tr.summary-row td { font-weight: 700; background: var(--input-bg); border-
 .header-clock-date { font-size: 0.8em; opacity: 0.85; }
 #userInfo { font-weight: bold; display: flex; align-items: center; gap: 12px;}
 
+/* Quick-access buttons for tabs pinned into the header (loans/customers/savings/admin/about),
+   sitting in the gap between the user badge and the clock. Reuses the .tab class (so
+   switchTab()'s active-class toggling still finds these by their onclick attribute) but
+   overrides its light-theme colors, since the header background is dark navy regardless of
+   theme. */
+.header-quick-tabs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.header-quick-tab {
+  color: #fff;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.2);
+  margin-right: 0;
+}
+.header-quick-tab:hover {
+  background: rgba(255,255,255,0.2);
+}
+.header-quick-tab.active {
+  background-color: #ffee00;
+  color: #212529;
+}
+
 /* Base badge shape — previously missing, so status text had no pill styling in either theme */
 .status-badge {
   display: inline-flex;
@@ -577,6 +597,16 @@ body.dark-mode .metric-title { color: #aaa; }
     }
     #profileBtn .fas, #logoutBtn .fas {
         font-size: 15px;
+    }
+    /* Same icon-only treatment for the header quick tabs — there isn't room for full labels
+       next to the user badge and clock on a phone-width header. */
+    .header-quick-tab {
+        padding: 7px 8px;
+        font-size: 0;
+        gap: 0;
+    }
+    .header-quick-tab .fas {
+        font-size: 14px;
     }
     .tabs {
         padding: 3px;

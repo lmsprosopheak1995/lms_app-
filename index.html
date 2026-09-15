@@ -186,6 +186,13 @@
   <div id="appSection" class="main-container" style="display:none;">
     <div class="app-header">
       <div id="userInfo"></div>
+      <div id="headerQuickTabs" class="header-quick-tabs">
+        <div class="tab header-quick-tab" onclick="switchTab('loans')" title="កម្ចី"><i class="fas fa-hand-holding-usd"></i> កម្ចី</div>
+        <div class="tab header-quick-tab" onclick="switchTab('customers')" title="អតិថិជន"><i class="fas fa-users"></i> អតិថិជន</div>
+        <div class="tab header-quick-tab" onclick="switchTab('savings')" title="សន្សំ"><i class="fas fa-piggy-bank"></i> សន្សំ</div>
+        <div class="tab header-quick-tab" id="adminTabButton" style="display:none;" onclick="switchTab('admin')" title="រដ្ឋបាល"><i class="fas fa-user-shield"></i> រដ្ឋបាល</div>
+        <div class="tab header-quick-tab" onclick="switchTab('about')" title="អំពីប្រព័ន្ធ"><i class="fas fa-info-circle"></i> អំពីប្រព័ន្ធ</div>
+      </div>
       <div id="headerClock" class="header-clock">
         <div id="headerClockTime" class="header-clock-time"></div>
         <div id="headerClockDate" class="header-clock-date"></div>
@@ -228,11 +235,6 @@
     <h2 style="margin-top:15px;"><i class="fas fa-landmark"></i> ប្រព័ន្ធគ្រប់គ្រងកម្ចី (Loan Management System)</h2>
     
     <div class="tabs">
-      <div class="tab" onclick="switchTab('loans')"><i class="fas fa-hand-holding-usd"></i> កម្ចី</div>
-      <div class="tab" onclick="switchTab('customers')"><i class="fas fa-users"></i> អតិថិជន</div>
-      <div class="tab" onclick="switchTab('savings')"><i class="fas fa-piggy-bank"></i> សន្សំ</div>
-      <div class="tab" id="adminTabButton" style="display:none;" onclick="switchTab('admin')"><i class="fas fa-user-shield"></i> រដ្ឋបាល</div>
-      <div class="tab" onclick="switchTab('about')"><i class="fas fa-info-circle"></i> អំពីប្រព័ន្ធ</div>
       <div class="tab active" onclick="switchTab('dashboard')"><i class="fas fa-tachometer-alt"></i> ផ្ទាំងព័ត៌មាន</div>
       <div class="tab" onclick="switchTab('clientAccount')"><i class="fas fa-user-circle"></i> គណនីអតិថិជន</div>
       <div class="tab" onclick="switchTab('collections')"><i class="fas fa-calendar-check"></i> ការប្រមូលប្រាក់</div>
