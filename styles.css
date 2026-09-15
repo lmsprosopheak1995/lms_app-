@@ -57,7 +57,14 @@ body {
   background: var(--card);
   border-radius: 0;
   box-shadow: none;
-  overflow: hidden;
+  /* NOTE: this was `overflow: hidden`, which silently breaks `position: sticky` on any
+     descendant (.app-header / .tabs — see their CSS) because a sticky element's containing
+     block becomes its nearest ancestor with overflow != visible. Since this container never
+     actually needed its own scrollbar (it grows to fit content and the real page/body scrolls),
+     switching to `visible` restores the sticky header/tabs without changing anything else —
+     wide content (tables, the tab bar) already manages its own horizontal scrolling via their
+     own `overflow-x: auto` wrappers. */
+  overflow: visible;
   border: none;
 }
 h2, h3, h4 { margin: 6px 0 12px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 1.2em; }
