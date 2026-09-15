@@ -273,4 +273,14 @@ async function refreshAppData() {
   }
 }
 
+// Footer copyright year: shows a range from the app's production date (23-07-2026) to
+// whatever the current year is, collapsing to a single year until that range actually spans
+// more than one year.
+(function setFooterYearRange() {
+    const launchYear = 2026;
+    const currentYear = new Date().getFullYear();
+    const yearText = currentYear > launchYear ? `${launchYear}-${currentYear}` : `${launchYear}`;
+    document.querySelectorAll('.footer-year').forEach(el => el.textContent = yearText);
+})();
+
 checkAuth();
