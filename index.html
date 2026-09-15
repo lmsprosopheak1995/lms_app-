@@ -1231,6 +1231,7 @@
             <button type="button" id="resetForm" class="btn btn-muted"><i class="fas fa-eraser"></i> សម្អាតទម្រង់</button>
             <button type="button" id="refinanceBtn" class="btn btn-manager" style="display:none;" onclick="initiateRefinance()"><i class="fas fa-sync-alt"></i> កែលម្អកម្ចី</button>
             <button type="button" id="payoffBtn" class="btn btn-info" style="display:none;" onclick="openPayoffModal()"><i class="fas fa-fast-forward"></i> Early Payoff</button>
+            <button type="button" id="partialPrepayBtn" class="btn btn-info" style="display:none;" onclick="openPartialPrepaymentModal()"><i class="fas fa-hand-holding-usd"></i> បង់ប្រាក់ដើមបន្ថែម</button>
             <button type="button" id="writeOffBtn" class="btn btn-danger" style="display:none;" onclick="openWriteOffModal()"><i class="fas fa-times-circle"></i> Write-Off</button>
             <button type="button" id="historyBtn" class="btn btn-muted" style="display:none;" onclick="openHistoryModal()"><i class="fas fa-history"></i> View History</button>
             <button type="button" class="btn btn-muted" onclick="closeLoanFormModal()"><i class="fas fa-times"></i> បិទ</button>
@@ -1356,6 +1357,36 @@
              <div class="modal-actions">
                  <button class="btn btn-success" onclick="processPayoff()">Process Payoff</button>
                  <button class="btn btn-muted" onclick="closePayoffModal()">បោះបង់</button>
+             </div>
+        </div>
+    </div>
+    <div class="modal" id="partialPrepaymentModal">
+        <div class="modal-content">
+             <h4><i class="fas fa-hand-holding-usd"></i> បង់ប្រាក់ដើមបន្ថែម (Partial Prepayment)</h4>
+             <p>លេខកម្ចី: <strong id="prepayLoanId"></strong></p>
+             <div class="summary-grid">
+                 <div>ប្រាក់ដើមនៅសល់</div><div class="right" id="prepayRemainingPrincipal"></div>
+                 <div>ការប្រាក់ត្រូវទូទាត់ត្រឹមថ្ងៃនេះ (ប៉ាន់ស្មាន)</div><div class="right" id="prepayAccruedInterest"></div>
+             </div>
+             <label for="prepayAmount" style="margin-top:15px;"><i class="fas fa-dollar-sign"></i> ចំនួនប្រាក់ដើមចង់បង់បន្ថែម</label>
+             <input type="number" inputmode="decimal" id="prepayAmount" min="0.01" step="0.01"/>
+             <small style="color:var(--muted,#6c757d);">អាចបញ្ចូលតិចជាងប្រាក់ដើមទាំងអស់ (មិនតម្រូវឲ្យបិទបញ្ជីកម្ចី)</small>
+             <label for="prepayDate" style="margin-top:10px;"><i class="fas fa-calendar-alt"></i> ថ្ងៃបង់ប្រាក់</label>
+             <input type="date" id="prepayDate"/>
+             <div style="margin-top:12px;">
+                 <label style="margin-bottom:6px;"><i class="fas fa-sliders-h"></i> របៀបកែតារាងបង់ប្រាក់ដែលនៅសល់</label>
+                 <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                     <input type="radio" name="prepayMode" id="prepayModeReducePayment" value="reducePayment" style="width:auto;" checked/>
+                     <label for="prepayModeReducePayment" style="margin:0;">បន្ថយចំនួនប្រាក់បង់ប្រចាំដង (រយៈពេលនៅដដែល)</label>
+                 </div>
+                 <div style="display:flex; align-items:center; gap:6px;">
+                     <input type="radio" name="prepayMode" id="prepayModeReduceTerm" value="reduceTerm" style="width:auto;"/>
+                     <label for="prepayModeReduceTerm" style="margin:0;">បន្ថយរយៈពេលកម្ចី (ចំនួនប្រាក់បង់ប្រចាំដងនៅដដែល)</label>
+                 </div>
+             </div>
+             <div class="modal-actions">
+                 <button class="btn btn-success" onclick="processPartialPrepayment()"><i class="fas fa-check"></i> បញ្ជាក់ការបង់ប្រាក់</button>
+                 <button class="btn btn-muted" onclick="closePartialPrepaymentModal()">បិទ</button>
              </div>
         </div>
     </div>
