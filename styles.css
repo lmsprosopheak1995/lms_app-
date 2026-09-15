@@ -355,7 +355,7 @@ body.dark-mode .summary-grid > div.right { background-color: #2a2a2a; }
 .pagination-controls { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 16px; }
 .pagination-controls button { padding: 5px 10px; }
 .pagination-controls .page-info { font-size: 14px; }
-.table-filters { max-width: 100%; margin: 0 auto 16px; display: grid; grid-template-columns: 1fr; gap: 12px; align-items: end; }
+.table-filters { max-width: 100%; margin: 0 auto 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; align-items: end; }
 .backup-reminder { background-color: #fff3cd; color: #856404; padding: 10px; border-radius: 5px; border: 1px solid #ffeeba; display: flex; align-items: center; gap: 10px; }
 body.dark-mode .backup-reminder { background-color: #5d4a1a; color: #f7d98d; border-color: #856404; }
 .date-adjusted-icon { color: var(--officer); margin-left: 5px; }
@@ -431,6 +431,9 @@ body.dark-mode .metric-title { color: #aaa; }
 
     .grid.autofit {
         grid-template-columns: 1fr; /* Stack grid items */
+    }
+    .table-filters {
+        grid-template-columns: 1fr; /* Stack filter fields on phones */
     }
 
     #appSection, #loginSection {
