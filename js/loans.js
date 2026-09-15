@@ -440,7 +440,7 @@ function buildFixedSchedule(loan) {
 
       schedule.push({ index: i, date: pmtDate.toISOString().split('T')[0], principal, interest, lateInterest, penalty, serviceFee, adminFee, insuranceFee, total, balance: isPayoffSettled ? 0 : (balance < 0.005 ? 0 : balance), status, isAdjusted, paidAmount, remainingAmount, daysLate: daysLate > 0 ? daysLate : 0 });
   }
-  return schedule;
+  return applyExtraPrincipalPayments(loan, schedule, monthlyRate);
 }
 
 function buildDynamicSchedule(loan) {
@@ -539,7 +539,7 @@ function buildDynamicSchedule(loan) {
 
       schedule.push({ index: i, date: pmtDate.toISOString().split('T')[0], principal, interest, lateInterest, penalty, serviceFee, adminFee, insuranceFee, total, balance: balance < 0.005 ? 0 : balance, status, isAdjusted, paidAmount, remainingAmount, daysLate: daysLate > 0 ? daysLate : 0 });
   }
-  return schedule;
+  return applyExtraPrincipalPayments(loan, schedule, monthlyRate);
 }
 
 
@@ -759,6 +759,7 @@ function clearForm(){
 
   document.getElementById('refinanceBtn').style.display = 'none';
   document.getElementById('payoffBtn').style.display = 'none';
+  document.getElementById('partialPrepayBtn').style.display = 'none';
   document.getElementById('historyBtn').style.display = 'none';
   document.getElementById('writeOffBtn').style.display = 'none';
   document.getElementById('messageBtn').style.display = 'none';
@@ -956,6 +957,7 @@ function loadLoan(loanIdToLoad){
       const isActionable = ['active', 'overdue'].includes(statusInfo.key);
       document.getElementById('refinanceBtn').style.display = hasPermission('canRefinanceLoan') && isActionable ? 'inline-block' : 'none';
       document.getElementById('payoffBtn').style.display = isActionable ? 'inline-block' : 'none';
+      document.getElementById('partialPrepayBtn').style.display = hasPermission('canManagePayments') && isActionable ? 'inline-block' : 'none';
       document.getElementById('writeOffBtn').style.display = hasPermission('canWriteOff') && isActionable ? 'inline-block' : 'none';
       document.getElementById('historyBtn').style.display = 'inline-block';
       document.getElementById('messageBtn').style.display = 'inline-block';
@@ -1228,6 +1230,7 @@ function initiateRefinance() {
     document.getElementById('refinanceLoanId').value = originalLoanData.loanId; document.getElementById('refinanceDate').value = formatDateISO(new Date());
     document.getElementById('refinanceSection').style.display = 'block'; document.getElementById('refinanceBtn').style.display = 'none';
     document.getElementById('payoffBtn').style.display = 'none';
+    document.getElementById('partialPrepayBtn').style.display = 'none';
     document.getElementById('historyBtn').style.display = 'none';
     document.getElementById('loanAmount').focus();
     showToast('ទម្រង់បានត្រៀមរួចរាល់សម្រាប់ការកែលម្អកម្ចី\nសូមពិនិត្យ និងបំពេញព័ត៌មានកម្ចីថ្មី រួចចុចរក្សាទុក', 'info');
@@ -1323,6 +1326,148 @@ function processPayoff() {
   loadLoan(loan.loanId);
   displayLoans();
 }
+
+// ===================== PARTIAL PREPAYMENT =====================
+// Lets an officer record a customer paying down PART of the outstanding principal ahead of
+// schedule (unlike processPayoff() above, which settles the loan completely). The officer
+// chooses whether the remaining installments should keep the same term with a smaller payment
+// ('reducePayment') or keep the same payment amount and finish early ('reduceTerm') — see
+// applyExtraPrincipalPayments() below, which both buildFixedSchedule() and
+// buildDynamicSchedule() call to actually reshape the future installments.
+function openPartialPrepaymentModal() {
+  if (!currentLoan) return;
+  const schedule = buildSchedule(currentLoan);
+  const remainingPrincipal = schedule.reduce((sum, inst) => (inst.status !== 'paid' && inst.status !== 'partial') ? sum + inst.principal : (inst.status === 'partial' ? sum + (inst.principal - Math.max(0, inst.paidAmount - (inst.total - inst.principal))) : sum), 0);
+
+  const dailyRate = getDailyRate(currentLoan);
+  const lastPaidInstallment = [...schedule].reverse().find(inst => inst.status === 'paid');
+  let daysForInterest = 0;
+  if (lastPaidInstallment) {
+      const lastPaymentDate = parseDate(lastPaidInstallment.date);
+      daysForInterest = Math.floor((new Date() - lastPaymentDate) / (1000 * 60 * 60 * 24));
+  } else {
+      const loanDate = parseDate(currentLoan.loanDate);
+      daysForInterest = Math.floor((new Date() - loanDate) / (1000 * 60 * 60 * 24));
+  }
+  daysForInterest = Math.max(0, daysForInterest);
+  const accruedInterest = remainingPrincipal * dailyRate * daysForInterest;
+
+  document.getElementById('prepayLoanId').textContent = currentLoan.loanId;
+  document.getElementById('prepayRemainingPrincipal').textContent = fmtMoney(remainingPrincipal, currentLoan.currency);
+  document.getElementById('prepayAccruedInterest').textContent = fmtMoney(accruedInterest, currentLoan.currency);
+  document.getElementById('prepayAmount').value = '';
+  document.getElementById('prepayAmount').max = remainingPrincipal.toFixed(2);
+  document.getElementById('prepayDate').value = formatDateISO(new Date());
+  document.getElementById('prepayModeReducePayment').checked = true;
+  document.getElementById('partialPrepaymentModal').style.display = 'flex';
+}
+function closePartialPrepaymentModal() { document.getElementById('partialPrepaymentModal').style.display = 'none'; }
+
+function processPartialPrepayment() {
+  const loan = currentLoan;
+  if (!loan) return;
+
+  const amount = parseFloat(document.getElementById('prepayAmount').value);
+  const date = document.getElementById('prepayDate').value;
+  const mode = document.querySelector('input[name="prepayMode"]:checked').value;
+
+  const schedule = buildSchedule(loan, true);
+  const remainingPrincipal = schedule.reduce((sum, inst) => (inst.status !== 'paid' && inst.status !== 'partial') ? sum + inst.principal : (inst.status === 'partial' ? sum + (inst.principal - Math.max(0, inst.paidAmount - (inst.total - inst.principal))) : sum), 0);
+
+  if (!amount || amount <= 0) { showToast('សូមបញ្ចូលចំនួនប្រាក់ដើមឲ្យបានត្រឹមត្រូវ', 'error'); return; }
+  if (amount > remainingPrincipal + 0.01) { showToast('ចំនួនប្រាក់ដើមដែលបញ្ចូល លើសពីប្រាក់ដើមនៅសល់', 'error'); return; }
+  if (!date) { showToast('សូមជ្រើសរើសកាលបរិច្ឆេទ', 'error'); return; }
+
+  if (!Array.isArray(loan.extraPrincipalPayments)) loan.extraPrincipalPayments = [];
+  loan.extraPrincipalPayments.push({
+      id: genId(), amount, date, mode, by: currentUser.username, ts: new Date().toISOString()
+  });
+  persistData(LS_KEYS.loans, loans);
+  clearScheduleCache(loan.loanId);
+
+  logChange(loan.loanId, "Partial Prepayment", { amount, date, mode });
+  showToast(`បានកត់ត្រាការបង់ប្រាក់ដើមបន្ថែម ${fmtMoney(amount, loan.currency)} សម្រាប់កម្ចី ${loan.loanId}`, 'success');
+
+  closePartialPrepaymentModal();
+  loadLoan(loan.loanId);
+  displayLoans();
+}
+
+// Reshapes the tail of `schedule` (every installment not yet paid) to account for a customer
+// paying down part of the principal ahead of schedule. Called by buildFixedSchedule() and
+// buildDynamicSchedule() right before they return, so both calculation types benefit from it.
+// `monthlyRate` must be computed the same way the caller computes it for normal installments.
+function applyExtraPrincipalPayments(loan, schedule, monthlyRate) {
+    const extras = loan.extraPrincipalPayments;
+    if (!extras || extras.length === 0) return schedule;
+
+    const sorted = [...extras].sort((a, b) => parseDate(a.date) - parseDate(b.date));
+    sorted.forEach(extra => {
+        const extraDate = parseDate(extra.date);
+        // Every installment strictly after the prepayment date is up for adjustment — ones on
+        // or before it were already due/paid by that point and are left untouched.
+        const splitIdx = schedule.findIndex(inst => inst.status !== 'paid' && parseDate(inst.date) > extraDate);
+        if (splitIdx === -1) return; // nothing left to adjust (prepayment came after the last installment)
+
+        const openingBalance = splitIdx > 0 ? schedule[splitIdx - 1].balance : Number(loan.loanAmount);
+        const newBalance = Math.max(0, openingBalance - extra.amount);
+        const remainingCount = schedule.length - splitIdx;
+        if (remainingCount <= 0) return;
+
+        const useFixedInterestAmount = loan.interestRateType === 'fixed';
+        const isAnnuity = loan.paymentMethod === 'annuity' && !useFixedInterestAmount && loan.calculationType !== 'dynamic';
+
+        if (extra.mode === 'reducePayment') {
+            // Same number of installments as before, each carrying a smaller payment: re-amortize
+            // the reduced balance over the same remaining count.
+            const newAnnuityPayment = isAnnuity && monthlyRate > 0
+                ? newBalance * (monthlyRate * Math.pow(1 + monthlyRate, remainingCount)) / (Math.pow(1 + monthlyRate, remainingCount) - 1)
+                : 0;
+            let bal = newBalance;
+            for (let k = 0; k < remainingCount; k++) {
+                const inst = schedule[splitIdx + k];
+                const isLast = k === remainingCount - 1;
+                const interest = useFixedInterestAmount ? inst.interest : bal * monthlyRate;
+                let principal = isAnnuity && newAnnuityPayment > 0 ? (newAnnuityPayment - interest) : (newBalance / remainingCount);
+                if (isLast || (bal - principal) < 1) principal = bal;
+                bal = Math.max(0, bal - principal);
+                inst.principal = principal;
+                inst.interest = interest;
+                inst.total = principal + interest + inst.serviceFee + inst.adminFee + inst.insuranceFee + (inst.lateInterest || 0) + (inst.penalty || 0);
+                inst.balance = bal < 0.005 ? 0 : bal;
+                inst.remainingAmount = inst.total - (inst.paidAmount || 0);
+            }
+        } else {
+            // 'reduceTerm': keep paying the ORIGINAL per-installment amount, so the smaller
+            // balance simply runs out sooner — any installments left over once it hits zero are
+            // closed out (the loan finishes early).
+            let bal = newBalance;
+            let k = 0;
+            for (; k < remainingCount && bal > 0.5; k++) {
+                const inst = schedule[splitIdx + k];
+                const originalPrincipal = inst.principal;
+                const interest = useFixedInterestAmount ? inst.interest : bal * monthlyRate;
+                let principal = Math.min(originalPrincipal, bal);
+                if ((bal - principal) < 1) principal = bal;
+                bal = Math.max(0, bal - principal);
+                inst.principal = principal;
+                inst.interest = interest;
+                inst.total = principal + interest + inst.serviceFee + inst.adminFee + inst.insuranceFee + (inst.lateInterest || 0) + (inst.penalty || 0);
+                inst.balance = bal < 0.005 ? 0 : bal;
+                inst.remainingAmount = inst.total - (inst.paidAmount || 0);
+            }
+            // Everything from here on is paid off early by the prepayment.
+            for (; k < remainingCount; k++) {
+                const inst = schedule[splitIdx + k];
+                inst.principal = 0; inst.interest = 0; inst.serviceFee = 0; inst.adminFee = 0; inst.insuranceFee = 0;
+                inst.lateInterest = 0; inst.penalty = 0; inst.total = 0; inst.balance = 0;
+                inst.remainingAmount = 0; inst.status = 'paid';
+            }
+        }
+    });
+    return schedule;
+}
+
 function openWriteOffModal() {
     if (!currentLoan) return;
     document.getElementById('writeOffLoanId').textContent = currentLoan.loanId;
