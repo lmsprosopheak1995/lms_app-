@@ -1948,15 +1948,43 @@ function exportAllLoansToCSV() {
 }
 
 // ===================== RECEIPT, EXPORT, TAB, AUTH FUNCTIONS =====================
-function batchPrintSchedules() {
+function batchPrintSchedules(mode = 'full', paperSize = 'a4') {
     const selectedCheckboxes = document.querySelectorAll('.loan-checkbox:checked');
     if (selectedCheckboxes.length === 0) {
         showToast('Please select at least one loan to print.', 'info');
         return;
     }
-    showToast(`Batch printing for ${selectedCheckboxes.length} loan(s) is not yet implemented.`, 'info');
-    console.log('Batch print requested for loan IDs:');
-    selectedCheckboxes.forEach(cb => console.log(cb.dataset.loanId));
+
+    const selectedLoanIds = Array.from(selectedCheckboxes).map(cb => cb.dataset.loanId);
+    const selectedLoans = selectedLoanIds
+        .map(id => loans.find(l => l.loanId === id))
+        .filter(Boolean);
+
+    if (selectedLoans.length === 0) {
+        showToast('Selected loan(s) could not be found.', 'error');
+        return;
+    }
+
+    let pageStyle = '';
+    const bodies = selectedLoans.map((loan, i) => {
+        const { bodyHtml, pageStyle: style } = buildLoanScheduleHtml(loan, mode, paperSize);
+        pageStyle = style; // identical across loans for a given paperSize
+        const pageBreak = i < selectedLoans.length - 1 ? 'page-break-after: always;' : '';
+        return `<div style="${pageBreak}">${bodyHtml}</div>`;
+    });
+
+    const titleText = `Loan Schedules (${selectedLoans.length})`;
+
+    // NOTE: no 'noopener' — see the comment in printLoanSchedule() for why.
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) { showToast('សូមអនុញ្ញាត Pop-up (Allow Pop-ups) សម្រាប់គេហទំព័រនេះ ដើម្បីអាច Print បាន', 'error'); return; }
+    printWindow.document.write(`<html><head><title>${titleText}</title><style>${pageStyle}</style></head><body>${bodies.join('')}</body></html>`);
+    printWindow.document.close();
+    setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+        printWindow.close();
+    }, 250);
 }
 
 function openReceiptForLoan() { if(currentLoan) fillReceipt(currentLoan); }
@@ -2049,11 +2077,8 @@ function openPrintOptionsModal() {
 }
 function closePrintOptionsModal() { document.getElementById('printOptionsModal').style.display = 'none'; }
 
-function printLoanSchedule(mode) {
-    if (!currentLoan) { showToast("សូមជ្រើសរើសកម្ចីជាមុនសិន", "error"); return; }
-    const loan = currentLoan;
+function buildLoanScheduleHtml(loan, mode, paperSize) {
     const customer = getCustomer(loan.customerId);
-    const paperSize = document.getElementById('printPaperSize').value; // 'a4' or '80mm'
 
     let schedule = buildSchedule(loan);
     if (mode === 'unpaid') {
@@ -2189,6 +2214,14 @@ function printLoanSchedule(mode) {
         .print-qr-item img { width:35mm; height:auto; display:block; border:1px solid #ccc; }
         .print-qr-item .qr-label { font-size:11px; margin-top:4px; font-weight:bold; }
     `;
+
+    return { titleText, bodyHtml, pageStyle };
+}
+
+function printLoanSchedule(mode) {
+    if (!currentLoan) { showToast("សូមជ្រើសរើសកម្ចីជាមុនសិន", "error"); return; }
+    const paperSize = document.getElementById('printPaperSize').value; // 'a4' or '80mm'
+    const { titleText, bodyHtml, pageStyle } = buildLoanScheduleHtml(currentLoan, mode, paperSize);
 
     // NOTE: no 'noopener' here — passing it makes window.open() return null in modern Chrome/Edge
     // even when pop-ups ARE allowed, so we'd lose the reference needed to write content into the
