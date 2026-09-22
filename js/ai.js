@@ -360,6 +360,14 @@ function runAIPaymentReminders(force) {
 }
 
 // ===================== CHATBOT =====================
+// Conversation memory: kept in-memory only (not persisted/synced — resets on page
+// reload or when the user explicitly starts a new conversation via resetAIChat()).
+// Each entry is { role: 'user'|'assistant', content: string }, sent back to the
+// Anthropic Messages API on every turn so the model has the prior turns of THIS
+// conversation to work from. Capped to the most recent N messages so a very long
+// back-and-forth doesn't grow the request without bound.
+let __aiChatHistory = [];
+const AI_CHAT_HISTORY_MAX_MESSAGES = 20;
 
 function getAIConfig() {
     const s = appSettings || {};
@@ -472,7 +480,26 @@ async function sendAIChatMessage(question) {
 
     const thinkingId = aiAppendChatBubble('assistant', '', true);
     const context = buildAIContextSummary();
-    const systemPrompt = `អ្នកគឺជាជំនួយការវិភាគទិន្នន័យសម្រាប់ប្រព័ន្ធគ្រប់គ្រងកម្ចីមួយ។ ឆ្លើយសំណួរដោយផ្អែកលើទិន្នន័យ JSON ដែលបានផ្តល់ឱ្យខាងក្រោមតែប៉ុណ្ណោះ។ ប្រសិនបើទិន្នន័យមិនគ្រប់គ្រាន់ដើម្បីឆ្លើយសំណួរ សូមប្រាប់ត្រង់ៗ ជាជាងសន្មត។ ឆ្លើយខ្លី ច្បាស់លាស់ ជាភាសាខ្មែរ (លើកលែងតែអ្នកសួរជាភាសាផ្សេង)។\n\nទិន្នន័យ:\n${JSON.stringify(context)}`;
+    const systemPrompt = `អ្នកគឺជាជំនួយការវិភាគទិន្នន័យសម្រាប់ប្រព័ន្ធគ្រប់គ្រងកម្ចីមួយ។ ឆ្លើយសំណួរដោយផ្អែកលើទិន្នន័យ JSON ដែលបានផ្តល់ឱ្យខាងក្រោមតែប៉ុណ្ណោះ, ព្រមទាំងប្រវត្តិសន្ទនាខាងលើនេះ។ ប្រសិនបើទិន្នន័យមិនគ្រប់គ្រាន់ដើម្បីឆ្លើយសំណួរ សូមប្រាប់ត្រង់ៗ ជាជាងសន្មត។ ឆ្លើយខ្លី ច្បាស់លាស់ ជាភាសាខ្មែរ (លើកលែងតែអ្នកសួរជាភាសាផ្សេង)។\n\nទិន្នន័យ:\n${JSON.stringify(context)}`;
+
+    // Add this question to the running conversation, then send the model the
+    // recent history (trimmed) + this turn — not just the bare question — so
+    // it can resolve follow-ups like "តើអ្នកនោះដែរឬទេ?" against earlier turns.
+    // The API requires strictly alternating user/assistant turns: if the last
+    // turn failed (see catch below), its unanswered 'user' entry is still the
+    // most recent one — drop it first so we never send two 'user' turns in a row.
+    if (__aiChatHistory.length && __aiChatHistory[__aiChatHistory.length - 1].role === 'user') {
+        __aiChatHistory.pop();
+    }
+    __aiChatHistory.push({ role: 'user', content: question });
+    if (__aiChatHistory.length > AI_CHAT_HISTORY_MAX_MESSAGES) {
+        __aiChatHistory = __aiChatHistory.slice(__aiChatHistory.length - AI_CHAT_HISTORY_MAX_MESSAGES);
+    }
+    // The API also requires the conversation to START on a 'user' turn — the trim above can
+    // land on an 'assistant' entry first (its matching 'user' got cut), so drop that leftover too.
+    if (__aiChatHistory.length && __aiChatHistory[0].role !== 'user') {
+        __aiChatHistory.shift();
+    }
 
     try {
         // Auth: reuse the same Supabase session used for all other cloud reads/writes
@@ -495,7 +522,7 @@ async function sendAIChatMessage(question) {
                 model: cfg.model,
                 max_tokens: 1024,
                 system: systemPrompt,
-                messages: [{ role: 'user', content: question }]
+                messages: __aiChatHistory
             })
         });
         const data = await res.json().catch(() => null);
@@ -503,10 +530,24 @@ async function sendAIChatMessage(question) {
             throw new Error((data && (data.error?.message || data.error)) || `HTTP ${res.status}`);
         }
         const textBlock = (data.content || []).find(b => b.type === 'text');
-        aiUpdateChatBubble(thinkingId, textBlock ? textBlock.text : 'មិនអាចទទួលបានចម្លើយបានទេ។');
+        const replyText = textBlock ? textBlock.text : 'មិនអាចទទួលបានចម្លើយបានទេ។';
+        aiUpdateChatBubble(thinkingId, replyText);
+        // Only remembered once we actually have a real reply — a failed turn (below)
+        // leaves the user's question in history but adds no assistant half to it.
+        if (textBlock) __aiChatHistory.push({ role: 'assistant', content: replyText });
     } catch (e) {
         console.error('AI chat error:', e);
         aiUpdateChatBubble(thinkingId, `មានបញ្ហាក្នុងការទាក់ទង AI៖ ${e.message}`);
+    }
+}
+
+// Starts a fresh conversation: clears both the sent-to-model history and the
+// visible bubbles, back to the same greeting shown on first load.
+function resetAIChat() {
+    __aiChatHistory = [];
+    const container = document.getElementById('aiChatMessages');
+    if (container) {
+        container.innerHTML = '<div class="ai-chat-bubble ai-chat-system">សួស្តី! សួរខ្ញុំអំពីទិន្នន័យកម្ចី ការហួសកាលកំណត់ ឬហានិភ័យអតិថិជនរបស់អ្នកបាន។</div>';
     }
 }
 
