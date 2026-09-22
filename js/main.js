@@ -151,6 +151,7 @@ async function initApp() {
   generateNotifications();
   renderDashboard();
   clearSavingsForm();
+  initAIWidget();
 
   // --- Centralized Event Listeners ---
   document.getElementById('loanProductSelect').addEventListener('change', (e) => applyLoanProductTemplate(e.target.value));
