@@ -25,16 +25,13 @@
 //   5) Data chatbot — natural-language Q&A over a condensed, permission-
 //      scoped snapshot of the portfolio, via the Anthropic Messages API.
 //
-// SECURITY NOTE: the chatbot (and nothing else here) calls the Anthropic
-// API directly from the browser using an API key entered in the "AI
-// Settings" tab (stored in the shared app_settings row, same mechanism as
-// the exchange rate / message templates). That means the key is present
-// in this browser's network requests and, once loaded via
-// loadAllCloudData(), in this app's shared settings cache. That's an
-// acceptable trade-off for a small internal admin tool but is NOT the
-// recommended pattern for a public product — for stronger security later,
-// move that fetch() call into a Supabase Edge Function that holds the key
-// server-side and proxies the request, and call that function instead.
+// SECURITY NOTE: the chatbot calls a Supabase Edge Function
+// (`ai-chat`, see supabase/functions/ai-chat/index.ts) rather than the
+// Anthropic API directly. The Anthropic key lives only in that function's
+// server-side secrets (set via `supabase secrets set ANTHROPIC_API_KEY=...`)
+// and is never sent to or stored in the browser. The Edge Function checks
+// the caller's Supabase auth session before it will spend that key, so only
+// logged-in users of this app can use the chatbot.
 // =====================================================================
 
 // ===================== RISK SCORING (rule-based, offline) =====================
@@ -367,7 +364,6 @@ function runAIPaymentReminders(force) {
 function getAIConfig() {
     const s = appSettings || {};
     return {
-        apiKey: s.aiApiKey || '',
         model: s.aiModel || 'claude-sonnet-4-6',
         enabled: !!s.aiChatEnabled,
         autoDecision: {
@@ -384,7 +380,6 @@ function getAIConfig() {
 
 function saveAISettings(values) {
     Object.assign(appSettings, {
-        aiApiKey: values.apiKey,
         aiModel: values.model,
         aiChatEnabled: values.chatEnabled,
         aiAutoDecisionEnabled: values.autoDecisionEnabled,
@@ -468,9 +463,9 @@ async function sendAIChatMessage(question) {
     const cfg = getAIConfig();
     aiAppendChatBubble('user', question);
 
-    if (!cfg.apiKey) {
+    if (!cfg.enabled) {
         aiAppendChatBubble('system', hasPermission('canManageSystem')
-            ? 'សូមកំណត់ Anthropic API Key ជាមុនសិន (ចុចរូប ⚙️ ខាងលើ)'
+            ? 'សូមបើកដំណើរការ Chatbot ជាមុនសិន (ចុចរូប ⚙️ ខាងលើ)'
             : 'Chatbot មិនទាន់ត្រូវបានកំណត់រចនាសម្ព័ន្ធដោយអ្នកគ្រប់គ្រងទេ។');
         return;
     }
@@ -480,13 +475,21 @@ async function sendAIChatMessage(question) {
     const systemPrompt = `អ្នកគឺជាជំនួយការវិភាគទិន្នន័យសម្រាប់ប្រព័ន្ធគ្រប់គ្រងកម្ចីមួយ។ ឆ្លើយសំណួរដោយផ្អែកលើទិន្នន័យ JSON ដែលបានផ្តល់ឱ្យខាងក្រោមតែប៉ុណ្ណោះ។ ប្រសិនបើទិន្នន័យមិនគ្រប់គ្រាន់ដើម្បីឆ្លើយសំណួរ សូមប្រាប់ត្រង់ៗ ជាជាងសន្មត។ ឆ្លើយខ្លី ច្បាស់លាស់ ជាភាសាខ្មែរ (លើកលែងតែអ្នកសួរជាភាសាផ្សេង)។\n\nទិន្នន័យ:\n${JSON.stringify(context)}`;
 
     try {
-        const res = await fetch('https://api.anthropic.com/v1/messages', {
+        // Auth: reuse the same Supabase session used for all other cloud reads/writes
+        // (see cloud-sync.js / db.js) — the Edge Function checks this token belongs to
+        // a real logged-in user before it will spend the (server-side) Anthropic key.
+        const cloud = getCloudSettings();
+        const session = await ensureSupabaseSession();
+        if (!session || !session.access_token) {
+            throw new Error('គ្មាន session សកម្មទេ សូម Login ម្តងទៀត');
+        }
+
+        const res = await fetch(`${cloud.supabaseUrl}/functions/v1/ai-chat`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'x-api-key': cfg.apiKey,
-                'anthropic-version': '2023-06-01',
-                'anthropic-dangerous-direct-browser-access': 'true'
+                'Authorization': `Bearer ${session.access_token}`,
+                'apikey': cloud.supabaseKey
             },
             body: JSON.stringify({
                 model: cfg.model,
@@ -495,11 +498,10 @@ async function sendAIChatMessage(question) {
                 messages: [{ role: 'user', content: question }]
             })
         });
+        const data = await res.json().catch(() => null);
         if (!res.ok) {
-            const errText = await res.text().catch(() => '');
-            throw new Error(`HTTP ${res.status} ${errText}`.trim());
+            throw new Error((data && (data.error?.message || data.error)) || `HTTP ${res.status}`);
         }
-        const data = await res.json();
         const textBlock = (data.content || []).find(b => b.type === 'text');
         aiUpdateChatBubble(thinkingId, textBlock ? textBlock.text : 'មិនអាចទទួលបានចម្លើយបានទេ។');
     } catch (e) {
@@ -532,7 +534,6 @@ function switchAIView(view) {
 function loadAISettingsForm() {
     const cfg = getAIConfig();
     const ids = {
-        aiApiKeyInput: cfg.apiKey,
         aiModelSelect: cfg.model,
         aiAutoApproveMaxAmountInput: cfg.autoDecision.maxAmount || '',
         aiAutoApproveCurrencySelect: cfg.autoDecision.currency,
@@ -550,7 +551,6 @@ function loadAISettingsForm() {
 function submitAISettings(e) {
     e.preventDefault();
     saveAISettings({
-        apiKey: document.getElementById('aiApiKeyInput').value.trim(),
         model: document.getElementById('aiModelSelect').value,
         chatEnabled: document.getElementById('aiChatEnabledInput').checked,
         autoDecisionEnabled: document.getElementById('aiAutoDecisionEnabledInput').checked,
