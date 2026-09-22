@@ -907,6 +907,8 @@ body.dark-mode #appLoadingOverlay {
 }
 .ai-tab-btn.active, .ai-tab-btn:hover { background: rgba(255,255,255,0.18); color: #fff; }
 .ai-panel-close { background: transparent; border: none; color: #fff; cursor: pointer; font-size: 15px; padding: 4px 8px; }
+.ai-panel-newchat { background: transparent; border: none; color: #fff; cursor: pointer; font-size: 14px; padding: 4px 8px; opacity: 0.85; }
+.ai-panel-newchat:hover { opacity: 1; }
 
 .ai-view { flex: 1; min-height: 0; display: none; flex-direction: column; }
 
