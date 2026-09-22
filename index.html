@@ -1515,6 +1515,51 @@
     </div>
   </div>
 
+  <!-- AI floating assistant: risk scoring (offline) + data chatbot (Anthropic API) -->
+  <div id="aiFloatingBtn" onclick="toggleAIPanel()" title="ជំនួយការ AI">
+    <i class="fas fa-robot"></i>
+  </div>
+  <div id="aiPanel" class="ai-panel">
+    <div class="ai-panel-header">
+      <div class="ai-panel-tabs">
+        <button type="button" class="ai-tab-btn active" id="aiTabBtnChat" onclick="switchAIView('chat')"><i class="fas fa-comments"></i> ជជែក</button>
+        <button type="button" class="ai-tab-btn" id="aiTabBtnRisk" onclick="switchAIView('risk')"><i class="fas fa-shield-alt"></i> ហានិភ័យ</button>
+        <button type="button" class="ai-tab-btn" id="aiTabBtnSettings" onclick="switchAIView('settings')"><i class="fas fa-cog"></i></button>
+      </div>
+      <button type="button" class="ai-panel-close" onclick="toggleAIPanel()"><i class="fas fa-times"></i></button>
+    </div>
+
+    <div class="ai-view" id="aiChatView" style="display:flex;">
+      <div class="ai-chat-messages" id="aiChatMessages">
+        <div class="ai-chat-bubble ai-chat-system">សួស្តី! សួរខ្ញុំអំពីទិន្នន័យកម្ចី ការហួសកាលកំណត់ ឬហានិភ័យអតិថិជនរបស់អ្នកបាន។</div>
+      </div>
+      <form id="aiChatForm" class="ai-chat-form">
+        <input type="text" id="aiChatInput" placeholder="សរសេរសំណួររបស់អ្នក..." autocomplete="off" />
+        <button type="submit"><i class="fas fa-paper-plane"></i></button>
+      </form>
+    </div>
+
+    <div class="ai-view" id="aiRiskView" style="display:none;">
+      <p class="ai-view-desc">ការវាយតម្លៃហានិភ័យកម្ចីដោយស្វ័យប្រវត្តិ ដោយផ្អែកលើប្រវត្តិការបង់ប្រាក់ (គណនាក្នុងកម្មវិធីផ្ទាល់ មិនប្រើ AI ក្រៅទេ)</p>
+      <div id="aiRiskList" class="ai-risk-list"></div>
+    </div>
+
+    <div class="ai-view" id="aiSettingsView" style="display:none;">
+      <form id="aiSettingsForm" class="ai-settings-form">
+        <label>Anthropic API Key</label>
+        <input type="password" id="aiApiKeyInput" placeholder="sk-ant-..." />
+        <label>Model</label>
+        <select id="aiModelSelect">
+          <option value="claude-sonnet-4-6">Claude Sonnet</option>
+          <option value="claude-haiku-4-5-20251001">Claude Haiku (លឿន/សាមញ្ញ)</option>
+        </select>
+        <label class="ai-settings-checkbox"><input type="checkbox" id="aiChatEnabledInput" /> បើកដំណើរការ Chatbot</label>
+        <p class="ai-settings-note"><i class="fas fa-exclamation-triangle"></i> Key នេះត្រូវបានហៅដោយផ្ទាល់ពី browser ហើយចែករំលែកគ្នារវាងអ្នកប្រើប្រាស់ដែលចូលប្រព័ន្ធ។ សម្រាប់សុវត្ថិភាពខ្ពស់ជាងនេះ គួរប្រើ Supabase Edge Function ជា proxy។</p>
+        <button type="submit" class="btn btn-success">រក្សាទុក</button>
+      </form>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -1533,6 +1578,7 @@
   <script src="js/cloud-sync.js"></script>
   <script src="js/db.js"></script>
   <script src="js/reports.js"></script>
+  <script src="js/ai.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

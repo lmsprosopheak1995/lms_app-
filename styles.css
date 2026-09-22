@@ -846,3 +846,122 @@ body.dark-mode #appLoadingOverlay {
   margin-bottom: 12px;
   color: var(--primary-color, #2c7be5);
 }
+
+/* ===================== AI ASSISTANT WIDGET ===================== */
+#aiFloatingBtn {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), #6f42c1);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  z-index: 1500;
+  transition: transform 0.15s ease;
+}
+#aiFloatingBtn:hover { transform: scale(1.08); }
+
+.ai-panel {
+  position: fixed;
+  bottom: 92px;
+  right: 24px;
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  height: 480px;
+  max-height: calc(100vh - 140px);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 1500;
+}
+.ai-panel.open { display: flex; }
+
+.ai-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--thead);
+  color: #fff;
+  padding: 6px 8px;
+}
+.ai-panel-tabs { display: flex; gap: 4px; }
+.ai-tab-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.75);
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.ai-tab-btn.active, .ai-tab-btn:hover { background: rgba(255,255,255,0.18); color: #fff; }
+.ai-panel-close { background: transparent; border: none; color: #fff; cursor: pointer; font-size: 15px; padding: 4px 8px; }
+
+.ai-view { flex: 1; min-height: 0; display: none; flex-direction: column; }
+
+.ai-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ai-chat-bubble {
+  max-width: 85%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  word-wrap: break-word;
+}
+.ai-chat-user { align-self: flex-end; background: var(--primary); color: #fff; border-bottom-right-radius: 2px; }
+.ai-chat-assistant { align-self: flex-start; background: var(--bg); color: var(--text-color); border: 1px solid var(--border); border-bottom-left-radius: 2px; }
+.ai-chat-system { align-self: center; background: transparent; color: var(--muted); font-size: 12px; text-align: center; }
+
+.ai-chat-form { display: flex; border-top: 1px solid var(--border); }
+.ai-chat-form input { flex: 1; border: none; padding: 10px; background: var(--input-bg); color: var(--text-color); outline: none; }
+.ai-chat-form button { background: var(--primary); color: #fff; border: none; padding: 0 16px; cursor: pointer; }
+
+.ai-view-desc { font-size: 12px; color: var(--muted); padding: 8px 10px 0; margin: 0; }
+.ai-risk-list { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+.ai-empty { text-align: center; color: var(--muted); font-size: 13px; margin-top: 20px; }
+
+.ai-risk-card { border: 1px solid var(--border); border-left-width: 4px; border-radius: 8px; padding: 8px 10px; background: var(--bg); }
+.ai-risk-low { border-left-color: var(--success); }
+.ai-risk-medium { border-left-color: #ffc107; }
+.ai-risk-high { border-left-color: var(--danger); }
+.ai-risk-critical { border-left-color: #6f1d1d; }
+
+.ai-risk-head { display: flex; align-items: center; gap: 10px; }
+.ai-risk-score { font-size: 18px; font-weight: bold; min-width: 32px; text-align: center; }
+.ai-risk-loanid { font-weight: 600; font-size: 13px; }
+.ai-risk-band { font-size: 11px; color: var(--muted); }
+.ai-risk-band-critical, .ai-risk-band-high { color: var(--danger); }
+.ai-risk-band-medium { color: #b8860b; }
+.ai-risk-band-low { color: var(--success); }
+.ai-risk-reasons { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--text-color); }
+
+.ai-settings-form { padding: 10px; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; }
+.ai-settings-form label { font-size: 12px; font-weight: 600; margin-top: 6px; }
+.ai-settings-form input[type="password"], .ai-settings-form select {
+  padding: 8px; border: 1px solid var(--input-border); background: var(--input-bg); color: var(--text-color); border-radius: 6px;
+}
+.ai-settings-checkbox { display: flex; align-items: center; gap: 6px; font-weight: normal !important; }
+.ai-settings-note { font-size: 11px; color: var(--muted); background: rgba(255, 193, 7, 0.12); padding: 6px 8px; border-radius: 6px; }
+
+@media (max-width: 480px) {
+  .ai-panel { right: 12px; left: 12px; width: auto; bottom: 84px; }
+  #aiFloatingBtn { right: 16px; bottom: 16px; }
+}
