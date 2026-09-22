@@ -1548,15 +1548,13 @@
 
     <div class="ai-view" id="aiSettingsView" style="display:none;">
       <form id="aiSettingsForm" class="ai-settings-form">
-        <label>Anthropic API Key</label>
-        <input type="password" id="aiApiKeyInput" placeholder="sk-ant-..." />
         <label>Model</label>
         <select id="aiModelSelect">
           <option value="claude-sonnet-4-6">Claude Sonnet</option>
           <option value="claude-haiku-4-5-20251001">Claude Haiku (លឿន/សាមញ្ញ)</option>
         </select>
         <label class="ai-settings-checkbox"><input type="checkbox" id="aiChatEnabledInput" /> បើកដំណើរការ Chatbot</label>
-        <p class="ai-settings-note"><i class="fas fa-exclamation-triangle"></i> Key នេះត្រូវបានហៅដោយផ្ទាល់ពី browser ហើយចែករំលែកគ្នារវាងអ្នកប្រើប្រាស់ដែលចូលប្រព័ន្ធ។ សម្រាប់សុវត្ថិភាពខ្ពស់ជាងនេះ គួរប្រើ Supabase Edge Function ជា proxy។</p>
+        <p class="ai-settings-note"><i class="fas fa-info-circle"></i> Anthropic API Key ត្រូវបានផ្ទុកនៅ Supabase Edge Function (server-side) មិនមែននៅក្នុង browser ទៀតទេ។ ដើម្បីកំណត់/ប្តូរ Key សូមប្រើ: <code>supabase secrets set ANTHROPIC_API_KEY=sk-ant-...</code></p>
 
         <hr style="border-color:var(--border); width:100%;" />
         <label class="ai-settings-checkbox"><input type="checkbox" id="aiAutoDecisionEnabledInput" /> អនុញ្ញាតឱ្យ AI អនុម័ត/បដិសេធ សំណើកម្ចីតូចដោយស្វ័យប្រវត្តិ</label>
