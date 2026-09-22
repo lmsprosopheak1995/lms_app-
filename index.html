@@ -1542,6 +1542,8 @@
     <div class="ai-view" id="aiRiskView" style="display:none;">
       <p class="ai-view-desc">ការវាយតម្លៃហានិភ័យកម្ចីដោយស្វ័យប្រវត្តិ ដោយផ្អែកលើប្រវត្តិការបង់ប្រាក់ (គណនាក្នុងកម្មវិធីផ្ទាល់ មិនប្រើ AI ក្រៅទេ)</p>
       <div id="aiRiskList" class="ai-risk-list"></div>
+      <p class="ai-view-desc" style="margin-top:8px; border-top:1px solid var(--border); padding-top:8px;">ព្យាករណ៍ជាមុន — កម្ចីមិនទាន់យឺត ប៉ុន្តែជិតដល់ថ្ងៃបង់ និងធ្លាប់មានប្រវត្តិបង់មិនគ្រប់</p>
+      <div id="aiWatchlist" class="ai-risk-list"></div>
     </div>
 
     <div class="ai-view" id="aiSettingsView" style="display:none;">
@@ -1555,6 +1557,23 @@
         </select>
         <label class="ai-settings-checkbox"><input type="checkbox" id="aiChatEnabledInput" /> បើកដំណើរការ Chatbot</label>
         <p class="ai-settings-note"><i class="fas fa-exclamation-triangle"></i> Key នេះត្រូវបានហៅដោយផ្ទាល់ពី browser ហើយចែករំលែកគ្នារវាងអ្នកប្រើប្រាស់ដែលចូលប្រព័ន្ធ។ សម្រាប់សុវត្ថិភាពខ្ពស់ជាងនេះ គួរប្រើ Supabase Edge Function ជា proxy។</p>
+
+        <hr style="border-color:var(--border); width:100%;" />
+        <label class="ai-settings-checkbox"><input type="checkbox" id="aiAutoDecisionEnabledInput" /> អនុញ្ញាតឱ្យ AI អនុម័ត/បដិសេធ សំណើកម្ចីតូចដោយស្វ័យប្រវត្តិ</label>
+        <p class="ai-settings-note">អនុវត្តតែចំពោះអតិថិជនចាស់ (មានប្រវត្តិ) ដែលគ្មានកម្ចីសកម្មរួច និងចំនួនស្នើសុំមិនលើសកម្រិតខាងក្រោម។ អតិថិជនថ្មី ឬលើសកម្រិត នៅតែត្រូវការមន្ត្រីពិនិត្យ។</p>
+        <div style="display:flex; gap:8px;">
+          <input type="number" id="aiAutoApproveMaxAmountInput" placeholder="កម្រិតកម្ចីតូចបំផុត" style="flex:1;" />
+          <select id="aiAutoApproveCurrencySelect" style="width:90px;">
+            <option value="USD">USD</option>
+            <option value="KHR">KHR</option>
+          </select>
+        </div>
+
+        <hr style="border-color:var(--border); width:100%;" />
+        <label class="ai-settings-checkbox"><input type="checkbox" id="aiReminderEnabledInput" /> ផ្ញើការរំលឹកបង់ប្រាក់ជាមុនរាល់ថ្ងៃ</label>
+        <label>ចំនួនថ្ងៃមុនកាលកំណត់</label>
+        <input type="number" id="aiReminderDaysAheadInput" min="1" max="14" />
+
         <button type="submit" class="btn btn-success">រក្សាទុក</button>
       </form>
     </div>
