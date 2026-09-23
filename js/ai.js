@@ -688,7 +688,10 @@ async function sendAIChatMessage(question) {
 
             // Record the model's functionCall turn verbatim, run each requested tool locally
             // (permission-checked + human-confirmed inside aiHandleSetAccountStatus), then
-            // feed the results back as a 'function' turn so the model can phrase a reply.
+            // feed the results back so the model can phrase a reply. Gemini's current API
+            // rejects role 'function' for this turn (400 "Role 'function' is not
+            // supported") — the function's result is sent back as a 'user' turn instead,
+            // carrying a functionResponse part rather than a text part.
             workingContents = [...workingContents, { role: 'model', parts }];
             const responseParts = [];
             for (const p of functionCalls) {
@@ -698,7 +701,7 @@ async function sendAIChatMessage(question) {
                     : `Unknown tool: ${fc.name}`;
                 responseParts.push({ functionResponse: { name: fc.name, response: { content: resultText } } });
             }
-            workingContents = [...workingContents, { role: 'function', parts: responseParts }];
+            workingContents = [...workingContents, { role: 'user', parts: responseParts }];
         }
 
         if (finalReplyText === null) finalReplyText = 'សុំទោស សំណើនេះស្មុគស្មាញពេក សូមសាកល្បងម្តងទៀត។';
