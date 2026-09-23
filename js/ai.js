@@ -497,7 +497,7 @@ async function aiHandleSetAccountStatus(input) {
 function getAIConfig() {
     const s = appSettings || {};
     return {
-        model: s.aiModel || 'gemini-2.5-flash',
+        model: s.aiModel || 'gemini-3.6-flash',
         enabled: !!s.aiChatEnabled,
         autoDecision: {
             enabled: !!s.aiAutoDecisionEnabled,
