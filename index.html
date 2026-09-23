@@ -1515,7 +1515,7 @@
     </div>
   </div>
 
-  <!-- AI floating assistant: risk scoring (offline) + data chatbot (Anthropic API) -->
+  <!-- AI floating assistant: risk scoring (offline) + data chatbot (Google Gemini API) -->
   <div id="aiFloatingBtn" onclick="toggleAIPanel()" title="ជំនួយការ AI">
     <i class="fas fa-robot"></i>
   </div>
@@ -1551,11 +1551,11 @@
       <form id="aiSettingsForm" class="ai-settings-form">
         <label>Model</label>
         <select id="aiModelSelect">
-          <option value="claude-sonnet-4-6">Claude Sonnet</option>
-          <option value="claude-haiku-4-5-20251001">Claude Haiku (លឿន/សាមញ្ញ)</option>
+          <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+          <option value="gemini-2.5-pro">Gemini 2.5 Pro (ពិចារណាស៊ីជម្រៅ)</option>
         </select>
         <label class="ai-settings-checkbox"><input type="checkbox" id="aiChatEnabledInput" /> បើកដំណើរការ Chatbot</label>
-        <p class="ai-settings-note"><i class="fas fa-info-circle"></i> Anthropic API Key ត្រូវបានផ្ទុកនៅ Supabase Edge Function (server-side) មិនមែននៅក្នុង browser ទៀតទេ។ ដើម្បីកំណត់/ប្តូរ Key សូមប្រើ: <code>supabase secrets set ANTHROPIC_API_KEY=sk-ant-...</code></p>
+        <p class="ai-settings-note"><i class="fas fa-info-circle"></i> Gemini API Key ត្រូវបានផ្ទុកនៅ Supabase Edge Function (server-side) មិនមែននៅក្នុង browser ទៀតទេ។ ដើម្បីកំណត់/ប្តូរ Key សូមប្រើ: <code>supabase secrets set GEMINI_API_KEY=...</code></p>
 
         <hr style="border-color:var(--border); width:100%;" />
         <label class="ai-settings-checkbox"><input type="checkbox" id="aiAutoDecisionEnabledInput" /> អនុញ្ញាតឱ្យ AI អនុម័ត/បដិសេធ សំណើកម្ចីតូចដោយស្វ័យប្រវត្តិ</label>
