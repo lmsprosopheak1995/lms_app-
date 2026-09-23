@@ -369,6 +369,111 @@ function runAIPaymentReminders(force) {
 let __aiChatHistory = [];
 const AI_CHAT_HISTORY_MAX_MESSAGES = 20;
 
+// ===================== AI ACCOUNT LOCK/UNLOCK TOOL =====================
+// Lets the chatbot itself freeze (lock/suspend) or unfreeze (unlock/reactivate) a specific
+// staff account when an admin or manager explicitly asks in plain language, e.g. "ផ្អាកគណនី
+// dara" / "unlock sophea's account". This is only ever offered to the model (see the `tools`
+// array built in sendAIChatMessage) when hasPermission('canManageAccountStatus') is true, and
+// permission is checked again inside aiHandleSetAccountStatus before anything is written — the
+// model choosing to call the tool is never itself authorization.
+//
+// DEPENDS ON THE EDGE FUNCTION: this assumes the `ai-chat` Supabase Edge Function forwards any
+// extra fields in the request body (here: `tools`) straight through to the Anthropic Messages
+// API call, the same way it already forwards model/system/messages — the same server-side
+// change needs `tool_use` blocks in the Anthropic response to survive the round trip back to
+// the browser unmodified. That function's source isn't part of this file set, so double-check
+// it against supabase/functions/ai-chat/index.ts before relying on this in production.
+const AI_TOOLS = [
+    {
+        name: 'set_account_status',
+        description: "Freeze (lock/suspend) or unfreeze (unlock/reactivate) a staff user's login account. Only call this when the admin/manager explicitly asks to lock, suspend, freeze, unlock, unfreeze, or reactivate a SPECIFIC named account — never as a guess or side effect of answering something else. If it's unclear which account they mean, ask them to clarify instead of calling this tool.",
+        input_schema: {
+            type: 'object',
+            properties: {
+                user_query: { type: 'string', description: 'The username or full name of the account, exactly as the person referred to it (Khmer or Latin script).' },
+                action: { type: 'string', enum: ['freeze', 'unfreeze'], description: "'freeze' to lock/suspend the account so it can no longer log in; 'unfreeze' to unlock/reactivate it." }
+            },
+            required: ['user_query', 'action']
+        }
+    }
+];
+
+// Best-effort match of a free-text name/username against the user roster: exact match first
+// (username or full name, case-insensitive), falling back to a substring match. Returns an
+// array so the caller can tell "not found" (empty) apart from "ambiguous" (2+) and ask for
+// clarification instead of silently acting on the wrong account.
+function aiResolveUserByQuery(query) {
+    const q = String(query || '').trim().toLowerCase();
+    if (!q) return [];
+    const users = getUsers();
+    const exact = users.filter(u => u.username.toLowerCase() === q || (u.fullName || '').toLowerCase() === q);
+    if (exact.length) return exact;
+    return users.filter(u => u.username.toLowerCase().includes(q) || (u.fullName || '').toLowerCase().includes(q));
+}
+
+// Executes (after human confirmation) the set_account_status tool call and returns a plain-text
+// result the model reads on its next turn to phrase a reply. Never throws — every failure path
+// (permission, not found, ambiguous, cancelled, or a Supabase error) returns a describing string
+// instead, so a single bad tool call can't break the chat turn.
+async function aiHandleSetAccountStatus(input) {
+    if (!hasPermission('canManageAccountStatus')) {
+        return 'បដិសេធ៖ អ្នកប្រើប្រាស់នេះគ្មានសិទ្ធិផ្អាក/ដោះសោគណនីទេ។';
+    }
+    const action = input && input.action === 'freeze' ? 'freeze' : (input && input.action === 'unfreeze' ? 'unfreeze' : null);
+    if (!action) return 'សកម្មភាពមិនត្រឹមត្រូវ (ត្រូវតែជា freeze ឬ unfreeze)។';
+
+    const matches = aiResolveUserByQuery(input && input.user_query);
+    if (matches.length === 0) return `រកមិនឃើញអ្នកប្រើប្រាស់ដែលត្រូវនឹង "${input && input.user_query}" ទេ។ សូមផ្តល់ឈ្មោះអ្នកប្រើ (username) ត្រឹមត្រូវ។`;
+    if (matches.length > 1) {
+        const names = matches.map(u => `${u.fullName} (${u.username})`).join(', ');
+        return `មានអ្នកប្រើប្រាស់ច្រើននាក់ត្រូវនឹង "${input.user_query}": ${names}។ សូមបញ្ជាក់ជា username ច្បាស់លាស់។`;
+    }
+
+    const user = matches[0];
+    if (currentUser && user.username === currentUser.username) {
+        return 'មិនអាចប្រើ AI ដើម្បីផ្អាក/ដោះសោគណនីផ្ទាល់ខ្លួនបានទេ។ សូមស្នើសុំអ្នកគ្រប់គ្រងផ្សេងទៀត។';
+    }
+    if (!user.uid) {
+        return `រកមិនឃើញ Supabase UID សម្រាប់ ${user.username}។ សូមបើក Users tab ម្តងដើម្បី Refresh រួចសាកល្បងម្តងទៀត។`;
+    }
+
+    const wantFreeze = action === 'freeze';
+    if (!!user.isFrozen === wantFreeze) {
+        return `គណនី ${user.fullName} (${user.username}) ${wantFreeze ? 'ត្រូវបានផ្អាករួចហើយ' : 'ជាគណនីសកម្មរួចហើយ'}។ គ្មានអ្វីត្រូវប្តូរទេ។`;
+    }
+
+    const confirmMsg = wantFreeze
+        ? `តើអ្នកប្រាកដថាចង់ផ្អាក (Freeze) គណនី "${user.fullName}" (${user.username}) មែនទេ? អ្នកប្រើនេះនឹងមិនអាច login ចូលប្រព័ន្ធបានទៀតទេ រហូតដល់មានការដោះសោ។`
+        : `តើអ្នកប្រាកដថាចង់ដោះសោ (Unfreeze) គណនី "${user.fullName}" (${user.username}) មែនទេ?`;
+    const confirmed = await customConfirm(confirmMsg, 'បញ្ជាក់សកម្មភាព AI');
+    if (!confirmed) {
+        return `សកម្មភាពត្រូវបានលុបចោលដោយអ្នកប្រើប្រាស់។ គណនី ${user.username} មិនត្រូវបានប៉ះពាល់ទេ។`;
+    }
+
+    try {
+        // Mirrors saveUser()'s un-freeze behavior in auth.js: clearing failed_attempts on
+        // unfreeze prevents a single further mistyped password from re-freezing the account
+        // immediately via the 3-strikes counter (see record_failed_login() in schema.sql).
+        await upsertUserRoleProfile({
+            uid: user.uid,
+            is_frozen: wantFreeze,
+            failed_attempts: wantFreeze ? undefined : 0
+        });
+        user.isFrozen = wantFreeze;
+        setUsersCache(getUsers());
+        if (document.getElementById('usersTableBody')) {
+            try { await renderUsersTable(); } catch (e) { /* Users tab just isn't open/visible right now */ }
+        }
+        logChange(null, 'System Event', { event: wantFreeze ? 'Account Frozen (AI)' : 'Account Unfrozen (AI)', username: user.username, requestedBy: currentUser ? currentUser.username : null });
+        notifyTelegram(`${wantFreeze ? '🔒' : '🔓'} <b>គណនីត្រូវបាន${wantFreeze ? 'ផ្អាក' : 'ដោះសោ'}ដោយ AI Assistant</b>\nគណនី: ${user.fullName} (${user.username})\nស្នើសុំដោយ: ${(currentUser && currentUser.fullName) || 'N/A'}`);
+        showToast(`គណនី ${user.username} ត្រូវបាន${wantFreeze ? 'ផ្អាក' : 'ដោះសោ'}!`, 'success');
+        return `ជោគជ័យ៖ គណនី ${user.fullName} (${user.username}) ត្រូវបាន${wantFreeze ? 'ផ្អាក' : 'ដោះសោ'}។`;
+    } catch (e) {
+        console.error('AI account status action failed:', e);
+        return `បរាជ័យក្នុងការ${wantFreeze ? 'ផ្អាក' : 'ដោះសោ'}គណនី ${user.username}: ${String(e.message || e)}`;
+    }
+}
+
 function getAIConfig() {
     const s = appSettings || {};
     return {
@@ -480,7 +585,14 @@ async function sendAIChatMessage(question) {
 
     const thinkingId = aiAppendChatBubble('assistant', '', true);
     const context = buildAIContextSummary();
-    const systemPrompt = `អ្នកគឺជាជំនួយការវិភាគទិន្នន័យសម្រាប់ប្រព័ន្ធគ្រប់គ្រងកម្ចីមួយ។ ឆ្លើយសំណួរដោយផ្អែកលើទិន្នន័យ JSON ដែលបានផ្តល់ឱ្យខាងក្រោមតែប៉ុណ្ណោះ, ព្រមទាំងប្រវត្តិសន្ទនាខាងលើនេះ។ ប្រសិនបើទិន្នន័យមិនគ្រប់គ្រាន់ដើម្បីឆ្លើយសំណួរ សូមប្រាប់ត្រង់ៗ ជាជាងសន្មត។ ឆ្លើយខ្លី ច្បាស់លាស់ ជាភាសាខ្មែរ (លើកលែងតែអ្នកសួរជាភាសាផ្សេង)។\n\nទិន្នន័យ:\n${JSON.stringify(context)}`;
+    // Only admins/managers (canManageAccountStatus) are told about the account tool at all —
+    // and only they get it included in the `tools` array below — so the model can't even
+    // attempt this for an officer/viewer session.
+    const canManageAccounts = hasPermission('canManageAccountStatus');
+    const accountToolNote = canManageAccounts
+        ? '\n\nអ្នកក៏អាចប្រើឧបករណ៍ set_account_status ដើម្បីផ្អាក (freeze/lock) ឬដោះសោ (unfreeze/unlock) គណនីអ្នកប្រើប្រាស់ជាក់លាក់មួយ តែនៅពេលអ្នកប្រើប្រាស់ស្នើសុំយ៉ាងច្បាស់ប៉ុណ្ណោះ (ឧ. "ផ្អាកគណនី dara", "unlock sophea\'s account")។ កុំទាយឈ្មោះគណនី បើមិនច្បាស់ថាមានន័យអ្នកណា សូមសួរឲ្យច្បាស់សិន។'
+        : '';
+    const systemPrompt = `អ្នកគឺជាជំនួយការវិភាគទិន្នន័យសម្រាប់ប្រព័ន្ធគ្រប់គ្រងកម្ចីមួយ។ ឆ្លើយសំណួរដោយផ្អែកលើទិន្នន័យ JSON ដែលបានផ្តល់ឱ្យខាងក្រោមតែប៉ុណ្ណោះ, ព្រមទាំងប្រវត្តិសន្ទនាខាងលើនេះ។ ប្រសិនបើទិន្នន័យមិនគ្រប់គ្រាន់ដើម្បីឆ្លើយសំណួរ សូមប្រាប់ត្រង់ៗ ជាជាងសន្មត។ ឆ្លើយខ្លី ច្បាស់លាស់ ជាភាសាខ្មែរ (លើកលែងតែអ្នកសួរជាភាសាផ្សេង)។${accountToolNote}\n\nទិន្នន័យ:\n${JSON.stringify(context)}`;
 
     // Add this question to the running conversation, then send the model the
     // recent history (trimmed) + this turn — not just the bare question — so
@@ -511,30 +623,66 @@ async function sendAIChatMessage(question) {
             throw new Error('គ្មាន session សកម្មទេ សូម Login ម្តងទៀត');
         }
 
-        const res = await fetch(`${cloud.supabaseUrl}/functions/v1/ai-chat`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${session.access_token}`,
-                'apikey': cloud.supabaseKey
-            },
-            body: JSON.stringify({
-                model: cfg.model,
-                max_tokens: 1024,
-                system: systemPrompt,
-                messages: __aiChatHistory
-            })
-        });
-        const data = await res.json().catch(() => null);
-        if (!res.ok) {
-            throw new Error((data && (data.error?.message || data.error)) || `HTTP ${res.status}`);
+        const tools = canManageAccounts ? AI_TOOLS : undefined;
+        let workingMessages = __aiChatHistory.slice();
+        let finalReplyText = null;
+        // A tool call needs at least one more model turn to turn its result into a
+        // human-readable reply (and could in principle chain into another tool call), so
+        // this loops rather than assuming one request is enough — capped hard so a
+        // misbehaving model can never turn one chat turn into unbounded API calls.
+        for (let round = 0; round < 4; round++) {
+            const res = await fetch(`${cloud.supabaseUrl}/functions/v1/ai-chat`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'apikey': cloud.supabaseKey
+                },
+                body: JSON.stringify({
+                    model: cfg.model,
+                    max_tokens: 1024,
+                    system: systemPrompt,
+                    messages: workingMessages,
+                    ...(tools ? { tools } : {})
+                })
+            });
+            const data = await res.json().catch(() => null);
+            if (!res.ok) {
+                throw new Error((data && (data.error?.message || data.error)) || `HTTP ${res.status}`);
+            }
+
+            const content = data.content || [];
+            const toolUses = content.filter(b => b.type === 'tool_use');
+
+            if (toolUses.length === 0) {
+                const textBlock = content.find(b => b.type === 'text');
+                finalReplyText = textBlock ? textBlock.text : 'មិនអាចទទួលបានចម្លើយបានទេ។';
+                workingMessages = [...workingMessages, { role: 'assistant', content: finalReplyText }];
+                break;
+            }
+
+            // Record the model's tool_use turn verbatim, run each requested tool locally
+            // (permission-checked + human-confirmed inside aiHandleSetAccountStatus), then
+            // feed the results back as the next 'user' turn so the model can phrase a reply.
+            workingMessages = [...workingMessages, { role: 'assistant', content }];
+            const toolResults = [];
+            for (const tu of toolUses) {
+                const resultText = tu.name === 'set_account_status'
+                    ? await aiHandleSetAccountStatus(tu.input || {})
+                    : `Unknown tool: ${tu.name}`;
+                toolResults.push({ type: 'tool_result', tool_use_id: tu.id, content: resultText });
+            }
+            workingMessages = [...workingMessages, { role: 'user', content: toolResults }];
         }
-        const textBlock = (data.content || []).find(b => b.type === 'text');
-        const replyText = textBlock ? textBlock.text : 'មិនអាចទទួលបានចម្លើយបានទេ។';
-        aiUpdateChatBubble(thinkingId, replyText);
-        // Only remembered once we actually have a real reply — a failed turn (below)
-        // leaves the user's question in history but adds no assistant half to it.
-        if (textBlock) __aiChatHistory.push({ role: 'assistant', content: replyText });
+
+        if (finalReplyText === null) finalReplyText = 'សុំទោស សំណើនេះស្មុគស្មាញពេក សូមសាកល្បងម្តងទៀត។';
+        aiUpdateChatBubble(thinkingId, finalReplyText);
+        // Only committed once we actually have a real final reply — a failed turn (below)
+        // leaves the user's question in __aiChatHistory but adds no assistant half to it.
+        __aiChatHistory = workingMessages;
+        if (__aiChatHistory.length > AI_CHAT_HISTORY_MAX_MESSAGES) {
+            __aiChatHistory = __aiChatHistory.slice(__aiChatHistory.length - AI_CHAT_HISTORY_MAX_MESSAGES);
+        }
     } catch (e) {
         console.error('AI chat error:', e);
         aiUpdateChatBubble(thinkingId, `មានបញ្ហាក្នុងការទាក់ទង AI៖ ${e.message}`);

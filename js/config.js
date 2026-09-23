@@ -31,10 +31,19 @@ const LS_KEYS = {
 };
 const DEFAULT_AVATAR_SRC = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NjYyI+PHBhdGggZD0iTTEyIDEyYzIuMjEgMCA0LTEuNzkgNC00cy0xLjc5LTQtNC00LTQgMS43OS00IDQgMS43OSA0IDQgNHptMCAyYy0yLjY3IDAtOCAxLjM0LTggNHYyaDE2di0yYzAtMi42Ni01LjMzLTQtOC00eiIvPjwvc3ZnPg==';
 const PERMISSIONS = {
-  admin:   { canManageUsers: true, canDeleteCustomer: true, canArchiveLoan: true, canDeleteLoan: true, canDeleteSavings: true, canEditLoan: true, canRefinanceLoan: true, canViewAllLoans: true, canManageSystem: true, canManagePayments: true, canWriteOff: true, canApproveLoan: true },
-  manager: { canManageUsers: false, canDeleteCustomer: true, canArchiveLoan: true, canDeleteLoan: true, canDeleteSavings: true, canEditLoan: true, canRefinanceLoan: true, canViewAllLoans: true, canManageSystem: false, canManagePayments: true, canWriteOff: true, canApproveLoan: true },
-  officer: { canManageUsers: false, canDeleteCustomer: false, canArchiveLoan: false, canDeleteLoan: false, canDeleteSavings: false, canEditLoan: false, canRefinanceLoan: false, canViewAllLoans: false, canManageSystem: false, canManagePayments: true, canWriteOff: false, canApproveLoan: false },
-  viewer:  { canManageUsers: false, canDeleteCustomer: false, canArchiveLoan: false, canDeleteLoan: false, canDeleteSavings: false, canEditLoan: false, canRefinanceLoan: false, canViewAllLoans: true, canManageSystem: false, canManagePayments: false, canWriteOff: false, canApproveLoan: false }
+  // canManageAccountStatus: a narrower permission than canManageUsers — it only allows
+  // freezing/unfreezing (locking/unlocking) an EXISTING account's login, not creating,
+  // editing, or deleting accounts. Admins get it via canManageUsers already; managers get
+  // it here too (per product decision) so the AI chatbot's set_account_status tool (ai.js)
+  // and any future quick-lock UI can be used by both roles, without granting managers full
+  // user CRUD. NOTE: this is enforced client-side only — the Supabase RLS policy on
+  // app_user_roles (schema.sql, not in this repo) must also allow managers to PATCH
+  // is_frozen/failed_attempts on other users' rows, or their attempts will fail at the DB
+  // layer even though the UI lets them try.
+  admin:   { canManageUsers: true, canManageAccountStatus: true, canDeleteCustomer: true, canArchiveLoan: true, canDeleteLoan: true, canDeleteSavings: true, canEditLoan: true, canRefinanceLoan: true, canViewAllLoans: true, canManageSystem: true, canManagePayments: true, canWriteOff: true, canApproveLoan: true },
+  manager: { canManageUsers: false, canManageAccountStatus: true, canDeleteCustomer: true, canArchiveLoan: true, canDeleteLoan: true, canDeleteSavings: true, canEditLoan: true, canRefinanceLoan: true, canViewAllLoans: true, canManageSystem: false, canManagePayments: true, canWriteOff: true, canApproveLoan: true },
+  officer: { canManageUsers: false, canManageAccountStatus: false, canDeleteCustomer: false, canArchiveLoan: false, canDeleteLoan: false, canDeleteSavings: false, canEditLoan: false, canRefinanceLoan: false, canViewAllLoans: false, canManageSystem: false, canManagePayments: true, canWriteOff: false, canApproveLoan: false },
+  viewer:  { canManageUsers: false, canManageAccountStatus: false, canDeleteCustomer: false, canArchiveLoan: false, canDeleteLoan: false, canDeleteSavings: false, canEditLoan: false, canRefinanceLoan: false, canViewAllLoans: true, canManageSystem: false, canManagePayments: false, canWriteOff: false, canApproveLoan: false }
 };
 const ROWS_PER_PAGE = 25;
 const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutes
