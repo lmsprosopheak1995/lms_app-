@@ -23,15 +23,28 @@
 //      sent directly to the customer; there is no SMS/customer-Telegram
 //      gateway in this app).
 //   5) Data chatbot — natural-language Q&A over a condensed, permission-
-//      scoped snapshot of the portfolio, via the Anthropic Messages API.
+//      scoped snapshot of the portfolio, via the Google Gemini API
+//      (generateContent).
 //
 // SECURITY NOTE: the chatbot calls a Supabase Edge Function
 // (`ai-chat`, see supabase/functions/ai-chat/index.ts) rather than the
-// Anthropic API directly. The Anthropic key lives only in that function's
-// server-side secrets (set via `supabase secrets set ANTHROPIC_API_KEY=...`)
+// Gemini API directly. The Gemini key lives only in that function's
+// server-side secrets (set via `supabase secrets set GEMINI_API_KEY=...`)
 // and is never sent to or stored in the browser. The Edge Function checks
 // the caller's Supabase auth session before it will spend that key, so only
 // logged-in users of this app can use the chatbot.
+//
+// IMPORTANT — SERVER-SIDE CHANGE STILL NEEDED: this file only controls what
+// the browser sends/expects. `supabase/functions/ai-chat/index.ts` isn't
+// part of this file set, so it still needs to be updated by hand to (a)
+// forward requests to Google's endpoint instead of Anthropic's, e.g.
+// `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=GEMINI_API_KEY`,
+// (b) send the body through mostly as-is (it's now already in Gemini's
+// `{ contents, systemInstruction, tools, generationConfig }` shape — see
+// sendAIChatMessage below), and (c) return Gemini's raw JSON response
+// (`{ candidates: [...] }`) back to the browser unmodified. Until that
+// function is updated, the chatbot will keep failing/erroring even though
+// the client code below is already speaking Gemini's format.
 // =====================================================================
 
 // ===================== RISK SCORING (rule-based, offline) =====================
@@ -362,8 +375,9 @@ function runAIPaymentReminders(force) {
 // ===================== CHATBOT =====================
 // Conversation memory: kept in-memory only (not persisted/synced — resets on page
 // reload or when the user explicitly starts a new conversation via resetAIChat()).
-// Each entry is { role: 'user'|'assistant', content: string }, sent back to the
-// Anthropic Messages API on every turn so the model has the prior turns of THIS
+// Each entry is { role: 'user'|'model', content: string } — Gemini calls the
+// assistant turn "model" rather than "assistant" — sent back to the Gemini
+// generateContent API on every turn so the model has the prior turns of THIS
 // conversation to work from. Capped to the most recent N messages so a very long
 // back-and-forth doesn't grow the request without bound.
 let __aiChatHistory = [];
@@ -378,23 +392,29 @@ const AI_CHAT_HISTORY_MAX_MESSAGES = 20;
 // model choosing to call the tool is never itself authorization.
 //
 // DEPENDS ON THE EDGE FUNCTION: this assumes the `ai-chat` Supabase Edge Function forwards any
-// extra fields in the request body (here: `tools`) straight through to the Anthropic Messages
-// API call, the same way it already forwards model/system/messages — the same server-side
-// change needs `tool_use` blocks in the Anthropic response to survive the round trip back to
+// extra fields in the request body (here: `tools`) straight through to the Gemini generateContent
+// API call, the same way it already forwards contents/systemInstruction — the same server-side
+// change needs `functionCall` parts in the Gemini response to survive the round trip back to
 // the browser unmodified. That function's source isn't part of this file set, so double-check
 // it against supabase/functions/ai-chat/index.ts before relying on this in production.
+// Gemini's `tools` shape is `[{ functionDeclarations: [ {name, description, parameters} ] }]`
+// (Anthropic's flat `{name, description, input_schema}` list doesn't apply here anymore).
 const AI_TOOLS = [
     {
-        name: 'set_account_status',
-        description: "Freeze (lock/suspend) or unfreeze (unlock/reactivate) a staff user's login account. Only call this when the admin/manager explicitly asks to lock, suspend, freeze, unlock, unfreeze, or reactivate a SPECIFIC named account — never as a guess or side effect of answering something else. If it's unclear which account they mean, ask them to clarify instead of calling this tool.",
-        input_schema: {
-            type: 'object',
-            properties: {
-                user_query: { type: 'string', description: 'The username or full name of the account, exactly as the person referred to it (Khmer or Latin script).' },
-                action: { type: 'string', enum: ['freeze', 'unfreeze'], description: "'freeze' to lock/suspend the account so it can no longer log in; 'unfreeze' to unlock/reactivate it." }
-            },
-            required: ['user_query', 'action']
-        }
+        functionDeclarations: [
+            {
+                name: 'set_account_status',
+                description: "Freeze (lock/suspend) or unfreeze (unlock/reactivate) a staff user's login account. Only call this when the admin/manager explicitly asks to lock, suspend, freeze, unlock, unfreeze, or reactivate a SPECIFIC named account — never as a guess or side effect of answering something else. If it's unclear which account they mean, ask them to clarify instead of calling this tool.",
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        user_query: { type: 'string', description: 'The username or full name of the account, exactly as the person referred to it (Khmer or Latin script).' },
+                        action: { type: 'string', enum: ['freeze', 'unfreeze'], description: "'freeze' to lock/suspend the account so it can no longer log in; 'unfreeze' to unlock/reactivate it." }
+                    },
+                    required: ['user_query', 'action']
+                }
+            }
+        ]
     }
 ];
 
@@ -477,7 +497,7 @@ async function aiHandleSetAccountStatus(input) {
 function getAIConfig() {
     const s = appSettings || {};
     return {
-        model: s.aiModel || 'claude-sonnet-4-6',
+        model: s.aiModel || 'gemini-2.5-flash',
         enabled: !!s.aiChatEnabled,
         autoDecision: {
             enabled: !!s.aiAutoDecisionEnabled,
@@ -597,18 +617,19 @@ async function sendAIChatMessage(question) {
     // Add this question to the running conversation, then send the model the
     // recent history (trimmed) + this turn — not just the bare question — so
     // it can resolve follow-ups like "តើអ្នកនោះដែរឬទេ?" against earlier turns.
-    // The API requires strictly alternating user/assistant turns: if the last
-    // turn failed (see catch below), its unanswered 'user' entry is still the
-    // most recent one — drop it first so we never send two 'user' turns in a row.
+    // Each entry is already stored in Gemini's `contents` shape: { role, parts }.
+    // Gemini also wants strictly alternating user/model turns: if the last turn
+    // failed (see catch below), its unanswered 'user' entry is still the most
+    // recent one — drop it first so we never send two 'user' turns in a row.
     if (__aiChatHistory.length && __aiChatHistory[__aiChatHistory.length - 1].role === 'user') {
         __aiChatHistory.pop();
     }
-    __aiChatHistory.push({ role: 'user', content: question });
+    __aiChatHistory.push({ role: 'user', parts: [{ text: question }] });
     if (__aiChatHistory.length > AI_CHAT_HISTORY_MAX_MESSAGES) {
         __aiChatHistory = __aiChatHistory.slice(__aiChatHistory.length - AI_CHAT_HISTORY_MAX_MESSAGES);
     }
-    // The API also requires the conversation to START on a 'user' turn — the trim above can
-    // land on an 'assistant' entry first (its matching 'user' got cut), so drop that leftover too.
+    // Gemini also requires the conversation to START on a 'user' turn — the trim above can
+    // land on a 'model'/'function' entry first (its matching 'user' got cut), so drop it too.
     if (__aiChatHistory.length && __aiChatHistory[0].role !== 'user') {
         __aiChatHistory.shift();
     }
@@ -616,7 +637,7 @@ async function sendAIChatMessage(question) {
     try {
         // Auth: reuse the same Supabase session used for all other cloud reads/writes
         // (see cloud-sync.js / db.js) — the Edge Function checks this token belongs to
-        // a real logged-in user before it will spend the (server-side) Anthropic key.
+        // a real logged-in user before it will spend the (server-side) Gemini key.
         const cloud = getCloudSettings();
         const session = await ensureSupabaseSession();
         if (!session || !session.access_token) {
@@ -624,7 +645,7 @@ async function sendAIChatMessage(question) {
         }
 
         const tools = canManageAccounts ? AI_TOOLS : undefined;
-        let workingMessages = __aiChatHistory.slice();
+        let workingContents = __aiChatHistory.slice();
         let finalReplyText = null;
         // A tool call needs at least one more model turn to turn its result into a
         // human-readable reply (and could in principle chain into another tool call), so
@@ -640,9 +661,9 @@ async function sendAIChatMessage(question) {
                 },
                 body: JSON.stringify({
                     model: cfg.model,
-                    max_tokens: 1024,
-                    system: systemPrompt,
-                    messages: workingMessages,
+                    systemInstruction: { parts: [{ text: systemPrompt }] },
+                    contents: workingContents,
+                    generationConfig: { maxOutputTokens: 1024 },
                     ...(tools ? { tools } : {})
                 })
             });
@@ -651,35 +672,40 @@ async function sendAIChatMessage(question) {
                 throw new Error((data && (data.error?.message || data.error)) || `HTTP ${res.status}`);
             }
 
-            const content = data.content || [];
-            const toolUses = content.filter(b => b.type === 'tool_use');
+            // Gemini's reply lives at candidates[0].content.parts — a mix of {text}
+            // and/or {functionCall:{name,args}} parts (Anthropic's flat
+            // content:[{type:'text'|'tool_use'}] array doesn't apply here anymore).
+            const candidate = (data.candidates && data.candidates[0]) || null;
+            const parts = (candidate && candidate.content && candidate.content.parts) || [];
+            const functionCalls = parts.filter(p => p.functionCall);
 
-            if (toolUses.length === 0) {
-                const textBlock = content.find(b => b.type === 'text');
-                finalReplyText = textBlock ? textBlock.text : 'មិនអាចទទួលបានចម្លើយបានទេ។';
-                workingMessages = [...workingMessages, { role: 'assistant', content: finalReplyText }];
+            if (functionCalls.length === 0) {
+                const textPart = parts.find(p => typeof p.text === 'string');
+                finalReplyText = textPart ? textPart.text : 'មិនអាចទទួលបានចម្លើយបានទេ។';
+                workingContents = [...workingContents, { role: 'model', parts: [{ text: finalReplyText }] }];
                 break;
             }
 
-            // Record the model's tool_use turn verbatim, run each requested tool locally
+            // Record the model's functionCall turn verbatim, run each requested tool locally
             // (permission-checked + human-confirmed inside aiHandleSetAccountStatus), then
-            // feed the results back as the next 'user' turn so the model can phrase a reply.
-            workingMessages = [...workingMessages, { role: 'assistant', content }];
-            const toolResults = [];
-            for (const tu of toolUses) {
-                const resultText = tu.name === 'set_account_status'
-                    ? await aiHandleSetAccountStatus(tu.input || {})
-                    : `Unknown tool: ${tu.name}`;
-                toolResults.push({ type: 'tool_result', tool_use_id: tu.id, content: resultText });
+            // feed the results back as a 'function' turn so the model can phrase a reply.
+            workingContents = [...workingContents, { role: 'model', parts }];
+            const responseParts = [];
+            for (const p of functionCalls) {
+                const fc = p.functionCall;
+                const resultText = fc.name === 'set_account_status'
+                    ? await aiHandleSetAccountStatus(fc.args || {})
+                    : `Unknown tool: ${fc.name}`;
+                responseParts.push({ functionResponse: { name: fc.name, response: { content: resultText } } });
             }
-            workingMessages = [...workingMessages, { role: 'user', content: toolResults }];
+            workingContents = [...workingContents, { role: 'function', parts: responseParts }];
         }
 
         if (finalReplyText === null) finalReplyText = 'សុំទោស សំណើនេះស្មុគស្មាញពេក សូមសាកល្បងម្តងទៀត។';
         aiUpdateChatBubble(thinkingId, finalReplyText);
         // Only committed once we actually have a real final reply — a failed turn (below)
-        // leaves the user's question in __aiChatHistory but adds no assistant half to it.
-        __aiChatHistory = workingMessages;
+        // leaves the user's question in __aiChatHistory but adds no model half to it.
+        __aiChatHistory = workingContents;
         if (__aiChatHistory.length > AI_CHAT_HISTORY_MAX_MESSAGES) {
             __aiChatHistory = __aiChatHistory.slice(__aiChatHistory.length - AI_CHAT_HISTORY_MAX_MESSAGES);
         }
