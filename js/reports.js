@@ -137,6 +137,9 @@ function getDateRange(filterValue) {
 }
 
 
+// Old summary cards were removed from the dashboard; tolerate missing elements.
+function setDashText(id, v) { const el = document.getElementById(id); if (el) el.textContent = v; }
+
 function renderDashboard() {
     // === Main Metrics (Active Loans) ===
     const activeLoans = loans.filter(l => ['active', 'overdue'].includes(getLoanComputedStatus(l).key));
@@ -153,10 +156,10 @@ function renderDashboard() {
         });
     });
 
-    document.getElementById('totalLoans').textContent = activeLoans.length;
-    document.getElementById('totalLoanAmount').textContent = fmtMoney(totalActiveAmountUSD, 'USD');
-    document.getElementById('totalExpectedInterest').textContent = fmtMoney(totalExpectedInterestUSD, 'USD');
-    document.getElementById('totalLateInterest').textContent = fmtMoney(totalLateInterestUSD, 'USD');
+    setDashText('totalLoans', activeLoans.length);
+    setDashText('totalLoanAmount', fmtMoney(totalActiveAmountUSD, 'USD'));
+    setDashText('totalExpectedInterest', fmtMoney(totalExpectedInterestUSD, 'USD'));
+    setDashText('totalLateInterest', fmtMoney(totalLateInterestUSD, 'USD'));
 
     // === Date-Filtered Metrics ===
     const range = getDateRange(document.getElementById('dashboardDateRange').value);
@@ -185,9 +188,9 @@ function renderDashboard() {
         });
     }
 
-    document.getElementById('db_new_loans').textContent = newLoansCount;
-    document.getElementById('db_disbursed').textContent = fmtMoney(disbursedAmountUSD, 'USD');
-    document.getElementById('db_collected').textContent = fmtMoney(collectedAmountUSD, 'USD');
+    setDashText('db_new_loans', newLoansCount);
+    setDashText('db_disbursed', fmtMoney(disbursedAmountUSD, 'USD'));
+    setDashText('db_collected', fmtMoney(collectedAmountUSD, 'USD'));
 
     // === Savings Statistics ===
     let savingsActiveCount = 0;
@@ -207,10 +210,10 @@ function renderDashboard() {
         }
     });
 
-    document.getElementById('db_savings_active_count').textContent = savingsActiveCount;
-    document.getElementById('db_savings_completed_count').textContent = savingsCompletedCount;
-    document.getElementById('db_savings_total_saved').textContent = fmtMoney(savingsTotalSavedUSD, 'USD');
-    document.getElementById('db_savings_total_interest').textContent = fmtMoney(savingsTotalInterestUSD, 'USD');
+    setDashText('db_savings_active_count', savingsActiveCount);
+    setDashText('db_savings_completed_count', savingsCompletedCount);
+    setDashText('db_savings_total_saved', fmtMoney(savingsTotalSavedUSD, 'USD'));
+    setDashText('db_savings_total_interest', fmtMoney(savingsTotalInterestUSD, 'USD'));
 
     // === Late Loans Table ===
     const lateLoans = loans.filter(l => getLoanComputedStatus(l).key === 'overdue').slice(0, 10);
