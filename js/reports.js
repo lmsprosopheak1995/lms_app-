@@ -259,6 +259,8 @@ function renderDashboard() {
             }
         }
     });
+
+    renderDashboardHub();
 }
 
 function renderAnalysisCharts() {
@@ -738,3 +740,109 @@ function generateAnnualReport() {
 }
 
 
+
+
+// ===================== DASHBOARD HUB (4 quick cards) =====================
+let hubCurrency = 'USD';
+
+function setHubCurrency(cur) {
+    hubCurrency = cur === 'KHR' ? 'KHR' : 'USD';
+    renderDashboardHub();
+}
+
+// Navigation helpers used by the hub menu items
+function hubOpenLoans(status) {
+    switchTab('loans');
+    const f = document.getElementById('filterStatus');
+    if (f) { f.value = status; currentPage = 1; displayLoans(); }
+}
+function hubOpenCollections(offsetDays) {
+    switchTab('collections');
+    const d = document.getElementById('collectionsDate');
+    if (d) { d.value = formatDateISO(addDays(new Date(), offsetDays)); renderCollectionsTable(); }
+}
+function hubOpenReport(sub) {
+    switchTab('reports');
+    switchSubTab('reports', sub);
+}
+
+function renderDashboardHub() {
+    if (!document.getElementById('dashboardHub')) return;
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    const cur = hubCurrency;
+    // Plain numbers (no symbol) like the reference design; the $ / ៛ toggle shows the unit.
+    const fmt = (usd) => {
+        const v = convertCurrency(usd, 'USD', cur);
+        return cur === 'USD'
+            ? v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+            : Math.round(v).toLocaleString('en-US');
+    };
+
+    const loanById = {};
+    loans.forEach(l => { loanById[l.loanId] = l; });
+
+    // --- Top counts ---
+    set('hub_customers_count', customers.length);
+    const debtors = new Set();
+    loans.forEach(l => {
+        const k = getLoanComputedStatus(l).key;
+        if ((k === 'active' || k === 'overdue') && l.customerId) debtors.add(l.customerId);
+    });
+    set('hub_debtors_count', debtors.size);
+    const collateralOwners = new Set();
+    collaterals.forEach(c => {
+        const l = loanById[c.loanId];
+        if (l && l.customerId) collateralOwners.add(l.customerId);
+    });
+    set('hub_collateral_count', collateralOwners.size);
+
+    // --- Income / expense summary (same allocation rules as generatePlReport), honouring the dashboard date filter ---
+    const range = getDateRange(document.getElementById('dashboardDateRange').value);
+    const inRange = (d) => !range.start || (d >= range.start && d <= range.end);
+    const income = { interest: 0, late: 0, penalty: 0, service: 0 };
+    const cnt = { interest: 0, late: 0, penalty: 0, service: 0, all: 0 };
+    const schedCache = {};
+    for (const key in payments) {
+        const loan = loanById[key.slice(0, key.lastIndexOf('-'))];
+        if (!loan) continue;
+        const instIndex = key.slice(key.lastIndexOf('-') + 1);
+        payments[key].forEach(p => {
+            if (!inRange(parseDate(p.date))) return;
+            if (!schedCache[loan.loanId]) schedCache[loan.loanId] = buildSchedule(loan);
+            const inst = schedCache[loan.loanId].find(i => i.index == instIndex);
+            if (!inst) return;
+            cnt.all++;
+            let remaining = p.amount;
+            const allocate = (due, name) => {
+                const paid = Math.min(remaining, due);
+                remaining -= paid;
+                if (paid > 0) cnt[name]++;
+                return convertCurrency(paid, loan.currency, 'USD');
+            };
+            income.penalty  += allocate(inst.penalty, 'penalty');
+            income.late     += allocate(inst.lateInterest, 'late');
+            income.service  += allocate(inst.serviceFee + inst.adminFee + inst.insuranceFee, 'service');
+            income.interest += allocate(inst.interest, 'interest');
+        });
+    }
+    let expUSD = 0, expN = 0;
+    expenses.forEach(ex => {
+        if (inRange(parseDate(ex.date))) { expUSD += convertCurrency(ex.amount, ex.currency, 'USD'); expN++; }
+    });
+    const totalIncome = income.interest + income.late + income.penalty + income.service;
+    const net = totalIncome - expUSD;
+
+    set('hub_int_n', cnt.interest);  set('hub_int_a', fmt(income.interest));
+    set('hub_late_n', cnt.late);     set('hub_late_a', fmt(income.late));
+    set('hub_pen_n', cnt.penalty);   set('hub_pen_a', fmt(income.penalty));
+    set('hub_svc_n', cnt.service);   set('hub_svc_a', fmt(income.service));
+    set('hub_inc_n', cnt.all);       set('hub_inc_a', fmt(totalIncome));
+    set('hub_exp_n', expN);          set('hub_exp_a', fmt(expUSD));
+    set('hub_net_n', cnt.all);       set('hub_net_a', fmt(net));
+    const netEl = document.getElementById('hub_net_a');
+    if (netEl) netEl.style.color = net >= 0 ? 'var(--success)' : 'var(--danger)';
+
+    const usdBtn = document.getElementById('hubCurUSD'), khrBtn = document.getElementById('hubCurKHR');
+    if (usdBtn) usdBtn.classList.toggle('active', cur === 'USD');
+    if (khrBtn) khrBtn.classList.toggle('active', cur === 'KHR');
+}
