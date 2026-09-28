@@ -251,6 +251,64 @@
     </div>
 
     <div id="dashboardTab" class="tab-content active">
+        <div class="hub-grid" id="dashboardHub">
+            <div class="hub-card">
+                <div class="hub-head"><span class="hub-icon hub-blue"><i class="fas fa-users"></i></span><span class="hub-title">អតិថិជនសរុប</span></div>
+                <div class="hub-count" id="hub_customers_count">0</div>
+                <div class="hub-sub">ព័ត៌មានអតិថិជន</div>
+                <div class="hub-menu">
+                    <button type="button" class="hub-item" onclick="hubOpenLoans('overdue')"><span><i class="fas fa-exclamation-triangle"></i>អតិថិជនយឺត</span><i class="fas fa-chevron-right hub-arrow"></i></button>
+                    <button type="button" class="hub-item" onclick="hubOpenLoans('completed')"><span><i class="fas fa-user-times"></i>អតិថិជនដាច់</span><i class="fas fa-chevron-right hub-arrow"></i></button>
+                    <button type="button" class="hub-item" onclick="hubOpenCollections(0)"><span><i class="fas fa-chart-bar"></i>អតិថិជនត្រូវប្រមូល</span><i class="fas fa-chevron-right hub-arrow"></i></button>
+                    <button type="button" class="hub-item" onclick="hubOpenCollections(1)"><span><i class="fas fa-user"></i>បញ្ជីអតិថិជនត្រូវប្រមូលស្អែក</span><i class="fas fa-chevron-right hub-arrow"></i></button>
+                </div>
+            </div>
+            <div class="hub-card">
+                <div class="hub-head"><span class="hub-icon hub-orange"><i class="fas fa-credit-card"></i></span><span class="hub-title">អតិថិជនជាប់ជំពាក់</span></div>
+                <div class="hub-count" id="hub_debtors_count">0</div>
+                <div class="hub-sub">ព័ត៌មានហិរញ្ញវត្ថុ</div>
+                <div class="hub-menu">
+                    <button type="button" class="hub-item" onclick="hubOpenReport('financialReport')"><span><i class="fas fa-exchange-alt"></i>ប្រាក់ចេញចូល</span><i class="fas fa-chevron-right hub-arrow"></i></button>
+                    <button type="button" class="hub-item" onclick="hubOpenReport('plReport')"><span><i class="fas fa-money-bill-wave"></i>ចំណេញ និងខាត</span><i class="fas fa-chevron-right hub-arrow"></i></button>
+                    <button type="button" class="hub-item" onclick="hubOpenReport('annualReport')"><span><i class="fas fa-file-alt"></i>របាយការណ៍ប្រចាំឆ្នាំ</span><i class="fas fa-chevron-right hub-arrow"></i></button>
+                </div>
+            </div>
+            <div class="hub-card">
+                <div class="hub-head"><span class="hub-icon hub-purple"><i class="fas fa-user-plus"></i></span><span class="hub-title">អតិថិជនតម្កល់ទ្រព្យ</span></div>
+                <div class="hub-count" id="hub_collateral_count">0</div>
+                <div class="hub-sub">កិច្ចការផ្សេងៗ</div>
+                <div class="hub-menu">
+                    <button type="button" class="hub-item" onclick="hubOpenLoans('archived')"><span><i class="fas fa-clipboard"></i>បិទបញ្ជី</span><i class="fas fa-chevron-right hub-arrow"></i></button>
+                    <button type="button" class="hub-item" onclick="switchTab('clientAccount')"><span><i class="fas fa-user-check"></i>ប្រវត្តិសងប្រាក់</span><i class="fas fa-chevron-right hub-arrow"></i></button>
+                    <button type="button" class="hub-item" onclick="switchTab('customerReport')"><span><i class="fas fa-bullseye"></i>របាយការណ៍សង្ខេប</span><i class="fas fa-chevron-right hub-arrow"></i></button>
+                    <button type="button" class="hub-item" onclick="hubOpenCollections(0)"><span><i class="fas fa-chart-line"></i>ចុះប្រតិបត្តិការ</span><i class="fas fa-chevron-right hub-arrow"></i></button>
+                </div>
+            </div>
+            <div class="hub-card hub-summary">
+                <div class="hub-head">
+                    <span class="hub-icon hub-green"><i class="fas fa-chart-pie"></i></span><span class="hub-title">សង្ខេប</span>
+                    <div class="hub-toggle" role="group" aria-label="រូបិយប័ណ្ណ">
+                        <button type="button" id="hubCurUSD" class="active" onclick="setHubCurrency('USD')">$</button>
+                        <button type="button" id="hubCurKHR" onclick="setHubCurrency('KHR')">៛</button>
+                    </div>
+                </div>
+                <table class="hub-table">
+                    <thead><tr><th colspan="3">ប្រាក់ចំណូល</th></tr></thead>
+                    <tbody>
+                        <tr><td>ចំណូលពីការប្រាក់</td><td class="n" id="hub_int_n">0</td><td class="a" id="hub_int_a">0</td></tr>
+                        <tr><td>ចំណូលពីការប្រាក់យឺត</td><td class="n" id="hub_late_n">0</td><td class="a" id="hub_late_a">0</td></tr>
+                        <tr><td>ចំណូលពីការផាកពិន័យ</td><td class="n" id="hub_pen_n">0</td><td class="a" id="hub_pen_a">0</td></tr>
+                        <tr><td>ចំណូលពីសេវាកម្ម</td><td class="n" id="hub_svc_n">0</td><td class="a" id="hub_svc_a">0</td></tr>
+                        <tr class="hub-total"><td>សរុបប្រាក់ចំណូល</td><td class="n" id="hub_inc_n">0</td><td class="a" id="hub_inc_a">0</td></tr>
+                    </tbody>
+                    <thead><tr><th colspan="3">ចំណាយ</th></tr></thead>
+                    <tbody>
+                        <tr class="hub-expense"><td>សរុបចំណាយ</td><td class="n" id="hub_exp_n">0</td><td class="a" id="hub_exp_a">0</td></tr>
+                        <tr class="hub-total"><td>ប្រាក់ចំណេញ/ខាតសុទ្ធ</td><td class="n" id="hub_net_n">0</td><td class="a" id="hub_net_a">0</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
         <div class="card" style="margin-bottom: 16px;">
             <div class="grid autofit" style="align-items: end; gap: 16px;">
                 <div><label for="dashboardDateRange"><i class="fas fa-filter"></i> តម្រងទិន្នន័យតាមកាលបរិច្ឆេទ</label><select id="dashboardDateRange"><option value="all">ចាប់តាំងពីដើម</option><option value="this_month">ខែនេះ</option><option value="last_month">ខែមុន</option><option value="this_quarter">ត្រីមាសនេះ</option><option value="this_year">ឆ្នាំនេះ</option></select></div>
