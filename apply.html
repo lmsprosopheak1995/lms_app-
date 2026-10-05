@@ -60,8 +60,8 @@ a{color:inherit}
 
 .grid{display:grid;gap:16px 18px;grid-template-columns:repeat(12,1fr);margin-bottom:18px}
 .f{grid-column:span 12;min-width:0}
-.s3{grid-column:span 3}.s4{grid-column:span 4}.s5{grid-column:span 5}.s6{grid-column:span 6}.s8{grid-column:span 8}
-@media(max-width:760px){.s3,.s4,.s5,.s6,.s8{grid-column:span 12}.s3.half{grid-column:span 6}.panel{padding:22px 18px 4px}}
+.s3{grid-column:span 3}.s4{grid-column:span 4}.s5{grid-column:span 5}.s6{grid-column:span 6}.s7{grid-column:span 7}.s8{grid-column:span 8}
+@media(max-width:760px){.s3,.s4,.s5,.s6,.s7,.s8{grid-column:span 12}.s3.half{grid-column:span 6}.panel{padding:22px 18px 4px}}
 label,.lab{display:block;font-size:14px;font-weight:600;margin-bottom:6px}
 .req{color:var(--red-text);margin-left:3px}
 .opt{color:var(--muted);font-weight:400;font-size:12px;margin-left:4px}
@@ -191,7 +191,7 @@ footer{text-align:center;color:var(--muted);font-size:13px;padding:0 20px 40px}
       <div class="f s5"><label for="phone">លេខទូរសព្ទ (1)<span class="req">*</span></label><div class="prefix"><span>+855</span><input id="phone" type="tel" inputmode="tel" data-req placeholder="ឧ. 012345678" autocomplete="tel-national"></div></div>
 
       <div class="f s5"><label for="phone2">លេខទូរសព្ទ (2)<span class="opt">(មិនបង្ខំ)</span></label><div class="prefix"><span>+855</span><input id="phone2" type="tel" inputmode="tel" placeholder="ឧ. 012345678"></div></div>
-      <div class="f s7" style="grid-column:span 7"><label for="social">ហ្វេសប៊ុក / អ៊ីមែល<span class="opt">(មិនបង្ខំ)</span></label><input id="social" placeholder="facebook account | your@email.com"></div>
+      <div class="f s7"><label for="social">ហ្វេសប៊ុក / អ៊ីមែល<span class="opt">(មិនបង្ខំ)</span></label><input id="social" placeholder="facebook account | your@email.com"></div>
     </div>
 
     <p class="docs-title">អាសយដ្ឋានបច្ចុប្បន្ន</p>
@@ -254,7 +254,7 @@ footer{text-align:center;color:var(--muted);font-size:13px;padding:0 20px 40px}
   <h2>បានទទួលពាក្យស្នើសុំរបស់អ្នកហើយ</h2>
   <p>សូមអរគុណ។ ក្រុមការងារនឹងទាក់ទងទៅអ្នកតាមលេខទូរស័ព្ទដែលបានផ្តល់ឱ្យ។</p>
   <div class="reqid" id="doneId"></div>
-  <p>អ្នកអាចពិនិត្យស្ថានភាពសំណើនៅពេលក្រោយ ដោយប្រើលេខទូរស័ព្ទរបស់អ្នក។</p>
+  <p>សូមកត់ទុកលេខសំណើខាងលើ។ អ្នកអាចពិនិត្យស្ថានភាពនៅពេលក្រោយ ដោយប្រើលេខទូរស័ព្ទ និងលេខសំណើនេះ។</p>
   <button class="btn btn-ghost" type="button" id="doneStatus">ពិនិត្យស្ថានភាពសំណើ</button>
 </section>
 </main>
@@ -264,9 +264,10 @@ footer{text-align:center;color:var(--muted);font-size:13px;padding:0 20px 40px}
 <dialog id="statusDlg">
   <div class="dlg">
     <h3>ពិនិត្យស្ថានភាពសំណើសុំកម្ចី</h3>
-    <p>បញ្ចូលលេខទូរស័ព្ទដែលបានប្រើពេលដាក់ពាក្យ។</p>
+    <p>បញ្ចូលលេខទូរស័ព្ទ និងលេខសំណើដែលបានទទួលពេលដាក់ពាក្យ។</p>
     <form id="statusForm" novalidate>
       <div class="prefix"><span>+855</span><input id="csPhone" type="tel" inputmode="tel" placeholder="ឧ. 012345678" aria-label="លេខទូរស័ព្ទ"></div>
+      <input id="csReqId" placeholder="លេខសំណើ ឧ. REQ-AB12CD34EF" aria-label="លេខសំណើ" autocapitalize="characters" autocomplete="off" style="margin-top:10px">
       <div style="display:flex;gap:10px;margin-top:14px;justify-content:flex-end">
         <button class="btn btn-ghost" type="button" id="closeStatus">បិទ</button>
         <button class="btn btn-red" type="submit" id="csBtn">ស្វែងរក</button>
@@ -310,7 +311,9 @@ function fillSelect(el, items, placeholder = '-- ជ្រើសរើស --') {
 }
 function normPhone(raw) {
   let d = String(raw || '').replace(/\D/g, '');
-  if (d.startsWith('855')) d = d.slice(3);
+  // strip the country code only when it is clearly a country code (+855 / 00855 / 11-12 digits), so local numbers like 0855xxxxxx survive
+  if (d.startsWith('00855')) d = d.slice(5);
+  else if (d.startsWith('855') && d.length >= 11) d = d.slice(3);
   d = d.replace(/^0+/, '');
   return d ? '0' + d : '';
 }
@@ -318,6 +321,11 @@ const phoneOk = p => /^0\d{8,9}$/.test(p);
 const fmtMoney = (n, c) => c === 'USD' ? '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : Number(n).toLocaleString('en-US', { maximumFractionDigits: 0 }) + '៛';
 const currency = () => document.querySelector('input[name=currency]:checked').value;
 const occType = () => document.querySelector('input[name=occType]:checked').value;
+function maxDob() { // latest allowed birth date (local), as YYYY-MM-DD
+  const t = new Date(), p = n => String(n).padStart(2, '0');
+  t.setFullYear(t.getFullYear() - LR_TERMS.minAgeYears);
+  return `${t.getFullYear()}-${p(t.getMonth() + 1)}-${p(t.getDate())}`;
+}
 
 /* ============================ INIT FORM ============================ */
 fillSelect($('product'), PRODUCTS);
@@ -327,13 +335,13 @@ fillSelect($('term'), Array.from({ length: Math.round(LR_TERMS.termMaxDays / 30)
 document.querySelectorAll('.prov').forEach(s => fillSelect(s, PROVINCES, '-- ជ្រើសរើសខេត្ត --'));
 $('purposeList').innerHTML = PURPOSES.map(p => `<option value="${esc(p)}">`).join('');
 $('yr').textContent = new Date().getFullYear();
-$('dob').max = new Date().toISOString().split('T')[0];
+$('dob').max = maxDob();
 
 function updateAmountHint() {
   const usd = currency() === 'USD';
   $('amountHint').textContent = usd
     ? `អប្បបរមា ${LR_TERMS.amountMinUSD}$ / អតិបរមា ${LR_TERMS.amountMaxUSD}$`
-    : `អប្បបរមា ${LR_TERMS.amountMinKHR.toLocaleString()}៛ / អតិបរមា ${LR_TERMS.amountMaxKHR.toLocaleString()}៛`;
+    : `អប្បបរមា ${LR_TERMS.amountMinKHR.toLocaleString('en-US')}៛ / អតិបរមា ${LR_TERMS.amountMaxKHR.toLocaleString('en-US')}៛`;
   $('amount').placeholder = usd ? 'ឧ. 100' : 'ឧ. 500000';
 }
 document.querySelectorAll('input[name=currency]').forEach(r => r.addEventListener('change', updateAmountHint));
@@ -354,7 +362,8 @@ function setErr(el, msg) {
   if (msg) {
     if (!e) { e = document.createElement('div'); e.className = 'err'; w.appendChild(e); }
     e.textContent = msg; el.setAttribute('aria-invalid', 'true');
-  } else { if (e) e.remove(); el.removeAttribute('aria-invalid'); }
+    if (el.id) { e.id = el.id + '-err'; el.setAttribute('aria-describedby', e.id); }
+  } else { if (e) e.remove(); el.removeAttribute('aria-invalid'); el.removeAttribute('aria-describedby'); }
 }
 function fileProblem(inp) {
   const f = inp.files && inp.files[0];
@@ -377,9 +386,9 @@ function checkField(el) {
     case 'income': if (!(parseFloat(v) >= 0)) return 'ចំនួនមិនត្រឹមត្រូវ'; break;
     case 'phone': case 'phone2': if (!phoneOk(normPhone(v))) return 'លេខទូរស័ព្ទមិនត្រឹមត្រូវ (ឧ. 012345678)'; break;
     case 'dob': {
-      const d = new Date(v), lim = new Date(); lim.setFullYear(lim.getFullYear() - LR_TERMS.minAgeYears);
-      if (isNaN(d) || d > lim) return `អ្នកស្នើសុំត្រូវមានអាយុយ៉ាងតិច ${LR_TERMS.minAgeYears} ឆ្នាំ`;
-      if (d.getFullYear() < 1900) return 'ថ្ងៃកំណើតមិនត្រឹមត្រូវ';
+      const d = new Date(v);
+      if (isNaN(d) || v > maxDob()) return `អ្នកស្នើសុំត្រូវមានអាយុយ៉ាងតិច ${LR_TERMS.minAgeYears} ឆ្នាំ`;
+      if (Number(v.slice(0, 4)) < 1900) return 'ថ្ងៃកំណើតមិនត្រឹមត្រូវ';
       break; }
     case 'idNumber': if (v.replace(/[\s-]/g, '').length < 6) return 'លេខអត្តសញ្ញាណខ្លីពេក'; break;
   }
@@ -469,27 +478,49 @@ function renderReview() {
 }
 
 /* ============================ SUBMIT ============================ */
+const lsGet = k => { try { return localStorage.getItem(k); } catch { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch { /* storage disabled */ } };
+const EXT_BY_TYPE = { 'image/jpeg': 'jpg', 'image/png': 'png', 'application/pdf': 'pdf' };
+
+// Unguessable request id (~50 bits). Also acts as the 2nd factor for the status lookup.
+function newRequestId() {
+  const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 32 chars, no I/O/0/1
+  return 'REQ-' + Array.from(crypto.getRandomValues(new Uint8Array(10)), x => A[x % 32]).join('');
+}
+let pendingId = null;      // one id per form session, reused on retry (no duplicate rows)
+const uploaded = {};       // label -> { sig, reqId, att }: files already uploaded, skipped on retry
+
 function authHeaders(extra = {}) { return { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, ...extra }; }
 async function uploadDoc(reqId, label, file) {
-  const ext = (file.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const sig = [file.name, file.size, file.lastModified].join('|');
+  const prev = uploaded[label];
+  if (prev && prev.sig === sig && prev.reqId === reqId) return prev.att;
+  const ext = EXT_BY_TYPE[file.type];                       // extension from the validated MIME type, not the file name
+  if (!ext) throw new Error('unsupported type ' + file.type);
   const path = `${reqId}/${label}-${Date.now()}.${ext}`;
   const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${DOCS_BUCKET}/${path}`, {
     method: 'POST', headers: authHeaders({ 'Content-Type': file.type, 'x-upsert': 'false' }), body: file
   });
   if (!res.ok) throw new Error('upload ' + label + ' HTTP ' + res.status);
-  return { field: label, fileName: file.name, fileType: file.type, path };
+  const att = { field: label, fileName: file.name, fileType: file.type, path };
+  uploaded[label] = { sig, reqId, att };
+  return att;
 }
 function failMsg(t) { const e = $('formErr'); e.textContent = t; e.hidden = false; e.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
 
 async function submit() {
-  // Bot traps: honeypot + too-fast submission → pretend success, store nothing.
-  if ($('website').value || (Date.now() - loadedAt) / 1000 < MIN_FILL_SECONDS) { return finish('REQ-' + Date.now()); }
-  const last = Number(localStorage.getItem('apply_last_submit') || 0);
+  // Honeypot filled => bot: pretend success, store nothing.
+  if ($('website').value) { return finish(newRequestId()); }
+  // Real users who are just very fast get an honest message (nothing is silently dropped).
+  const wait = Math.ceil(MIN_FILL_SECONDS - (Date.now() - loadedAt) / 1000);
+  if (wait > 0) { return failMsg(`សូមពិនិត្យព័ត៌មានម្តងទៀត រួចចុច "ដាក់ពាក្យ" ក្នុង ${wait} វិនាទីទៀត។`); }
+  const last = Number(lsGet('apply_last_submit') || 0);
   if (Date.now() - last < COOLDOWN_MS) { return failMsg('អ្នកទើបតែបានដាក់ពាក្យ។ សូមរង់ចាំមួយនាទី រួចព្យាយាមម្តងទៀត។'); }
 
   const btn = $('nextBtn'); btn.disabled = true; btn.textContent = 'កំពុងផ្ញើ...';
   try {
-    const id = 'REQ-' + Date.now();
+    if (!pendingId) pendingId = newRequestId();
+    const id = pendingId;
     const attachments = [];
     for (const [inp, label] of [['docId', 'id-card'], ['docWork', 'work-proof'], ['docBank', 'bank-statement']]) {
       attachments.push(await uploadDoc(id, label, $(inp).files[0]));
@@ -499,12 +530,18 @@ async function submit() {
       method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
       body: JSON.stringify({ id, data })
     });
-    if (!res.ok) throw new Error('insert HTTP ' + res.status + ' ' + await res.text().catch(() => ''));
-    localStorage.setItem('apply_last_submit', String(Date.now()));
+    // 409 = this same (random, client-made) id was already stored by an earlier attempt whose reply got lost => success.
+    if (!res.ok && res.status !== 409) {
+      const t = await res.text().catch(() => '');
+      const e = new Error('insert HTTP ' + res.status + ' ' + t); e.limited = /rate_limit/.test(t); throw e;
+    }
+    lsSet('apply_last_submit', String(Date.now()));
     finish(id, data.phone);
   } catch (err) {
     console.error('apply submit error:', err);
-    failMsg('មិនអាចដាក់ពាក្យបានទេ។ សូមពិនិត្យអ៊ីនធឺណិត រួចព្យាយាមម្តងទៀត ឬទាក់ទងមកយើងដោយផ្ទាល់។');
+    failMsg(err.limited
+      ? 'សំណើពីលេខទូរស័ព្ទនេះច្រើនពេកហើយ។ សូមព្យាយាមម្តងទៀតនៅថ្ងៃស្អែក ឬទាក់ទងមកយើងដោយផ្ទាល់។'
+      : 'មិនអាចដាក់ពាក្យបានទេ។ សូមពិនិត្យអ៊ីនធឺណិត រួចព្យាយាមម្តងទៀត ឬទាក់ទងមកយើងដោយផ្ទាល់។');
     btn.disabled = false; btn.textContent = 'ដាក់ពាក្យ';
   }
 }
@@ -514,28 +551,35 @@ function finish(id, phone) {
   $('doneBox').hidden = false;
   $('doneId').textContent = 'លេខសំណើ: ' + id;
   window.__lastPhone = phone || '';
+  window.__lastId = id;
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 /* ============================ STATUS LOOKUP ============================ */
 const STATUS = { pending: 'រង់ចាំ', contacted: 'បានទាក់ទង', approved: 'អនុម័ត', rejected: 'បដិសេធ' };
 const dlg = $('statusDlg');
-function openStatus(prefill) { $('csOut').innerHTML = ''; if (prefill) $('csPhone').value = prefill.replace(/^0/, ''); dlg.showModal(); $('csPhone').focus(); }
+function openStatus(prefillPhone, prefillId) {
+  $('csOut').innerHTML = '';
+  if (prefillPhone) $('csPhone').value = prefillPhone.replace(/^0/, '');
+  if (prefillId) $('csReqId').value = prefillId;
+  dlg.showModal(); $('csPhone').focus();
+}
 $('openStatus').addEventListener('click', () => openStatus());
-$('doneStatus').addEventListener('click', () => openStatus(window.__lastPhone));
+$('doneStatus').addEventListener('click', () => openStatus(window.__lastPhone, window.__lastId));
 $('closeStatus').addEventListener('click', () => dlg.close());
 $('statusForm').addEventListener('submit', async e => {
   e.preventDefault();
-  const phone = normPhone($('csPhone').value), out = $('csOut');
+  const phone = normPhone($('csPhone').value), reqId = $('csReqId').value.trim().toUpperCase(), out = $('csOut');
   if (!phoneOk(phone)) { out.innerHTML = '<div class="err">លេខទូរស័ព្ទមិនត្រឹមត្រូវ</div>'; return; }
+  if (!/^REQ-[A-Z0-9]{6,20}$/.test(reqId)) { out.innerHTML = '<div class="err">សូមបញ្ចូលលេខសំណើឱ្យត្រឹមត្រូវ (ឧ. REQ-AB12CD34EF)</div>'; return; }
   const btn = $('csBtn'); btn.disabled = true; btn.textContent = 'កំពុងស្វែងរក...';
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${STATUS_RPC}`, { method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ p_phone: phone }) });
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${STATUS_RPC}`, { method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ p_phone: phone, p_request_id: reqId }) });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const rows = await res.json();
     out.innerHTML = !rows.length
-      ? '<p style="margin-top:12px">រកមិនឃើញសំណើសុំកម្ចីជាមួយលេខទូរស័ព្ទនេះទេ។</p>'
-      : rows.map(r => `<div class="st-row"><span class="st ${esc(r.status)}">${esc(STATUS[r.status] || STATUS.pending)}</span><span>${r.amount ? esc(fmtMoney(r.amount, r.currency || 'USD')) : ''}</span><span class="hint">${esc(String(r.submitted_at || '').slice(0, 10).split('-').reverse().join('/'))}</span></div>`).join('');
+      ? '<p style="margin-top:12px">រកមិនឃើញសំណើសុំកម្ចីជាមួយលេខទូរស័ព្ទ និងលេខសំណើនេះទេ។</p>'
+      : rows.map(r => `<div class="st-row"><span class="st ${esc(r.status)}">${esc(STATUS[r.status] || 'មិនស្គាល់')}</span><span>${r.amount ? esc(fmtMoney(r.amount, r.currency || 'USD')) : ''}</span><span class="hint">${esc(String(r.submitted_at || '').slice(0, 10).split('-').reverse().join('/'))}</span></div>`).join('');
   } catch (err) {
     console.error(err);
     out.innerHTML = '<div class="err" style="margin-top:12px">មិនអាចពិនិត្យស្ថានភាពបានទេ សូមព្យាយាមម្តងទៀត។</div>';
