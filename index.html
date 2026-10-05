@@ -35,6 +35,7 @@
       <label style="margin-top:10px;">ពាក្យសម្ងាត់</label><input type="password" id="password" />
       <button class="btn" onclick="login()" style="width:100%; margin-top:20px;"><i class="fas fa-sign-in-alt"></i> ចូល / Login</button>
       <a href="#" onclick="toggleForgotPasswordBox(); return false;" style="display:block; text-align:center; margin-top:15px; font-size:13px;"><i class="fas fa-question-circle"></i> ភ្លេចពាក្យសម្ងាត់?</a>
+      <a href="apply.html" class="btn btn-info" style="display:block; text-align:center; margin-top:15px; text-decoration:none;"><i class="fas fa-hand-holding-usd"></i> ស្នើសុំកម្ចី / ពិនិត្យស្ថានភាព</a>
       <div id="forgotPasswordBox" style="display:none; margin-top:12px; padding:12px; background:#f8f9fa; border-radius:8px; font-size:13px; text-align:center;">
         <p style="margin:0 0 10px;">ពាក្យសម្ងាត់រក្សាទុកលើ Cloud ដូច្នេះមានតែអ្នកគ្រប់គ្រងទេដែលអាចកំណត់ជាថ្មីបាន។ សូមទាក់ទងអ្នកគ្រប់គ្រង៖</p>
         <a href="https://t.me/Samross_Ph_Care" target="_blank" rel="noopener" class="btn btn-info btn-sm" style="width:100%; display:block; margin-bottom:8px;"><i class="fab fa-telegram"></i> ទាក់ទងតាម Telegram</a>
@@ -56,12 +57,6 @@
       </div>
     </div>
 
-    <div style="max-width:380px; margin:16px auto 0; display:flex; gap:10px;">
-      <button class="btn btn-info btn-sm login-action-btn" onclick="toggleLoginActionBox('loanRequestBox')"><i class="fas fa-hand-holding-usd"></i> ស្នើសុំកម្ចី</button>
-      <button class="btn btn-info btn-sm login-action-btn" onclick="toggleLoginActionBox('helpRequestBox')"><i class="fas fa-life-ring"></i> សុំជំនួយ</button>
-      <button class="btn btn-info btn-sm login-action-btn" onclick="toggleLoginActionBox('checkStatusBox')"><i class="fas fa-search"></i> ពិនិត្យស្ថានភាព</button>
-      <button class="btn btn-info btn-sm login-action-btn" onclick="toggleLoginActionBox('downloadScheduleBox')"><i class="fas fa-file-download"></i> តារាងបង់ប្រាក់</button>
-    </div>
 
     <!-- Two-step public loan-request wizard: an eligibility/terms screen first (lrStepTerms),
          then the application form itself (lrStepForm). Placeholder eligibility numbers below
