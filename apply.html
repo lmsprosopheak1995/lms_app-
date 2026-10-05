@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ពាក្យស្នើសុំប្រាក់កម្ចី — Sopheak Loan</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#131315; --surface:#1b1b1e; --surface-2:#232327; --line:#323237;
+  --text:#efece8; --muted:#a1a1a9; --red:#c8102e; --red-dark:#8f0a20; --red-text:#ff5468;
+  --ok:#2e9d4f; --warn:#e0a526;
+  --radius:12px;
+  --font:'Kantumruy Pro','Noto Sans Khmer','Khmer OS Battambang',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;line-height:1.7}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--red-text);outline-offset:2px}
+
+/* header */
+.top{border-bottom:2px solid var(--red);background:#0f0f11;position:sticky;top:0;z-index:20}
+.top-in{max-width:1120px;margin:0 auto;padding:10px 20px;display:flex;align-items:center;gap:16px;justify-content:space-between}
+.brand{font-weight:700;font-size:18px;text-decoration:none;display:flex;align-items:center;gap:10px}
+.brand-mark{width:34px;height:34px;border-radius:9px;background:var(--red);display:grid;place-items:center;font-weight:700}
+.top nav{display:flex;gap:8px;flex-wrap:wrap}
+.pill{border:1px solid var(--line);background:transparent;color:var(--text);padding:6px 14px;border-radius:999px;font:inherit;font-size:14px;cursor:pointer;text-decoration:none}
+.pill:hover{border-color:var(--red-text)}
+
+/* hero */
+.hero{text-align:center;padding:44px 20px 8px;max-width:760px;margin:0 auto}
+.hero h1{margin:0;font-size:clamp(28px,5vw,42px);line-height:1.35;font-weight:700}
+.hero h1 em{font-style:normal;color:var(--red-text)}
+.hero p{margin:10px auto 0;color:var(--muted);max-width:560px}
+
+/* stepper */
+.stepper{max-width:720px;margin:34px auto 26px;padding:0 20px;display:flex;align-items:flex-start;list-style:none}
+.stepper li{flex:1;display:flex;flex-direction:column;align-items:center;position:relative;text-align:center;font-size:13px;color:var(--muted);gap:8px}
+.stepper li::before{content:"";position:absolute;top:21px;left:-50%;width:100%;height:2px;background:var(--line);z-index:0}
+.stepper li:first-child::before{display:none}
+.stepper li.done::before,.stepper li.active::before{background:var(--red)}
+.dot{width:44px;height:44px;border-radius:50%;background:var(--surface-2);border:2px solid var(--line);display:grid;place-items:center;position:relative;z-index:1;font-weight:700;color:var(--muted)}
+.stepper li.active .dot{background:var(--red);border-color:var(--red);color:#fff;box-shadow:0 0 0 5px rgba(200,16,46,.22)}
+.stepper li.active{color:var(--text)}
+.stepper li.done .dot{background:var(--ok);border-color:var(--ok);color:#fff}
+
+/* card */
+.card{max-width:860px;margin:0 auto 60px;background:var(--surface);border:1px solid var(--line);border-radius:18px;overflow:hidden}
+.panel{padding:30px 32px 8px}
+.panel[hidden]{display:none}
+.panel-head{display:flex;gap:16px;align-items:center;padding-bottom:18px;margin-bottom:22px;border-bottom:1px solid var(--line)}
+.panel-head h2{margin:0;font-size:20px;line-height:1.4}
+.panel-head p{margin:0;color:var(--muted);font-size:14px}
+.badge{width:48px;height:48px;border-radius:12px;background:var(--red);display:grid;place-items:center;font-size:20px;flex:none}
+
+.grid{display:grid;gap:16px 18px;grid-template-columns:repeat(12,1fr);margin-bottom:18px}
+.f{grid-column:span 12;min-width:0}
+.s3{grid-column:span 3}.s4{grid-column:span 4}.s5{grid-column:span 5}.s6{grid-column:span 6}.s8{grid-column:span 8}
+@media(max-width:760px){.s3,.s4,.s5,.s6,.s8{grid-column:span 12}.s3.half{grid-column:span 6}.panel{padding:22px 18px 4px}}
+label,.lab{display:block;font-size:14px;font-weight:600;margin-bottom:6px}
+.req{color:var(--red-text);margin-left:3px}
+.opt{color:var(--muted);font-weight:400;font-size:12px;margin-left:4px}
+input,select{width:100%;background:#101012;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:11px 12px;font:inherit;min-height:46px}
+input::placeholder{color:#62626b}
+input:focus,select:focus{border-color:var(--red-text);outline:none;box-shadow:0 0 0 3px rgba(255,84,104,.18)}
+input[readonly]{color:var(--muted)}
+select:disabled{opacity:.5}
+input[type=file]{padding:8px;font-size:13px}
+.f.bad input,.f.bad select{border-color:var(--red-text)}
+.err{color:var(--red-text);font-size:13px;margin-top:5px}
+.hint{color:var(--muted);font-size:13px;margin-top:5px}
+.prefix{display:flex}
+.prefix span{display:grid;place-items:center;padding:0 14px;background:var(--surface-2);border:1px solid var(--line);border-right:0;border-radius:8px 0 0 8px;color:var(--red-text);font-weight:700}
+.prefix input{border-radius:0 8px 8px 0}
+.seg{display:flex;gap:10px;flex-wrap:wrap}
+.seg label{margin:0;font-weight:500;display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:999px;padding:8px 16px;cursor:pointer;min-height:44px}
+.seg input{width:auto;min-height:0;accent-color:var(--red)}
+.seg label:has(input:checked){border-color:var(--red-text);background:rgba(200,16,46,.14)}
+.docs-title{margin:6px 0 12px;font-weight:600;font-size:14px}
+.docs-title small{color:var(--muted);font-weight:400}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+
+/* footer nav */
+.nav{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:18px 32px;border-top:1px solid var(--line);margin-top:10px}
+@media(max-width:760px){.nav{padding:16px 18px}}
+.nav .count{color:var(--muted);font-size:13px}
+.right{display:flex;align-items:center;gap:14px}
+.btn{font:inherit;font-weight:600;border-radius:999px;padding:11px 26px;border:1px solid transparent;cursor:pointer;min-height:46px}
+.btn-red{background:var(--red);color:#fff}
+.btn-red:hover{background:#dc1636}
+.btn-red:disabled{opacity:.6;cursor:wait}
+.btn-ghost{background:transparent;border-color:var(--line);color:var(--text)}
+.btn-ghost:hover{border-color:var(--muted)}
+
+/* review */
+.review-group{background:#141416;border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:16px}
+.review-group h3{margin:0 0 12px;font-size:15px;color:var(--red-text)}
+.review-group dl{margin:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px 18px}
+.review-group dt{font-size:12px;color:var(--muted)}
+.review-group dd{margin:0;font-weight:600;word-break:break-word}
+.consent{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:12px;cursor:pointer;background:var(--surface-2);font-weight:400}
+.consent input{width:20px;height:20px;min-height:0;margin-top:3px;flex:none;accent-color:var(--red)}
+.f.bad .consent{border-color:var(--red-text)}
+.formerr{color:var(--red-text);margin:0 0 14px;font-size:14px}
+
+/* success */
+.done-box{padding:54px 32px;text-align:center}
+.done-box .tick{width:72px;height:72px;border-radius:50%;background:var(--ok);display:grid;place-items:center;margin:0 auto 18px;font-size:34px}
+.done-box h2{margin:0 0 8px}
+.done-box p{color:var(--muted);max-width:480px;margin:0 auto 10px}
+.reqid{display:inline-block;margin:10px 0 20px;padding:8px 18px;border:1px dashed var(--red-text);border-radius:8px;font-weight:700;letter-spacing:.5px}
+
+/* status dialog */
+dialog{background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:16px;padding:0;width:min(440px,92vw)}
+dialog::backdrop{background:rgba(0,0,0,.65)}
+.dlg{padding:24px}
+.dlg h3{margin:0 0 6px}
+.dlg p{margin:0 0 14px;color:var(--muted);font-size:14px}
+.st-row{border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-top:10px;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+.st{font-weight:700;font-size:13px;padding:2px 12px;border-radius:999px;background:var(--surface-2)}
+.st.pending{color:var(--warn)}.st.contacted{color:#6cb6ff}.st.approved{color:#52d27a}.st.rejected{color:var(--red-text)}
+footer{text-align:center;color:var(--muted);font-size:13px;padding:0 20px 40px}
+@media(prefers-reduced-motion:no-preference){.panel{animation:in .25s ease-out}@keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in">
+    <a class="brand" href="index.html"><span class="brand-mark">S</span> Sopheak Loan</a>
+    <nav>
+      <button class="pill" type="button" id="openStatus">ពិនិត្យស្ថានភាពសំណើ</button>
+      <a class="pill" href="index.html">ចូលប្រព័ន្ធបុគ្គលិក</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <h1>ពាក្យស្នើសុំ <em>ប្រាក់កម្ចី</em></h1>
+  <p>បំពេញទម្រង់ក្នុង ៤ ជំហានសាមញ្ញ។ ក្រុមការងារនឹងទាក់ទងទៅអ្នកវិញ ដើម្បីបញ្ជាក់ព័ត៌មាន។ ការដាក់ពាក្យនេះមិនមែនជាការអនុម័តកម្ចីនោះទេ។</p>
+</section>
+
+<ol class="stepper" id="stepper" aria-label="ដំណាក់កាល">
+  <li class="active"><span class="dot">1</span>ព័ត៌មានប្រាក់កម្ចី</li>
+  <li><span class="dot">2</span>ព័ត៌មានផ្ទាល់ខ្លួន</li>
+  <li><span class="dot">3</span>ព័ត៌មានមុខរបរ</li>
+  <li><span class="dot">4</span>ពិនិត្យ និងដាក់ស្នើ</li>
+</ol>
+
+<main class="card" id="card">
+<form id="lrForm" novalidate autocomplete="off">
+
+  <!-- STEP 1 -->
+  <section class="panel" data-step="1">
+    <div class="panel-head"><div class="badge">៛</div><div><h2>ព័ត៌មានប្រាក់កម្ចី</h2><p>ប្រាប់យើងអំពីប្រាក់កម្ចីដែលអ្នកត្រូវការ</p></div></div>
+    <div class="grid">
+      <div class="f s4"><label for="product">ផលិតផលប្រាក់កម្ចី<span class="req">*</span></label><select id="product" data-req></select></div>
+      <div class="f s4"><label for="purpose">គោលបំណងប្រាក់កម្ចី<span class="req">*</span></label><input id="purpose" list="purposeList" data-req placeholder="វាយបញ្ចូល ឬជ្រើសរើស"><datalist id="purposeList"></datalist></div>
+      <div class="f s4"><label for="branch">សាខាដែលពេញចិត្ត<span class="req">*</span></label><select id="branch" data-req></select></div>
+
+      <div class="f s4"><span class="lab">រូបិយប័ណ្ណ<span class="req">*</span></span>
+        <div class="seg" role="radiogroup" aria-label="រូបិយប័ណ្ណ">
+          <label><input type="radio" name="currency" value="KHR" checked>រៀល (៛)</label>
+          <label><input type="radio" name="currency" value="USD">ដុល្លារ ($)</label>
+        </div></div>
+      <div class="f s4"><label for="amount">ចំនួនប្រាក់កម្ចី<span class="req">*</span></label><input id="amount" type="number" inputmode="decimal" min="0" step="any" data-req placeholder="ឧ. 500000"><div class="hint" id="amountHint"></div></div>
+      <div class="f s4"><label for="term">រយៈពេល (ខែ)<span class="req">*</span></label><select id="term" data-req></select></div>
+
+      <div class="f s6"><label for="source">ស្គាល់ក្រុមហ៊ុនយើងតាមរយៈណា?<span class="req">*</span></label><select id="source" data-req></select></div>
+    </div>
+  </section>
+
+  <!-- STEP 2 -->
+  <section class="panel" data-step="2" hidden>
+    <div class="panel-head"><div class="badge">👤</div><div><h2>ព័ត៌មានផ្ទាល់ខ្លួន</h2><p>ដូចបង្ហាញក្នុងអត្តសញ្ញាណប័ណ្ណ</p></div></div>
+    <div class="grid">
+      <div class="f s6"><label for="nameKh">ឈ្មោះពេញ (ខ្មែរ)<span class="req">*</span></label><input id="nameKh" data-req placeholder="ឈ្មោះជាអក្សរខ្មែរ" autocomplete="name"></div>
+      <div class="f s6"><label for="nameLatin">ឈ្មោះពេញ (ឡាតាំង)<span class="req">*</span></label><input id="nameLatin" data-req placeholder="ឧ. CHAN DARA"></div>
+
+      <div class="f s4"><label for="dob">ថ្ងៃខែឆ្នាំកំណើត<span class="req">*</span></label><input id="dob" type="date" data-req></div>
+      <div class="f s4"><label for="gender">ភេទ<span class="req">*</span></label><select id="gender" data-req><option value="">-- ជ្រើសរើស --</option><option>ប្រុស</option><option>ស្រី</option></select></div>
+      <div class="f s4"><label for="marital">ស្ថានភាពគ្រួសារ<span class="req">*</span></label><select id="marital" data-req><option value="">-- ជ្រើសរើស --</option><option>នៅលីវ</option><option>រៀបការ</option><option>លែងលះ</option><option>មេម៉ាយ/ពោះម៉ាយ</option></select></div>
+
+      <div class="f s4"><label for="idNumber">លេខអត្តសញ្ញាណប័ណ្ណ<span class="req">*</span></label><input id="idNumber" data-req placeholder="ឧ. 012345678"></div>
+      <div class="f s3 half"><label for="nationality">សញ្ជាតិ</label><input id="nationality" value="ខ្មែរ" readonly></div>
+      <div class="f s5"><label for="phone">លេខទូរសព្ទ (1)<span class="req">*</span></label><div class="prefix"><span>+855</span><input id="phone" type="tel" inputmode="tel" data-req placeholder="ឧ. 012345678" autocomplete="tel-national"></div></div>
+
+      <div class="f s5"><label for="phone2">លេខទូរសព្ទ (2)<span class="opt">(មិនបង្ខំ)</span></label><div class="prefix"><span>+855</span><input id="phone2" type="tel" inputmode="tel" placeholder="ឧ. 012345678"></div></div>
+      <div class="f s7" style="grid-column:span 7"><label for="social">ហ្វេសប៊ុក / អ៊ីមែល<span class="opt">(មិនបង្ខំ)</span></label><input id="social" placeholder="facebook account | your@email.com"></div>
+    </div>
+
+    <p class="docs-title">អាសយដ្ឋានបច្ចុប្បន្ន</p>
+    <div class="grid addr" data-prefix="home">
+      <div class="f s3"><label for="homeProvince">ខេត្ត / រាជធានី<span class="req">*</span></label><select id="homeProvince" class="prov" data-req></select></div>
+      <div class="f s3"><label for="homeDistrict">ស្រុក / ខណ្ឌ<span class="req">*</span></label><input id="homeDistrict" data-req></div>
+      <div class="f s3"><label for="homeCommune">ឃុំ / សង្កាត់<span class="req">*</span></label><input id="homeCommune" data-req></div>
+      <div class="f s3"><label for="homeVillage">ភូមិ<span class="req">*</span></label><input id="homeVillage" data-req></div>
+    </div>
+
+    <p class="docs-title">ឯកសារបន្ថែម <small>(JPG, PNG, PDF — ធំបំផុត 5 MB ក្នុងមួយឯកសារ)</small></p>
+    <div class="grid">
+      <div class="f s4"><label for="docId">រូបថតអត្តសញ្ញាណប័ណ្ណ<span class="req">*</span></label><input id="docId" type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" data-file></div>
+      <div class="f s4"><label for="docWork">ប័ណ្ណបុគ្គលិក / ប័ណ្ណអាជីវកម្ម<span class="req">*</span></label><input id="docWork" type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" data-file></div>
+      <div class="f s4"><label for="docBank">របាយការណ៍ធនាគារ / កំណត់ត្រាចូលប្រាក់<span class="req">*</span></label><input id="docBank" type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" data-file></div>
+    </div>
+  </section>
+
+  <!-- STEP 3 -->
+  <section class="panel" data-step="3" hidden>
+    <div class="panel-head"><div class="badge">💼</div><div><h2>ព័ត៌មានការងារ/មុខរបរ</h2><p>សូមផ្តល់ព័ត៌មានអំពីការងារ ឬមុខរបរបច្ចុប្បន្នរបស់អ្នក</p></div></div>
+    <div class="grid">
+      <div class="f"><span class="lab">ប្រភេទការងារ<span class="req">*</span></span>
+        <div class="seg" role="radiogroup" aria-label="ប្រភេទការងារ">
+          <label><input type="radio" name="occType" value="employee" checked>បុគ្គលិក</label>
+          <label><input type="radio" name="occType" value="business">ប្រកបមុខរបរ</label>
+        </div></div>
+      <div class="f s6"><label for="employer" id="employerLabel">ឈ្មោះក្រុមហ៊ុន/ហាង<span class="req">*</span></label><input id="employer" data-req placeholder="ឧ. ក្រុមហ៊ុន ABC"></div>
+      <div class="f s6"><label for="jobTitle">មុខតំណែង/មុខរបរ<span class="req">*</span></label><input id="jobTitle" data-req placeholder="ឧ. អ្នកគ្រប់គ្រងផ្នែកលក់"></div>
+      <div class="f s6"><label for="tenure">រយៈពេលធ្វើការ/ដំណើរការ<span class="req">*</span></label><input id="tenure" data-req placeholder="ឧ. 3 ឆ្នាំ 5 ខែ"></div>
+      <div class="f s6"><label for="income">ប្រាក់ចំណូលប្រចាំខែ (ដុល្លារ $)<span class="req">*</span></label><input id="income" type="number" inputmode="decimal" min="0" step="any" data-req placeholder="ឧ. 500"></div>
+      <div class="f"><label for="workHouse">អាសយដ្ឋានកន្លែងការងារ — ផ្ទះលេខ, ផ្លូវ<span class="opt">(មិនបង្ខំ)</span></label><input id="workHouse" placeholder="ឧ. #12, ផ្លូវ 271"></div>
+    </div>
+    <div class="grid addr">
+      <div class="f s3"><label for="workProvince">ខេត្ត / រាជធានី<span class="req">*</span></label><select id="workProvince" class="prov" data-req></select></div>
+      <div class="f s3"><label for="workDistrict">ស្រុក / ខណ្ឌ<span class="req">*</span></label><input id="workDistrict" data-req></div>
+      <div class="f s3"><label for="workCommune">ឃុំ / សង្កាត់<span class="req">*</span></label><input id="workCommune" data-req></div>
+      <div class="f s3"><label for="workVillage">ភូមិ<span class="req">*</span></label><input id="workVillage" data-req></div>
+    </div>
+  </section>
+
+  <!-- STEP 4 -->
+  <section class="panel" data-step="4" hidden>
+    <div class="panel-head"><div class="badge">✓</div><div><h2>ផ្ទៀងផ្ទាត់ព័ត៌មានរបស់អ្នក</h2><p>សូមពិនិត្យព័ត៌មានទាំងអស់មុនដាក់ស្នើ</p></div></div>
+    <div id="review"></div>
+    <div class="f" id="c1w"><label class="consent"><input type="checkbox" id="consent1"><span>ខ្ញុំបញ្ជាក់ថា ព័ត៌មានទាំងអស់ខាងលើគឺពិត និងត្រឹមត្រូវ ហើយខ្ញុំយល់ព្រមឱ្យក្រុមហ៊ុនប្រមូល និងប្រើប្រាស់ព័ត៌មាននេះ ដើម្បីវាយតម្លៃសំណើសុំកម្ចីរបស់ខ្ញុំ។</span></label></div>
+    <div class="f" id="c2w"><label class="consent"><input type="checkbox" id="consent2"><span>ខ្ញុំយល់ព្រមឱ្យក្រុមហ៊ុនទាក់ទងខ្ញុំតាមទូរស័ព្ទ ឬបណ្តាញសង្គម ដើម្បីផ្ទៀងផ្ទាត់ព័ត៌មាន និងពិភាក្សាអំពីសំណើនេះ។</span></label></div>
+    <div class="hp" aria-hidden="true"><label>Website<input id="website" tabindex="-1" autocomplete="off"></label></div>
+    <p class="formerr" id="formErr" role="alert" hidden></p>
+  </section>
+
+  <div class="nav" id="nav">
+    <button type="button" class="btn btn-ghost" id="backBtn" style="visibility:hidden">‹ ត្រឡប់ក្រោយ</button>
+    <div class="right"><span class="count" id="count">ជំហាន 1 នៃ 4</span><button type="button" class="btn btn-red" id="nextBtn">បន្ទាប់ ›</button></div>
+  </div>
+</form>
+
+<section class="done-box" id="doneBox" hidden>
+  <div class="tick">✓</div>
+  <h2>បានទទួលពាក្យស្នើសុំរបស់អ្នកហើយ</h2>
+  <p>សូមអរគុណ។ ក្រុមការងារនឹងទាក់ទងទៅអ្នកតាមលេខទូរស័ព្ទដែលបានផ្តល់ឱ្យ។</p>
+  <div class="reqid" id="doneId"></div>
+  <p>អ្នកអាចពិនិត្យស្ថានភាពសំណើនៅពេលក្រោយ ដោយប្រើលេខទូរស័ព្ទរបស់អ្នក។</p>
+  <button class="btn btn-ghost" type="button" id="doneStatus">ពិនិត្យស្ថានភាពសំណើ</button>
+</section>
+</main>
+
+<footer>© <span id="yr"></span> Sopheak Loan — រក្សាសិទ្ធិគ្រប់យ៉ាង។</footer>
+
+<dialog id="statusDlg">
+  <div class="dlg">
+    <h3>ពិនិត្យស្ថានភាពសំណើសុំកម្ចី</h3>
+    <p>បញ្ចូលលេខទូរស័ព្ទដែលបានប្រើពេលដាក់ពាក្យ។</p>
+    <form id="statusForm" novalidate>
+      <div class="prefix"><span>+855</span><input id="csPhone" type="tel" inputmode="tel" placeholder="ឧ. 012345678" aria-label="លេខទូរស័ព្ទ"></div>
+      <div style="display:flex;gap:10px;margin-top:14px;justify-content:flex-end">
+        <button class="btn btn-ghost" type="button" id="closeStatus">បិទ</button>
+        <button class="btn btn-red" type="submit" id="csBtn">ស្វែងរក</button>
+      </div>
+    </form>
+    <div id="csOut" aria-live="polite"></div>
+  </div>
+</dialog>
+
+<script>
+/* ============================ CONFIG ============================ */
+// The anon key is a PUBLIC key (same one already shipped in cloud-sync.js). Safety comes from
+// RLS: anon may only INSERT into loan_requests and upload to the private bucket (see apply-setup.sql).
+const SUPABASE_URL = 'https://elspwzalqdwvexjaycsx.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsc3B3emFscWR3dmV4amF5Y3N4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTE3NzUsImV4cCI6MjEwNDI2Nzc3NX0.bBFPMgIGPjkvSnUnTaDf34pcRZkR7OV7BYoo-yr6nBg';
+const TABLE = 'loan_requests';
+const DOCS_BUCKET = 'loan-request-docs';
+const STATUS_RPC = 'get_loan_request_status_by_phone';
+const MAX_FILE_BYTES = 5 * 1024 * 1024;
+const MIN_FILL_SECONDS = 20;     // forms submitted faster than this are treated as bots
+const COOLDOWN_MS = 60 * 1000;   // one submission per browser per minute
+
+// Same limits as LR_TERMS in auth.js — keep them in sync.
+const LR_TERMS = { amountMinKHR: 200000, amountMaxKHR: 1000000, amountMinUSD: 50, amountMaxUSD: 250, termMinDays: 30, termMaxDays: 360, minAgeYears: 18 };
+
+// EDIT THESE LISTS to match your real products and branches.
+const PRODUCTS = ['កម្ចីអាជីវកម្ម', 'កម្ចីកសិកម្ម', 'កម្ចីប្រើប្រាស់ផ្ទាល់ខ្លួន'];
+const BRANCHES = ['ការិយាល័យកណ្តាល'];
+const SOURCES  = ['Facebook', 'Telegram', 'មិត្តភក្តិ / គ្រួសារ', 'បុគ្គលិកក្រុមហ៊ុន', 'ផ្សេងៗ'];
+const PURPOSES = ['ពង្រីកអាជីវកម្ម', 'ទិញស្តុកទំនិញ', 'កសិកម្ម', 'ជួសជុលផ្ទះ', 'ការសិក្សា', 'ចំណាយផ្ទាល់ខ្លួន'];
+const PROVINCES = ['ភ្នំពេញ','បន្ទាយមានជ័យ','បាត់ដំបង','កំពង់ចាម','កំពង់ឆ្នាំង','កំពង់ស្ពឺ','កំពង់ធំ','កំពត','កណ្ដាល','កោះកុង','ក្រចេះ','មណ្ឌលគិរី','ឧត្តរមានជ័យ','ប៉ៃលិន','ព្រះសីហនុ','ព្រះវិហារ','ព្រៃវែង','ពោធិ៍សាត់','រតនគិរី','សៀមរាប','ស្ទឹងត្រែង','ស្វាយរៀង','តាកែវ','ត្បូងឃ្មុំ','កែប'];
+
+/* ============================ HELPERS ============================ */
+const $ = id => document.getElementById(id);
+const esc = v => String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+const loadedAt = Date.now();
+let step = 1;
+
+function fillSelect(el, items, placeholder = '-- ជ្រើសរើស --') {
+  el.innerHTML = `<option value="">${esc(placeholder)}</option>` + items.map(i => `<option>${esc(i)}</option>`).join('');
+}
+function normPhone(raw) {
+  let d = String(raw || '').replace(/\D/g, '');
+  if (d.startsWith('855')) d = d.slice(3);
+  d = d.replace(/^0+/, '');
+  return d ? '0' + d : '';
+}
+const phoneOk = p => /^0\d{8,9}$/.test(p);
+const fmtMoney = (n, c) => c === 'USD' ? '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : Number(n).toLocaleString('en-US', { maximumFractionDigits: 0 }) + '៛';
+const currency = () => document.querySelector('input[name=currency]:checked').value;
+const occType = () => document.querySelector('input[name=occType]:checked').value;
+
+/* ============================ INIT FORM ============================ */
+fillSelect($('product'), PRODUCTS);
+fillSelect($('branch'), BRANCHES);
+fillSelect($('source'), SOURCES);
+fillSelect($('term'), Array.from({ length: Math.round(LR_TERMS.termMaxDays / 30) }, (_, i) => `${i + 1} ខែ`).slice(Math.max(0, Math.round(LR_TERMS.termMinDays / 30) - 1)));
+document.querySelectorAll('.prov').forEach(s => fillSelect(s, PROVINCES, '-- ជ្រើសរើសខេត្ត --'));
+$('purposeList').innerHTML = PURPOSES.map(p => `<option value="${esc(p)}">`).join('');
+$('yr').textContent = new Date().getFullYear();
+$('dob').max = new Date().toISOString().split('T')[0];
+
+function updateAmountHint() {
+  const usd = currency() === 'USD';
+  $('amountHint').textContent = usd
+    ? `អប្បបរមា ${LR_TERMS.amountMinUSD}$ / អតិបរមា ${LR_TERMS.amountMaxUSD}$`
+    : `អប្បបរមា ${LR_TERMS.amountMinKHR.toLocaleString()}៛ / អតិបរមា ${LR_TERMS.amountMaxKHR.toLocaleString()}៛`;
+  $('amount').placeholder = usd ? 'ឧ. 100' : 'ឧ. 500000';
+}
+document.querySelectorAll('input[name=currency]').forEach(r => r.addEventListener('change', updateAmountHint));
+updateAmountHint();
+
+document.querySelectorAll('input[name=occType]').forEach(r => r.addEventListener('change', () => {
+  const biz = occType() === 'business';
+  $('employerLabel').innerHTML = (biz ? 'ឈ្មោះអាជីវកម្ម/ហាង' : 'ឈ្មោះក្រុមហ៊ុន/ហាង') + '<span class="req">*</span>';
+  $('employer').placeholder = biz ? 'ឧ. ហាងលក់គ្រឿងសម្អាង' : 'ឧ. ក្រុមហ៊ុន ABC';
+  $('jobTitle').placeholder = biz ? 'ឧ. ម្ចាស់អាជីវកម្ម' : 'ឧ. អ្នកគ្រប់គ្រងផ្នែកលក់';
+}));
+
+/* ============================ VALIDATION ============================ */
+function setErr(el, msg) {
+  const w = el.closest('.f');
+  w.classList.toggle('bad', !!msg);
+  let e = w.querySelector(':scope > .err');
+  if (msg) {
+    if (!e) { e = document.createElement('div'); e.className = 'err'; w.appendChild(e); }
+    e.textContent = msg; el.setAttribute('aria-invalid', 'true');
+  } else { if (e) e.remove(); el.removeAttribute('aria-invalid'); }
+}
+function fileProblem(inp) {
+  const f = inp.files && inp.files[0];
+  if (!f) return 'សូមជ្រើសរើសឯកសារ';
+  if (!['image/jpeg', 'image/png', 'application/pdf'].includes(f.type)) return 'អនុញ្ញាតតែ JPG, PNG ឬ PDF';
+  if (f.size > MAX_FILE_BYTES) return 'ឯកសារធំជាង 5 MB';
+  return '';
+}
+function checkField(el) {
+  const v = (el.value || '').trim();
+  if (el.hasAttribute('data-file')) return fileProblem(el);
+  if (el.hasAttribute('data-req') && !v) return 'សូមបំពេញវាលនេះ';
+  if (!v) return '';
+  switch (el.id) {
+    case 'amount': {
+      const n = parseFloat(v), usd = currency() === 'USD';
+      const lo = usd ? LR_TERMS.amountMinUSD : LR_TERMS.amountMinKHR, hi = usd ? LR_TERMS.amountMaxUSD : LR_TERMS.amountMaxKHR;
+      if (isNaN(n) || n < lo || n > hi) return `ចំនួនត្រូវនៅចន្លោះ ${fmtMoney(lo, currency())} ដល់ ${fmtMoney(hi, currency())}`;
+      break; }
+    case 'income': if (!(parseFloat(v) >= 0)) return 'ចំនួនមិនត្រឹមត្រូវ'; break;
+    case 'phone': case 'phone2': if (!phoneOk(normPhone(v))) return 'លេខទូរស័ព្ទមិនត្រឹមត្រូវ (ឧ. 012345678)'; break;
+    case 'dob': {
+      const d = new Date(v), lim = new Date(); lim.setFullYear(lim.getFullYear() - LR_TERMS.minAgeYears);
+      if (isNaN(d) || d > lim) return `អ្នកស្នើសុំត្រូវមានអាយុយ៉ាងតិច ${LR_TERMS.minAgeYears} ឆ្នាំ`;
+      if (d.getFullYear() < 1900) return 'ថ្ងៃកំណើតមិនត្រឹមត្រូវ';
+      break; }
+    case 'idNumber': if (v.replace(/[\s-]/g, '').length < 6) return 'លេខអត្តសញ្ញាណខ្លីពេក'; break;
+  }
+  return '';
+}
+function validateStep(n) {
+  const panel = document.querySelector(`.panel[data-step="${n}"]`);
+  let first = null;
+  panel.querySelectorAll('[data-req],[data-file],#phone2').forEach(el => {
+    const msg = checkField(el);
+    setErr(el, msg);
+    if (msg && !first) first = el;
+  });
+  if (n === 4) {
+    ['consent1', 'consent2'].forEach(id => {
+      const el = $(id), bad = !el.checked;
+      setErr(el, bad ? 'សូមធីកប្រអប់នេះដើម្បីបន្ត' : '');
+      if (bad && !first) first = el;
+    });
+  }
+  if (first) first.focus({ preventScroll: false });
+  return !first;
+}
+document.querySelectorAll('input,select').forEach(el => {
+  const clear = () => { if (el.closest('.f')?.classList.contains('bad')) setErr(el, checkField(el) || (el.type === 'checkbox' && !el.checked ? 'សូមធីកប្រអប់នេះដើម្បីបន្ត' : '')); };
+  el.addEventListener('input', clear); el.addEventListener('change', clear);
+});
+
+/* ============================ WIZARD ============================ */
+function show(n) {
+  step = n;
+  document.querySelectorAll('.panel').forEach(p => p.hidden = Number(p.dataset.step) !== n);
+  [...$('stepper').children].forEach((li, i) => {
+    li.classList.toggle('done', i + 1 < n);
+    li.classList.toggle('active', i + 1 === n);
+    li.querySelector('.dot').textContent = i + 1 < n ? '✓' : String(i + 1);
+  });
+  $('backBtn').style.visibility = n === 1 ? 'hidden' : 'visible';
+  $('count').textContent = `ជំហាន ${n} នៃ 4`;
+  $('nextBtn').textContent = n === 4 ? 'ដាក់ពាក្យ' : 'បន្ទាប់ ›';
+  if (n === 4) renderReview();
+  $('formErr').hidden = true;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+$('backBtn').addEventListener('click', () => step > 1 && show(step - 1));
+$('nextBtn').addEventListener('click', () => {
+  if (!validateStep(step)) return;
+  if (step < 4) show(step + 1); else submit();
+});
+$('lrForm').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') e.preventDefault(); });
+
+/* ============================ DATA ============================ */
+function collect() {
+  const cur = currency(), months = parseInt($('term').value, 10);
+  const v = id => $(id).value.trim();
+  const home = { province: v('homeProvince'), district: v('homeDistrict'), commune: v('homeCommune'), village: v('homeVillage') };
+  const work = { house: v('workHouse'), province: v('workProvince'), district: v('workDistrict'), commune: v('workCommune'), village: v('workVillage') };
+  return {
+    // fields the existing admin screen (admin.js) already reads
+    name: v('nameKh'), phone: normPhone(v('phone')),
+    amount: parseFloat(v('amount')), currency: cur,
+    termDays: months * 30, termValueRaw: months, termUnit: 'month',
+    purpose: v('purpose'),
+    ...home, address: [home.village, home.commune, home.district, home.province].filter(Boolean).join(', '),
+    onBehalf: false, requesterName: '', collateral: '',
+    // new fields from this wizard
+    source: 'apply-page',
+    product: v('product'), branch: v('branch'), heardFrom: v('source'),
+    nameLatin: v('nameLatin'), dob: v('dob'), gender: v('gender'), maritalStatus: v('marital'),
+    idNumber: v('idNumber'), nationality: 'ខ្មែរ',
+    phone2: v('phone2') ? normPhone(v('phone2')) : '', social: v('social'),
+    occupationType: occType(), employer: v('employer'), jobTitle: v('jobTitle'), tenure: v('tenure'),
+    monthlyIncomeUSD: parseFloat(v('income')),
+    workAddress: work,
+    consent: { infoTrue: true, contactOk: true, at: new Date().toISOString() }
+  };
+}
+function renderReview() {
+  const d = collect(), g = [];
+  const dl = rows => '<dl>' + rows.filter(r => r[1] !== '' && r[1] != null).map(([k, val]) => `<div><dt>${esc(k)}</dt><dd>${esc(val)}</dd></div>`).join('') + '</dl>';
+  const addr = a => [a.house && ('ផ្ទះ ' + a.house), a.village && ('ភូមិ ' + a.village), a.commune && ('ឃុំ/សង្កាត់ ' + a.commune), a.district && ('ស្រុក/ខណ្ឌ ' + a.district), a.province].filter(Boolean).join(' · ');
+  g.push(['ព័ត៌មានប្រាក់កម្ចី', dl([['ផលិតផល', d.product], ['ចំនួនស្នើសុំ', fmtMoney(d.amount, d.currency)], ['រយៈពេល', d.termValueRaw + ' ខែ'], ['គោលបំណង', d.purpose], ['សាខា', d.branch], ['ស្គាល់យើងតាម', d.heardFrom]])]);
+  g.push(['ព័ត៌មានផ្ទាល់ខ្លួន', dl([['ឈ្មោះ (ខ្មែរ)', d.name], ['ឈ្មោះ (ឡាតាំង)', d.nameLatin], ['ថ្ងៃខែឆ្នាំកំណើត', d.dob.split('-').reverse().join('/')], ['ភេទ', d.gender], ['ស្ថានភាពគ្រួសារ', d.maritalStatus], ['លេខអត្តសញ្ញាណ', d.idNumber], ['លេខទូរស័ព្ទ (1)', '+855 ' + d.phone.slice(1)], ['លេខទូរស័ព្ទ (2)', d.phone2 && '+855 ' + d.phone2.slice(1)], ['ហ្វេសប៊ុក/អ៊ីមែល', d.social], ['អាសយដ្ឋាន', d.address]])]);
+  g.push(['ព័ត៌មានមុខរបរ', dl([['ប្រភេទ', d.occupationType === 'business' ? 'ប្រកបមុខរបរ' : 'បុគ្គលិក'], ['ក្រុមហ៊ុន/ហាង', d.employer], ['មុខតំណែង', d.jobTitle], ['រយៈពេល', d.tenure], ['ប្រាក់ចំណូលប្រចាំខែ', fmtMoney(d.monthlyIncomeUSD, 'USD')], ['អាសយដ្ឋានការងារ', addr(d.workAddress)]])]);
+  g.push(['ឯកសារភ្ជាប់', dl([['អត្តសញ្ញាណប័ណ្ណ', $('docId').files[0]?.name], ['ប័ណ្ណបុគ្គលិក/អាជីវកម្ម', $('docWork').files[0]?.name], ['របាយការណ៍ធនាគារ', $('docBank').files[0]?.name]])]);
+  $('review').innerHTML = g.map(([t, body]) => `<div class="review-group"><h3>${esc(t)}</h3>${body}</div>`).join('');
+}
+
+/* ============================ SUBMIT ============================ */
+function authHeaders(extra = {}) { return { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, ...extra }; }
+async function uploadDoc(reqId, label, file) {
+  const ext = (file.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const path = `${reqId}/${label}-${Date.now()}.${ext}`;
+  const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${DOCS_BUCKET}/${path}`, {
+    method: 'POST', headers: authHeaders({ 'Content-Type': file.type, 'x-upsert': 'false' }), body: file
+  });
+  if (!res.ok) throw new Error('upload ' + label + ' HTTP ' + res.status);
+  return { field: label, fileName: file.name, fileType: file.type, path };
+}
+function failMsg(t) { const e = $('formErr'); e.textContent = t; e.hidden = false; e.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+
+async function submit() {
+  // Bot traps: honeypot + too-fast submission → pretend success, store nothing.
+  if ($('website').value || (Date.now() - loadedAt) / 1000 < MIN_FILL_SECONDS) { return finish('REQ-' + Date.now()); }
+  const last = Number(localStorage.getItem('apply_last_submit') || 0);
+  if (Date.now() - last < COOLDOWN_MS) { return failMsg('អ្នកទើបតែបានដាក់ពាក្យ។ សូមរង់ចាំមួយនាទី រួចព្យាយាមម្តងទៀត។'); }
+
+  const btn = $('nextBtn'); btn.disabled = true; btn.textContent = 'កំពុងផ្ញើ...';
+  try {
+    const id = 'REQ-' + Date.now();
+    const attachments = [];
+    for (const [inp, label] of [['docId', 'id-card'], ['docWork', 'work-proof'], ['docBank', 'bank-statement']]) {
+      attachments.push(await uploadDoc(id, label, $(inp).files[0]));
+    }
+    const data = { id, ...collect(), attachments, status: 'pending', submittedAt: new Date().toISOString() };
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}`, {
+      method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
+      body: JSON.stringify({ id, data })
+    });
+    if (!res.ok) throw new Error('insert HTTP ' + res.status + ' ' + await res.text().catch(() => ''));
+    localStorage.setItem('apply_last_submit', String(Date.now()));
+    finish(id, data.phone);
+  } catch (err) {
+    console.error('apply submit error:', err);
+    failMsg('មិនអាចដាក់ពាក្យបានទេ។ សូមពិនិត្យអ៊ីនធឺណិត រួចព្យាយាមម្តងទៀត ឬទាក់ទងមកយើងដោយផ្ទាល់។');
+    btn.disabled = false; btn.textContent = 'ដាក់ពាក្យ';
+  }
+}
+function finish(id, phone) {
+  $('lrForm').hidden = true;
+  $('stepper').hidden = true;
+  $('doneBox').hidden = false;
+  $('doneId').textContent = 'លេខសំណើ: ' + id;
+  window.__lastPhone = phone || '';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ============================ STATUS LOOKUP ============================ */
+const STATUS = { pending: 'រង់ចាំ', contacted: 'បានទាក់ទង', approved: 'អនុម័ត', rejected: 'បដិសេធ' };
+const dlg = $('statusDlg');
+function openStatus(prefill) { $('csOut').innerHTML = ''; if (prefill) $('csPhone').value = prefill.replace(/^0/, ''); dlg.showModal(); $('csPhone').focus(); }
+$('openStatus').addEventListener('click', () => openStatus());
+$('doneStatus').addEventListener('click', () => openStatus(window.__lastPhone));
+$('closeStatus').addEventListener('click', () => dlg.close());
+$('statusForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const phone = normPhone($('csPhone').value), out = $('csOut');
+  if (!phoneOk(phone)) { out.innerHTML = '<div class="err">លេខទូរស័ព្ទមិនត្រឹមត្រូវ</div>'; return; }
+  const btn = $('csBtn'); btn.disabled = true; btn.textContent = 'កំពុងស្វែងរក...';
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${STATUS_RPC}`, { method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ p_phone: phone }) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const rows = await res.json();
+    out.innerHTML = !rows.length
+      ? '<p style="margin-top:12px">រកមិនឃើញសំណើសុំកម្ចីជាមួយលេខទូរស័ព្ទនេះទេ។</p>'
+      : rows.map(r => `<div class="st-row"><span class="st ${esc(r.status)}">${esc(STATUS[r.status] || STATUS.pending)}</span><span>${r.amount ? esc(fmtMoney(r.amount, r.currency || 'USD')) : ''}</span><span class="hint">${esc(String(r.submitted_at || '').slice(0, 10).split('-').reverse().join('/'))}</span></div>`).join('');
+  } catch (err) {
+    console.error(err);
+    out.innerHTML = '<div class="err" style="margin-top:12px">មិនអាចពិនិត្យស្ថានភាពបានទេ សូមព្យាយាមម្តងទៀត។</div>';
+  } finally { btn.disabled = false; btn.textContent = 'ស្វែងរក'; }
+});
+</script>
+</body>
+</html>
