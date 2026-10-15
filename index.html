@@ -80,6 +80,16 @@
         <div id="headerClockTime" class="header-clock-time"></div>
         <div id="headerClockDate" class="header-clock-date"></div>
       </div>
+      <div id="flipClock" class="flip-clock" title="ម៉ោងបច្ចុប្បន្ន">
+        <div class="flip-row">
+          <span class="flip-digit" data-i="0">0</span><span class="flip-digit" data-i="1">0</span>
+          <span class="flip-sep">:</span>
+          <span class="flip-digit" data-i="2">0</span><span class="flip-digit" data-i="3">0</span>
+          <span class="flip-sep">:</span>
+          <span class="flip-digit" data-i="4">0</span><span class="flip-digit" data-i="5">0</span>
+        </div>
+        <div class="flip-date" id="flipDate"></div>
+      </div>
       <div style="display: flex; align-items: center; gap: 20px;">
         <div id="notificationBell" style="position: relative; cursor: pointer;" onclick="toggleNotificationPanel()">
           <i class="fas fa-bell fa-lg"></i>
@@ -1476,5 +1486,29 @@
   <script src="js/reports.js"></script>
   <script src="js/ai.js"></script>
   <script src="js/main.js"></script>
+<script>
+(function () {
+  const khDays = ['អាទិត្យ','ច័ន្ទ','អង្គារ','ពុធ','ព្រហស្បតិ៍','សុក្រ','សៅរ៍'];
+  const digits = document.querySelectorAll('#flipClock .flip-digit');
+  const dateEl = document.getElementById('flipDate');
+  if (!digits.length || !dateEl) return;
+  const pad = n => String(n).padStart(2, '0');
+  function setDigit(el, value) {
+    if (el.textContent === value) return;
+    el.textContent = value;
+    el.classList.remove('tick');
+    void el.offsetWidth;
+    el.classList.add('tick');
+  }
+  function updateFlipClock() {
+    const d = new Date();
+    const t = pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds());
+    digits.forEach((el, i) => setDigit(el, t[i]));
+    dateEl.textContent = `ថ្ងៃ${khDays[d.getDay()]} ${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+  }
+  updateFlipClock();
+  setInterval(updateFlipClock, 1000);
+})();
+</script>
 </body>
 </html>

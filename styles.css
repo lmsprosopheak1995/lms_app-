@@ -967,3 +967,27 @@ body.dark-mode #appLoadingOverlay {
   .ai-panel { right: 12px; left: 12px; width: auto; bottom: 84px; }
   #aiFloatingBtn { right: 16px; bottom: 16px; }
 }
+
+/* ===== Flip Clock ===== */
+#headerClock { display: none !important; }
+.flip-clock { text-align: center; color: #fff; line-height: 1; padding: 4px 10px; }
+.flip-row { display: flex; align-items: center; justify-content: center; gap: 3px; }
+.flip-digit {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 34px; font-family: 'Courier New', monospace; font-size: 22px; font-weight: 800; color: #fff;
+  background: linear-gradient(to bottom, #1f2937 0%, #1f2937 50%, #111827 50%, #111827 100%);
+  border-radius: 6px; box-shadow: 0 3px 8px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.12);
+  perspective: 200px; overflow: hidden;
+}
+.flip-digit::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: rgba(0,0,0,.65); box-shadow: 0 1px 0 rgba(255,255,255,.08); }
+.flip-digit.tick { animation: flipTick .45s ease-in-out; }
+@keyframes flipTick { 0% { transform: rotateX(0); } 50% { transform: rotateX(-90deg); opacity: .6; } 100% { transform: rotateX(0); } }
+.flip-sep { font-size: 20px; font-weight: 800; color: #fbbf24; animation: sepBlink 1s steps(2, start) infinite; }
+@keyframes sepBlink { to { opacity: .25; } }
+.flip-date { margin-top: 5px; font-size: 12px; font-weight: 600; letter-spacing: .5px; color: #e2e8f0; opacity: .95; }
+@media (max-width: 768px) {
+  .flip-clock { padding: 2px 4px; }
+  .flip-digit { width: 17px; height: 25px; font-size: 16px; border-radius: 4px; }
+  .flip-sep { font-size: 14px; }
+  .flip-date { font-size: 10px; margin-top: 3px; }
+}
