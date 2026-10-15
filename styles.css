@@ -991,3 +991,7 @@ body.dark-mode #appLoadingOverlay {
   .flip-sep { font-size: 14px; }
   .flip-date { font-size: 10px; margin-top: 3px; }
 }
+
+/* ប៊ូតុងទៅទំព័រ Apply */
+.header-apply-btn { background: #16a34a !important; color: #fff !important; border-color: #16a34a !important; }
+.header-apply-btn:hover { background: #15803d !important; }
