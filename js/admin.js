@@ -140,13 +140,16 @@ function renderLoanRequestsTable() {
         // free-text `address` line and no `village`/`commune`/`district`/`province` parts —
         // fall back to that so old rows still display correctly.
         const addressDisplay = [r.village, r.commune, r.district, r.province].filter(Boolean).join(', ') || r.address || '-';
-        const nameDisplay = r.onBehalf && r.requesterName ? `${esc(r.name)}<br><span style="font-size:11px; color:var(--text-color-subtle,#888);">ស្នើសុំដោយ: ${esc(r.requesterName)}</span>` : esc(r.name);
+        const nameDisplay = (r.onBehalf && r.requesterName ? `${esc(r.name)}<br><span style="font-size:11px; color:var(--text-color-subtle,#888);">ស្នើសុំដោយ: ${esc(r.requesterName)}</span>` : esc(r.name))
+            + (r.nameLatin ? `<br><span style="font-size:11px; color:var(--text-color-subtle,#888);">${esc(r.nameLatin)}</span>` : '');
+        const purposeDisplay = esc(r.purpose || '-')
+            + (r.occupationType || r.monthlyIncomeUSD ? `<br><span style="font-size:11px; color:var(--text-color-subtle,#888);">${[r.occupationType, r.monthlyIncomeUSD ? 'ចំណូល $' + r.monthlyIncomeUSD + '/ខែ' : ''].filter(Boolean).map(esc).join(' · ')}</span>` : '');
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${formatDateDMY(r.submittedAt)}</td>
             <td>${nameDisplay}</td>
             <td>${esc(r.phone)}</td>
-            <td>${esc(r.purpose || '-')}</td>
+            <td>${purposeDisplay}</td>
             <td>${r.termValueRaw ? `${r.termValueRaw} ${r.termUnit === 'month' ? 'ខែ' : 'ថ្ងៃ'}` : (r.termDays ? `${r.termDays} ថ្ងៃ` : '-')}</td>
             <td class="right">${r.amount ? fmtMoney(r.amount, r.currency || 'USD') : '-'}</td>
             <td>${r.collateral ? esc(LR_COLLATERAL_LABELS[r.collateral] || r.collateral) : '-'}</td>
@@ -160,6 +163,7 @@ function renderLoanRequestsTable() {
                 }
             </td>
             <td class="actions">
+                <button class="btn btn-sm btn-primary" onclick="viewLoanRequest('${esc(r.id)}')" title="មើលព័ត៌មានលម្អិត"><i class="fas fa-eye"></i></button>
                 ${canManage && (r.status === 'pending' || r.status === 'contacted') ? `<button class="btn btn-sm btn-info" onclick="createLoanFromRequest('${esc(r.id)}')" title="បង្កើតកម្ចី"><i class="fas fa-file-invoice-dollar"></i></button>` : ''}
                 <a href="tel:${esc(r.phone)}" class="btn btn-sm btn-success" title="ទូរស័ព្ទ"><i class="fas fa-phone"></i></a>
                 ${canManage ? `<button class="btn btn-sm btn-danger" onclick="deleteLoanRequest('${esc(r.id)}')"><i class="fas fa-trash-alt"></i></button>` : ''}
@@ -210,13 +214,25 @@ async function createLoanFromRequest(id) {
         customer = {
             id: 'CUST-' + Date.now() + Math.random().toString(36).substr(2, 5),
             name: request.name,
-            gender: 'ប្រុស',
+            gender: request.gender || 'ប្រុស',
             phone: request.phone,
             village: request.village || '', commune: request.commune || '', district: request.district || '', province: request.province || '',
             residency: 'resident',
             isBlacklisted: false,
             createdAt: new Date().toISOString()
         };
+        // Extra details the applicant filled in on apply.html — stored on the customer record
+        // (customers are saved as JSON rows, so additional keys are kept). Only non-empty values.
+        const extra = {
+            nameLatin: request.nameLatin, dob: request.dob, maritalStatus: request.maritalStatus,
+            idNumber: request.idNumber, phone2: request.phone2, social: request.social,
+            occupationType: request.occupationType, employer: request.employer, jobTitle: request.jobTitle,
+            tenure: request.tenure, monthlyIncomeUSD: request.monthlyIncomeUSD, workAddress: request.workAddress
+        };
+        Object.keys(extra).forEach(k => {
+            const v = extra[k];
+            if (v !== undefined && v !== null && v !== '' && !(typeof v === 'number' && isNaN(v))) customer[k] = v;
+        });
         customers.push(customer);
         persistData(LS_KEYS.customers, customers);
         populateCustomerDropdowns();
@@ -247,6 +263,110 @@ async function createLoanFromRequest(id) {
             : 'សូមបំពេញលក្ខខណ្ឌកម្ចី (អត្រាការប្រាក់, រយៈពេល...) រួច "រក្សាទុក"។',
         'info'
     );
+}
+
+// ===================== LOAN REQUEST — FULL DETAILS MODAL =====================
+// Shows every field the customer filled in on apply.html, grouped, plus the 3 uploaded documents.
+// Documents live in the PRIVATE storage bucket "loan-request-docs", so they are opened through
+// short-lived signed URLs (needs a logged-in staff session with read access on that bucket).
+const LR_DOCS_BUCKET = 'loan-request-docs';
+const LR_ATT_LABELS = { 'id-card': 'អត្តសញ្ញាណប័ណ្ណ', 'work-proof': 'ភស្តុតាងការងារ', 'bank-statement': 'Statement ធនាគារ' };
+
+function ensureLrDetailModal() {
+    if (document.getElementById('loanRequestDetailModal')) return;
+    const st = document.createElement('style');
+    st.textContent = `
+      #loanRequestDetailModal .modal-content { max-width: 820px; max-height: 92vh; overflow-y: auto; }
+      .lr-group { margin: 0 0 14px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+      .lr-group > h5 { margin: 0; padding: 8px 12px; background: var(--thead); color: #fff; font-size: 14px; }
+      .lr-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+      .lr-item { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+      .lr-item small { display: block; color: var(--text-color-subtle, #888); font-size: 11px; }
+      .lr-item span { font-weight: 600; word-break: break-word; }
+      .lr-docs { padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 8px; }
+    `;
+    document.head.appendChild(st);
+    const m = document.createElement('div');
+    m.id = 'loanRequestDetailModal';
+    m.className = 'modal';
+    m.innerHTML = '<div class="modal-content"><div id="loanRequestDetailBody"></div><div class="modal-actions"><button type="button" class="btn btn-muted" onclick="closeLoanRequestDetail()"><i class="fas fa-times"></i> បិទ</button></div></div>';
+    m.addEventListener('click', e => { if (e.target === m) closeLoanRequestDetail(); });
+    document.body.appendChild(m);
+}
+
+function closeLoanRequestDetail() {
+    const m = document.getElementById('loanRequestDetailModal');
+    if (m) m.style.display = 'none';
+}
+
+function viewLoanRequest(id) {
+    const r = loanRequests.find(x => x.id === id);
+    if (!r) return;
+    ensureLrDetailModal();
+
+    const addr = a => a ? [a.house && ('ផ្ទះ ' + a.house), a.village && ('ភូមិ ' + a.village), a.commune && ('ឃុំ/សង្កាត់ ' + a.commune), a.district && ('ស្រុក/ខណ្ឌ ' + a.district), a.province].filter(Boolean).join(' · ') : '';
+    const homeAddr = [r.village && ('ភូមិ ' + r.village), r.commune && ('ឃុំ/សង្កាត់ ' + r.commune), r.district && ('ស្រុក/ខណ្ឌ ' + r.district), r.province].filter(Boolean).join(' · ') || r.address || '';
+    const term = r.termValueRaw ? `${r.termValueRaw} ${r.termUnit === 'month' ? 'ខែ' : 'ថ្ងៃ'}` : (r.termDays ? `${r.termDays} ថ្ងៃ` : '');
+    const dob = r.dob ? String(r.dob).split('-').reverse().join('/') : '';
+    const st = LOAN_REQUEST_STATUS[r.status] || LOAN_REQUEST_STATUS.pending;
+
+    const group = (title, icon, rows) => {
+        const items = rows.filter(([, v]) => v !== '' && v != null && v !== false)
+            .map(([k, v]) => `<div class="lr-item"><small>${esc(k)}</small><span>${esc(String(v))}</span></div>`).join('');
+        return `<div class="lr-group"><h5><i class="${icon}"></i> ${title}</h5><div class="lr-grid">${items || '<div class="lr-item"><small>-</small></div>'}</div></div>`;
+    };
+
+    const atts = Array.isArray(r.attachments) ? r.attachments : [];
+    const docsHtml = atts.length
+        ? atts.map((a, i) => `<button type="button" class="btn btn-sm btn-info" onclick="openLoanRequestAttachment('${esc(r.id)}', ${i})"><i class="fas fa-paperclip"></i> ${esc(LR_ATT_LABELS[a.field] || a.field)} <small>(${esc(a.fileName || '')})</small></button>`).join('')
+        : '<span style="color:var(--text-color-subtle,#888);">គ្មានឯកសារភ្ជាប់</span>';
+
+    document.getElementById('loanRequestDetailBody').innerHTML = `
+        <h4><i class="fas fa-id-card"></i> ព័ត៌មានលម្អិតនៃសំណើ — ${esc(r.name || '')}</h4>
+        ${group('ព័ត៌មានសំណើ', 'fas fa-file-alt', [
+            ['លេខសំណើ', r.id], ['កាលបរិច្ឆេទដាក់ពាក្យ', r.submittedAt ? formatDateDMY(r.submittedAt) : ''], ['ស្ថានភាព', st.label],
+            ['ផលិតផល', r.product], ['ចំនួនស្នើសុំ', r.amount ? fmtMoney(r.amount, r.currency || 'USD') : ''], ['រយៈពេល', term],
+            ['គោលបំណង', r.purpose], ['សាខា', r.branch], ['ស្គាល់យើងតាម', r.heardFrom],
+            ['ស្នើសុំដោយ (តំណាង)', r.onBehalf ? r.requesterName : ''], ['ការធានា', r.collateral ? (LR_COLLATERAL_LABELS[r.collateral] || r.collateral) : '']
+        ])}
+        ${group('ព័ត៌មានផ្ទាល់ខ្លួន', 'fas fa-user', [
+            ['ឈ្មោះ (ខ្មែរ)', r.name], ['ឈ្មោះ (ឡាតាំង)', r.nameLatin], ['ថ្ងៃខែឆ្នាំកំណើត', dob],
+            ['ភេទ', r.gender], ['ស្ថានភាពគ្រួសារ', r.maritalStatus], ['សញ្ជាតិ', r.nationality],
+            ['លេខអត្តសញ្ញាណ', r.idNumber], ['លេខទូរស័ព្ទ (1)', r.phone], ['លេខទូរស័ព្ទ (2)', r.phone2],
+            ['ហ្វេសប៊ុក/អ៊ីមែល', r.social], ['អាសយដ្ឋានផ្ទះ', homeAddr]
+        ])}
+        ${group('ព័ត៌មានការងារ/មុខរបរ', 'fas fa-briefcase', [
+            ['ប្រភេទមុខរបរ', r.occupationType], ['កន្លែងការងារ/ក្រុមហ៊ុន', r.employer], ['តួនាទី', r.jobTitle],
+            ['អាយុការងារ', r.tenure], ['ប្រាក់ចំណូលប្រចាំខែ', r.monthlyIncomeUSD ? '$' + r.monthlyIncomeUSD : ''],
+            ['អាសយដ្ឋានកន្លែងការងារ', addr(r.workAddress)]
+        ])}
+        <div class="lr-group"><h5><i class="fas fa-paperclip"></i> ឯកសារភ្ជាប់</h5><div class="lr-docs">${docsHtml}</div></div>
+        ${r.consent ? `<div style="font-size:12px; color:var(--text-color-subtle,#888);">ការយល់ព្រម: ${r.consent.infoTrue ? 'បញ្ជាក់ថាព័ត៌មានពិត' : ''}${r.consent.contactOk ? ' · អនុញ្ញាតឱ្យទាក់ទង' : ''}${r.consent.at ? ' · ' + esc(formatDateDMY(r.consent.at)) : ''}</div>` : ''}
+    `;
+    document.getElementById('loanRequestDetailModal').style.display = 'flex';
+}
+
+async function openLoanRequestAttachment(id, index) {
+    const r = loanRequests.find(x => x.id === id);
+    const att = r && Array.isArray(r.attachments) ? r.attachments[index] : null;
+    if (!att || !att.path) { showToast('រកមិនឃើញឯកសារ', 'error'); return; }
+    // Open the tab synchronously (popup blockers), then point it at the signed URL.
+    const win = window.open('', '_blank');
+    try {
+        const { url, headers } = await dbContext();   // same auth context db.js uses for other signed URLs
+        const encPath = att.path.split('/').map(encodeURIComponent).join('/');
+        const res = await fetch(`${url}/storage/v1/object/sign/${LR_DOCS_BUCKET}/${encPath}`, {
+            method: 'POST', headers, body: JSON.stringify({ expiresIn: 300 })
+        });
+        if (!res.ok) throw new Error('Could not sign file URL: HTTP ' + res.status);
+        const body = await res.json();
+        const signed = `${url}/storage/v1${body.signedURL}`;
+        if (win) win.location.href = signed; else window.location.href = signed;
+    } catch (e) {
+        if (win) win.close();
+        console.error('attachment error:', e);
+        showToast('បើកឯកសារមិនបាន (ពិនិត្យសិទ្ធិអានលើ bucket loan-request-docs)', 'error');
+    }
 }
 
 async function deleteLoanRequest(id) {
