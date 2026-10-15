@@ -289,7 +289,7 @@ function ensureLrDetailModal() {
     const m = document.createElement('div');
     m.id = 'loanRequestDetailModal';
     m.className = 'modal';
-    m.innerHTML = '<div class="modal-content"><div id="loanRequestDetailBody"></div><div class="modal-actions"><button type="button" class="btn btn-muted" onclick="closeLoanRequestDetail()"><i class="fas fa-times"></i> បិទ</button></div></div>';
+    m.innerHTML = '<div class="modal-content"><div id="loanRequestDetailBody"></div><div class="modal-actions"><button type="button" class="btn btn-primary" onclick="downloadLoanRequestWord()"><i class="fas fa-file-word"></i> ទាញយក Word</button><button type="button" class="btn btn-danger" onclick="downloadLoanRequestPdf()"><i class="fas fa-file-pdf"></i> ទាញយក PDF</button><button type="button" class="btn btn-muted" onclick="closeLoanRequestDetail()"><i class="fas fa-times"></i> បិទ</button></div></div>';
     m.addEventListener('click', e => { if (e.target === m) closeLoanRequestDetail(); });
     document.body.appendChild(m);
 }
@@ -299,21 +299,44 @@ function closeLoanRequestDetail() {
     if (m) m.style.display = 'none';
 }
 
-function viewLoanRequest(id) {
-    const r = loanRequests.find(x => x.id === id);
-    if (!r) return;
-    ensureLrDetailModal();
-
+// Builds the grouped field list for one request — shared by the on-screen modal and the Word/PDF export.
+function getLrDetailGroups(r) {
     const addr = a => a ? [a.house && ('ផ្ទះ ' + a.house), a.village && ('ភូមិ ' + a.village), a.commune && ('ឃុំ/សង្កាត់ ' + a.commune), a.district && ('ស្រុក/ខណ្ឌ ' + a.district), a.province].filter(Boolean).join(' · ') : '';
     const homeAddr = [r.village && ('ភូមិ ' + r.village), r.commune && ('ឃុំ/សង្កាត់ ' + r.commune), r.district && ('ស្រុក/ខណ្ឌ ' + r.district), r.province].filter(Boolean).join(' · ') || r.address || '';
     const term = r.termValueRaw ? `${r.termValueRaw} ${r.termUnit === 'month' ? 'ខែ' : 'ថ្ងៃ'}` : (r.termDays ? `${r.termDays} ថ្ងៃ` : '');
     const dob = r.dob ? String(r.dob).split('-').reverse().join('/') : '';
     const st = LOAN_REQUEST_STATUS[r.status] || LOAN_REQUEST_STATUS.pending;
+    return [
+        { title: 'ព័ត៌មានសំណើ', icon: 'fas fa-file-alt', rows: [
+            ['លេខសំណើ', r.id], ['កាលបរិច្ឆេទដាក់ពាក្យ', r.submittedAt ? formatDateDMY(r.submittedAt) : ''], ['ស្ថានភាព', st.label],
+            ['ផលិតផល', r.product], ['ចំនួនស្នើសុំ', r.amount ? fmtMoney(r.amount, r.currency || 'USD') : ''], ['រយៈពេល', term],
+            ['គោលបំណង', r.purpose], ['សាខា', r.branch], ['ស្គាល់យើងតាម', r.heardFrom],
+            ['ស្នើសុំដោយ (តំណាង)', r.onBehalf ? r.requesterName : ''], ['ការធានា', r.collateral ? (LR_COLLATERAL_LABELS[r.collateral] || r.collateral) : '']
+        ]},
+        { title: 'ព័ត៌មានផ្ទាល់ខ្លួន', icon: 'fas fa-user', rows: [
+            ['ឈ្មោះ (ខ្មែរ)', r.name], ['ឈ្មោះ (ឡាតាំង)', r.nameLatin], ['ថ្ងៃខែឆ្នាំកំណើត', dob],
+            ['ភេទ', r.gender], ['ស្ថានភាពគ្រួសារ', r.maritalStatus], ['សញ្ជាតិ', r.nationality],
+            ['លេខអត្តសញ្ញាណ', r.idNumber], ['លេខទូរស័ព្ទ (1)', r.phone], ['លេខទូរស័ព្ទ (2)', r.phone2],
+            ['ហ្វេសប៊ុក/អ៊ីមែល', r.social], ['អាសយដ្ឋានផ្ទះ', homeAddr]
+        ]},
+        { title: 'ព័ត៌មានការងារ/មុខរបរ', icon: 'fas fa-briefcase', rows: [
+            ['ប្រភេទមុខរបរ', r.occupationType], ['កន្លែងការងារ/ក្រុមហ៊ុន', r.employer], ['តួនាទី', r.jobTitle],
+            ['អាយុការងារ', r.tenure], ['ប្រាក់ចំណូលប្រចាំខែ', r.monthlyIncomeUSD ? '$' + r.monthlyIncomeUSD : ''],
+            ['អាសយដ្ឋានកន្លែងការងារ', addr(r.workAddress)]
+        ]}
+    ];
+}
 
-    const group = (title, icon, rows) => {
-        const items = rows.filter(([, v]) => v !== '' && v != null && v !== false)
+function viewLoanRequest(id) {
+    const r = loanRequests.find(x => x.id === id);
+    if (!r) return;
+    ensureLrDetailModal();
+    window.__lrCurrentId = id;
+
+    const group = (g) => {
+        const items = g.rows.filter(([, v]) => v !== '' && v != null && v !== false)
             .map(([k, v]) => `<div class="lr-item"><small>${esc(k)}</small><span>${esc(String(v))}</span></div>`).join('');
-        return `<div class="lr-group"><h5><i class="${icon}"></i> ${title}</h5><div class="lr-grid">${items || '<div class="lr-item"><small>-</small></div>'}</div></div>`;
+        return `<div class="lr-group"><h5><i class="${g.icon}"></i> ${g.title}</h5><div class="lr-grid">${items || '<div class="lr-item"><small>-</small></div>'}</div></div>`;
     };
 
     const atts = Array.isArray(r.attachments) ? r.attachments : [];
@@ -323,27 +346,73 @@ function viewLoanRequest(id) {
 
     document.getElementById('loanRequestDetailBody').innerHTML = `
         <h4><i class="fas fa-id-card"></i> ព័ត៌មានលម្អិតនៃសំណើ — ${esc(r.name || '')}</h4>
-        ${group('ព័ត៌មានសំណើ', 'fas fa-file-alt', [
-            ['លេខសំណើ', r.id], ['កាលបរិច្ឆេទដាក់ពាក្យ', r.submittedAt ? formatDateDMY(r.submittedAt) : ''], ['ស្ថានភាព', st.label],
-            ['ផលិតផល', r.product], ['ចំនួនស្នើសុំ', r.amount ? fmtMoney(r.amount, r.currency || 'USD') : ''], ['រយៈពេល', term],
-            ['គោលបំណង', r.purpose], ['សាខា', r.branch], ['ស្គាល់យើងតាម', r.heardFrom],
-            ['ស្នើសុំដោយ (តំណាង)', r.onBehalf ? r.requesterName : ''], ['ការធានា', r.collateral ? (LR_COLLATERAL_LABELS[r.collateral] || r.collateral) : '']
-        ])}
-        ${group('ព័ត៌មានផ្ទាល់ខ្លួន', 'fas fa-user', [
-            ['ឈ្មោះ (ខ្មែរ)', r.name], ['ឈ្មោះ (ឡាតាំង)', r.nameLatin], ['ថ្ងៃខែឆ្នាំកំណើត', dob],
-            ['ភេទ', r.gender], ['ស្ថានភាពគ្រួសារ', r.maritalStatus], ['សញ្ជាតិ', r.nationality],
-            ['លេខអត្តសញ្ញាណ', r.idNumber], ['លេខទូរស័ព្ទ (1)', r.phone], ['លេខទូរស័ព្ទ (2)', r.phone2],
-            ['ហ្វេសប៊ុក/អ៊ីមែល', r.social], ['អាសយដ្ឋានផ្ទះ', homeAddr]
-        ])}
-        ${group('ព័ត៌មានការងារ/មុខរបរ', 'fas fa-briefcase', [
-            ['ប្រភេទមុខរបរ', r.occupationType], ['កន្លែងការងារ/ក្រុមហ៊ុន', r.employer], ['តួនាទី', r.jobTitle],
-            ['អាយុការងារ', r.tenure], ['ប្រាក់ចំណូលប្រចាំខែ', r.monthlyIncomeUSD ? '$' + r.monthlyIncomeUSD : ''],
-            ['អាសយដ្ឋានកន្លែងការងារ', addr(r.workAddress)]
-        ])}
+        ${getLrDetailGroups(r).map(group).join('')}
         <div class="lr-group"><h5><i class="fas fa-paperclip"></i> ឯកសារភ្ជាប់</h5><div class="lr-docs">${docsHtml}</div></div>
         ${r.consent ? `<div style="font-size:12px; color:var(--text-color-subtle,#888);">ការយល់ព្រម: ${r.consent.infoTrue ? 'បញ្ជាក់ថាព័ត៌មានពិត' : ''}${r.consent.contactOk ? ' · អនុញ្ញាតឱ្យទាក់ទង' : ''}${r.consent.at ? ' · ' + esc(formatDateDMY(r.consent.at)) : ''}</div>` : ''}
     `;
     document.getElementById('loanRequestDetailModal').style.display = 'flex';
+}
+
+// ---------- Export (Word / PDF) ----------
+// Both exports share one printable HTML document. Word: the HTML is saved as a .doc file, which
+// Microsoft Word opens natively with Khmer text intact. PDF: the same HTML opens in a print
+// window and the user picks "Save as PDF" — the browser's own text engine renders Khmer
+// correctly (embedding Khmer fonts in a JS PDF library is unreliable).
+function buildLoanRequestExportHtml(r, forWord) {
+    const atts = Array.isArray(r.attachments) ? r.attachments : [];
+    const groupsHtml = getLrDetailGroups(r).map(g => {
+        const rows = g.rows.filter(([, v]) => v !== '' && v != null && v !== false)
+            .map(([k, v]) => `<tr><td class="k">${esc(k)}</td><td class="v">${esc(String(v))}</td></tr>`).join('');
+        return `<h3>${g.title}</h3><table>${rows}</table>`;
+    }).join('');
+    const attHtml = atts.length
+        ? `<h3>ឯកសារភ្ជាប់</h3><table>${atts.map(a => `<tr><td class="k">${esc(LR_ATT_LABELS[a.field] || a.field)}</td><td class="v">${esc(a.fileName || '')}</td></tr>`).join('')}</table>`
+        : '';
+    const nsAttrs = forWord ? ' xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"' : '';
+    return `<!DOCTYPE html><html${nsAttrs}><head><meta charset="utf-8"><title>សំណើសុំកម្ចី ${esc(r.id)}</title>
+<style>
+  @page { size: A4; margin: 15mm; }
+  body { font-family: 'Khmer OS Battambang', 'Noto Sans Khmer', 'Khmer UI', 'Segoe UI', Arial, sans-serif; font-size: 12pt; color: #111; }
+  h1 { text-align: center; font-size: 18pt; margin: 0 0 4px; }
+  .sub { text-align: center; color: #555; font-size: 10pt; margin-bottom: 14px; }
+  h3 { background: #004085; color: #fff; padding: 5px 10px; font-size: 12pt; margin: 14px 0 0; }
+  table { width: 100%; border-collapse: collapse; }
+  td { border: 1px solid #bbb; padding: 5px 8px; vertical-align: top; }
+  td.k { width: 34%; background: #f1f3f5; font-weight: bold; }
+  .foot { margin-top: 16px; font-size: 9pt; color: #666; text-align: center; }
+</style></head><body>
+<h1>ពាក្យស្នើសុំប្រាក់កម្ចី</h1>
+<div class="sub">${esc(r.id)} · ${r.submittedAt ? esc(formatDateDMY(r.submittedAt)) : ''}</div>
+${groupsHtml}${attHtml}
+<div class="foot">បោះពុម្ពនៅ ${esc(formatDateDMY(new Date().toISOString()))} · Sopheak Loan Management</div>
+</body></html>`;
+}
+
+function downloadLoanRequestWord() {
+    const r = loanRequests.find(x => x.id === window.__lrCurrentId);
+    if (!r) return;
+    const html = '\ufeff' + buildLoanRequestExportHtml(r, true);
+    const blob = new Blob([html], { type: 'application/msword;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `Loan-Request-${r.id}.doc`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+function downloadLoanRequestPdf() {
+    const r = loanRequests.find(x => x.id === window.__lrCurrentId);
+    if (!r) return;
+    const w = window.open('', '_blank');
+    if (!w) { showToast('សូមអនុញ្ញាត pop-up ដើម្បីទាញយក PDF', 'error'); return; }
+    w.document.open();
+    w.document.write(buildLoanRequestExportHtml(r, false));
+    w.document.close();
+    w.document.title = `Loan-Request-${r.id}`;   // becomes the default PDF file name
+    let printed = false;
+    const doPrint = () => { if (printed) return; printed = true; try { w.focus(); w.print(); } catch (e) { /* window closed */ } };
+    w.onload = doPrint;
+    setTimeout(doPrint, 800);
 }
 
 async function openLoanRequestAttachment(id, index) {
