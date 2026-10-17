@@ -779,7 +779,7 @@ function clearForm(){
   document.querySelectorAll('#loansTableBody tr').forEach(row => row.classList.remove('selected-row'));
 }
 
-function clearScheduleAndSummary(){document.getElementById('scheduleTableBody').innerHTML=`<tr><td colspan="14" class="center" style="color:#999">មិនមានតារាងបង់ប្រាក់</td></tr>`;document.getElementById('totalPrincipal').textContent="";document.getElementById('totalInterest').textContent="";document.getElementById('totalLateInterestSummary').textContent="";document.getElementById('totalServiceFeeSummary').textContent="";document.getElementById('totalAdminFeeSummary').textContent="";document.getElementById('totalInsuranceFeeSummary').textContent="";document.getElementById('totalPrincipalInterest').textContent="";document.getElementById("paidCount").textContent="0";document.getElementById("lateCount").textContent="0";document.getElementById("unpaidCount").textContent="0"}
+function clearScheduleAndSummary(){const pb=document.getElementById('loanProgressBox');if(pb)pb.style.display='none';document.getElementById('scheduleTableBody').innerHTML=`<tr><td colspan="15" class="center" style="color:#999">មិនមានតារាងបង់ប្រាក់</td></tr>`;document.getElementById('totalPrincipal').textContent="";document.getElementById('totalInterest').textContent="";document.getElementById('totalLateInterestSummary').textContent="";document.getElementById('totalServiceFeeSummary').textContent="";document.getElementById('totalAdminFeeSummary').textContent="";document.getElementById('totalInsuranceFeeSummary').textContent="";document.getElementById('totalPrincipalInterest').textContent="";document.getElementById("paidCount").textContent="0";document.getElementById("lateCount").textContent="0";document.getElementById("unpaidCount").textContent="0"}
 
 // The loan create/edit form lives in a popup (see #loanFormModal in index.html) rather than
 // inline on the loans page, so opening it for a brand-new loan needs an explicit trigger
@@ -1130,12 +1130,19 @@ function renderSchedule(t, forceRecalculate = false) {
   const s = document.getElementById("scheduleTableBody");
   s.innerHTML = "";
   if (!e || e.length === 0) {
-      s.innerHTML = `<tr><td colspan="14" class="center" style="color:#999">មិនមានតារាងបង់ប្រាក់</td></tr>`;
+      document.getElementById("loanProgressBox").style.display = "none";
+      s.innerHTML = `<tr><td colspan="15" class="center" style="color:#999">មិនមានតារាងបង់ប្រាក់</td></tr>`;
       return;
   }
   const fragment = document.createDocumentFragment();
+  const nextDue = e.find(x => x.status !== "paid");
   e.forEach(i => {
       const l = document.createElement("tr");
+      if (nextDue && nextDue.index === i.index) l.classList.add("next-due-row");
+      const lateDays = (i.status !== "paid" && Number(i.daysLate) > 0) ? Number(i.daysLate) : 0;
+      const lateCell = lateDays > 0
+          ? `<span class="days-late-badge ${lateDays > 30 ? "severe" : ""}">${lateDays} ថ្ងៃ</span>`
+          : '<span style="opacity:.4">-</span>';
       let n = "មិនទាន់បង់";
       switch (i.status) {
           case "paid": n = "បានបង់"; break;
@@ -1154,6 +1161,7 @@ function renderSchedule(t, forceRecalculate = false) {
           <td class="right">${fmtMoney(i.total, t.currency)}</td>
           <td class="right">${fmtMoney(i.paidAmount, t.currency)}</td>
           <td class="right" style="font-weight:bold; color: ${i.remainingAmount > 0.01 ? 'var(--danger)' : 'var(--success)'}">${fmtMoney(i.remainingAmount, t.currency)}</td>
+          <td class="center">${lateCell}</td>
           <td class="status-cell"><span class="status-badge status-${i.status}">${n}</span></td>
           <td class="center actions">
               <button class="btn btn-sm btn-success" onclick="openPaymentModal('${t.loanId}', ${i.index})"><i class="fas fa-edit"></i> Manage</button>
@@ -1180,7 +1188,31 @@ function renderSchedule(t, forceRecalculate = false) {
       <td class="right">${fmtMoney(a.total, t.currency)}</td>
       <td class="right">${fmtMoney(a.paidAmount, t.currency)}</td>
       <td class="right">${fmtMoney(a.remainingAmount, t.currency)}</td>
-      <td colspan="2"></td>`, s.appendChild(o);
+      <td colspan="3"></td>`, s.appendChild(o);
+  renderLoanProgress(t, e);
+}
+
+// Repayment progress bar shown above the schedule table. Read-only: derives everything from the
+// schedule that renderSchedule() already built, never writes to loans/payments.
+function renderLoanProgress(loan, schedule) {
+  const box = document.getElementById("loanProgressBox");
+  if (!box || !schedule || schedule.length === 0) { if (box) box.style.display = "none"; return; }
+  const totalDue = schedule.reduce((s, x) => s + x.total, 0);
+  const remaining = schedule.reduce((s, x) => s + x.remainingAmount, 0);
+  const paid = Math.max(0, totalDue - remaining);
+  const pct = totalDue > 0 ? Math.min(100, Math.max(0, (paid / totalDue) * 100)) : 0;
+  const paidCount = schedule.filter(x => x.status === "paid").length;
+  const overdueCount = schedule.filter(x => x.status === "overdue").length;
+  const next = schedule.find(x => x.status !== "paid");
+  const nextText = next ? `ដំណាក់កាលបន្ទាប់: #${next.index} • ${formatDateDMY(next.date)}` : "បានបង់គ្រប់ដំណាក់កាល";
+  box.innerHTML = `
+      <div class="loan-progress-head">
+          <span><i class="fas fa-chart-line"></i> វឌ្ឍនភាពនៃការបង់ប្រាក់: <b>${pct.toFixed(1)}%</b></span>
+          <span>${paidCount}/${schedule.length} ដំណាក់កាល${overdueCount ? ` • <span class="days-late-badge severe">យឺត ${overdueCount}</span>` : ""}</span>
+      </div>
+      <div class="loan-progress-track"><div class="loan-progress-fill ${overdueCount ? "has-overdue" : ""}" style="width:${pct.toFixed(1)}%"></div></div>
+      <div class="loan-progress-foot"><span>${esc(nextText)}</span><span>បានបង់ ${fmtMoney(paid, loan.currency)} • នៅសល់ ${fmtMoney(remaining, loan.currency)}</span></div>`;
+  box.style.display = "block";
 }
 
 function updateSummary(t) {
