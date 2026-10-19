@@ -1021,3 +1021,8 @@ tr.next-due-row td:first-child { box-shadow: inset 3px 0 0 var(--primary, #0d6ef
 
 .loan-quick-tools { max-width:1000px; margin:0 auto 8px; }
 #batchActionsContainer .btn { margin-right:4px; }
+
+/* ===== Always-visible close (X) for the loan form modal + wrapping action bar ===== */
+.modal-close-x { position:sticky; top:0; float:right; z-index:5; width:34px; height:34px; border:none; border-radius:50%; background:var(--danger,#dc3545); color:#fff; font-size:16px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,.35); }
+.modal-close-x:hover { filter:brightness(1.15); }
+#formActions { display:flex; flex-wrap:wrap; gap:6px; }
