@@ -885,6 +885,45 @@ function displayLoans() {
     loansTableBody.appendChild(fragment);
   }
   updateTableSummary(loansToDisplay);
+  updateLoanKpis();
+  const sa = document.getElementById("selectAllLoans"); if (sa) sa.checked = false;
+  refreshLoanSelectionUI();
+}
+
+// Summary cards above the loans table. Read-only; uses the same permission scoping as the table
+// (officers only see their own loans) and ignores the status/search filters so the numbers stay stable.
+function updateLoanKpis() {
+  const box = document.getElementById('loanKpiCards');
+  if (!box) return;
+  let list = loans.filter(l => !l.isArchived);
+  if (!hasPermission('canViewAllLoans')) list = list.filter(l => l.creditOfficer === currentUser.username);
+  const todayStr = formatDateISO(new Date());
+  let outstanding = 0, overdueAmt = 0, dueTodayAmt = 0, overdueLoans = 0, dueTodayCount = 0, activeLoans = 0;
+  list.forEach(l => {
+    const key = getLoanComputedStatus(l).key;
+    if (key !== 'active' && key !== 'overdue') return;
+    activeLoans++;
+    if (key === 'overdue') overdueLoans++;
+    const toUSD = v => convertCurrency(v, l.currency, 'USD');
+    (buildSchedule(l) || []).forEach(p => {
+      if (p.status === 'paid') return;
+      const rem = Math.max(0, Number(p.remainingAmount) || 0);
+      outstanding += toUSD(rem);
+      if (p.status === 'overdue') overdueAmt += toUSD(rem);
+      else if (formatDateISO(p.date) === todayStr) { dueTodayAmt += toUSD(rem); dueTodayCount++; }
+    });
+  });
+  const card = (cls, icon, label, value, sub, onclick) =>
+    `<div class="kpi-card ${cls}" ${onclick ? `onclick="${onclick}" style="cursor:pointer" title="ចុចដើម្បីត្រង"` : ''}><div class="kpi-icon"><i class="fas ${icon}"></i></div><div><div class="kpi-label">${label}</div><div class="kpi-value">${value}</div><div class="kpi-sub">${sub}</div></div></div>`;
+  box.innerHTML =
+    card('kpi-blue', 'fa-wallet', 'កម្ចីនៅសល់សរុប', fmtMoney(outstanding, 'USD'), `${activeLoans} កម្ចីកំពុងដំណើរការ • ≈ ${fmtMoney(convertCurrency(outstanding, 'USD', 'KHR'), 'KHR')}`) +
+    card('kpi-red', 'fa-exclamation-triangle', 'កម្ចីមានការយឺត', overdueLoans, `ទឹកប្រាក់យឺត ${fmtMoney(overdueAmt, 'USD')}`, "setLoanStatusFilter('overdue')") +
+    card('kpi-green', 'fa-calendar-day', 'ត្រូវប្រមូលថ្ងៃនេះ', fmtMoney(dueTodayAmt, 'USD'), `${dueTodayCount} ដំណាក់កាល`);
+}
+function setLoanStatusFilter(value) {
+  const sel = document.getElementById('filterStatus');
+  if (!sel) return;
+  sel.value = value; currentPage = 1; displayLoans();
 }
 
 function updateTableSummary(filteredLoans) {
@@ -2541,3 +2580,106 @@ function renderCollectionsTable() {
 }
 
 
+
+
+// ===================== BULK TOOLS FOR SELECTED LOANS =====================
+// Read-only helpers that work on the rows ticked with .loan-checkbox in the loans table.
+function getSelectedLoans() {
+  return Array.from(document.querySelectorAll('.loan-checkbox:checked'))
+      .map(cb => loans.find(l => l.loanId === cb.dataset.loanId)).filter(Boolean);
+}
+
+function refreshLoanSelectionUI() {
+  const n = document.querySelectorAll('.loan-checkbox:checked').length;
+  const box = document.getElementById('batchActionsContainer');
+  const cnt = document.getElementById('selectionCount');
+  if (box) box.style.display = n > 0 ? 'block' : 'none';
+  if (cnt) cnt.textContent = n > 0 ? `បានជ្រើស ${n} កម្ចី` : '';
+}
+document.addEventListener('change', e => {
+  if (e.target && e.target.classList && e.target.classList.contains('loan-checkbox')) refreshLoanSelectionUI();
+});
+
+function selectOverdueLoans() {
+  let n = 0;
+  document.querySelectorAll('.loan-checkbox').forEach(cb => {
+      const loan = loans.find(l => l.loanId === cb.dataset.loanId);
+      const isLate = !!loan && getLoanComputedStatus(loan).key === 'overdue';
+      cb.checked = isLate;
+      if (isLate) n++;
+  });
+  refreshLoanSelectionUI();
+  showToast(n > 0 ? `បានជ្រើសកម្ចីយឺត ${n}` : 'គ្មានកម្ចីយឺតក្នុងទំព័រនេះ', n > 0 ? 'success' : 'info');
+}
+
+function toggleSelectAllLoans(on) {
+  document.querySelectorAll(".loan-checkbox").forEach(cb => { cb.checked = !!on; });
+  refreshLoanSelectionUI();
+}
+
+function clearLoanSelection() {
+  const sa = document.getElementById("selectAllLoans"); if (sa) sa.checked = false;
+  document.querySelectorAll('.loan-checkbox:checked').forEach(cb => { cb.checked = false; });
+  refreshLoanSelectionUI();
+}
+
+// Summary of what a loan owes right now, derived from the existing schedule.
+function getLoanArrears(loan) {
+  const late = (buildSchedule(loan) || []).filter(p => p.status === 'overdue');
+  return {
+      count: late.length,
+      amount: late.reduce((s, p) => s + Math.max(0, Number(p.remainingAmount) || 0), 0),
+      maxDays: late.reduce((m, p) => Math.max(m, Number(p.daysLate) || 0), 0)
+  };
+}
+
+function exportSelectedLoansToCSV() {
+  const sel = getSelectedLoans();
+  if (sel.length === 0) { showToast('សូមជ្រើសកម្ចីយ៉ាងហោចណាស់មួយ', 'info'); return; }
+  const headers = ['Loan ID', 'Customer', 'Phone', 'Officer', 'Currency', 'Loan Amount', 'Status',
+                   'Overdue Installments', 'Overdue Amount', 'Max Days Late', 'Total Remaining'];
+  const rows = sel.map(l => {
+      const c = getCustomer(l.customerId), a = getLoanArrears(l);
+      const remaining = (buildSchedule(l) || []).reduce((s, p) => s + Math.max(0, Number(p.remainingAmount) || 0), 0);
+      return [l.loanId, c.name, c.phone || '', getOfficerFullName(l.creditOfficer), l.currency, l.loanAmount,
+              getLoanComputedStatus(l).text, a.count, a.amount.toFixed(2), a.maxDays, remaining.toFixed(2)]
+          .map(csvField).join(',');
+  });
+  // BOM so Excel opens Khmer text correctly.
+  const blob = new Blob(['\uFEFF' + headers.join(',') + '\n' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `selected_loans_${new Date().toISOString().split('T')[0]}.csv`;
+  document.body.appendChild(link); link.click(); document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showToast(`បាននាំចេញ ${sel.length} កម្ចី`, 'success');
+}
+
+// Builds one plain-text reminder per selected loan that has overdue installments and copies them all
+// to the clipboard, ready to paste into Telegram/SMS. Nothing is sent from the app.
+function copySelectedReminders() {
+  const sel = getSelectedLoans();
+  if (sel.length === 0) { showToast('សូមជ្រើសកម្ចីយ៉ាងហោចណាស់មួយ', 'info'); return; }
+  const msgs = [];
+  sel.forEach(l => {
+      const a = getLoanArrears(l);
+      if (a.count === 0) return;
+      const c = getCustomer(l.customerId);
+      msgs.push(`${c.name}${c.phone ? ' (' + c.phone + ')' : ''}\n` +
+          `សូមរំលឹកថា កម្ចីលេខ ${l.loanId} មានការយឺត ${a.count} ដំណាក់កាល ` +
+          `ចំនួន ${fmtMoney(a.amount, l.currency)} យឺតរហូតដល់ ${a.maxDays} ថ្ងៃ។ សូមមេត្តាបង់ប្រាក់ឱ្យបានឆាប់។ អរគុណ។`);
+  });
+  if (msgs.length === 0) { showToast('កម្ចីដែលបានជ្រើសមិនមានការយឺតទេ', 'info'); return; }
+  const text = msgs.join('\n\n--------------------\n\n');
+  const done = () => showToast(`បានចម្លងសាររំលឹក ${msgs.length}`, 'success');
+  const fallback = () => {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); done(); } catch (err) { showToast('ចម្លងមិនបាន', 'error'); }
+      document.body.removeChild(ta);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
+  else fallback();
+}
