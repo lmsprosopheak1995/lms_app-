@@ -174,13 +174,18 @@
             </select></div>
             <div><label for="filterCurrency"><i class="fas fa-money-bill"></i> ត្រងតាមរូបិយប័ណ្ណ</label><select id="filterCurrency"><option value="all">ទាំងអស់</option><option value="USD">ដុល្លារ ($)</option><option value="KHR">រៀល (៛)</option></select></div>
         </div>
+        <div id="loanKpiCards" class="kpi-cards"></div>
         <h3><i class="fas fa-table"></i> តារាងព័ត៌មានអតិថិជន (ទូទៅ)</h3>
+        <div class="loan-quick-tools"><button class="btn btn-danger btn-sm" onclick="selectOverdueLoans()"><i class="fas fa-exclamation-triangle"></i> ជ្រើសកម្ចីយឺតក្នុងទំព័រនេះ</button></div>
         <div id="batchActionsContainer" style="margin-bottom: 10px; display: none; max-width: 1000px; margin: 0 auto 10px auto;">
             <button class="btn btn-info btn-sm" onclick="batchPrintSchedules()"><i class="fas fa-print"></i> បោះពុម្ពតារាងបង់ប្រាក់</button>
+            <button class="btn btn-success btn-sm" onclick="exportSelectedLoansToCSV()"><i class="fas fa-file-csv"></i> នាំចេញដែលបានជ្រើស (CSV)</button>
+            <button class="btn btn-manager btn-sm" onclick="copySelectedReminders()"><i class="fas fa-copy"></i> ចម្លងសាររំលឹក</button>
+            <button class="btn btn-muted btn-sm" onclick="clearLoanSelection()"><i class="fas fa-times"></i> សម្អាតការជ្រើស</button>
             <span id="selectionCount" style="margin-left: 10px; font-size: 14px; font-weight: bold;"></span>
         </div>
         <div class="table-container"><table id="loansTable">
-            <thead><tr><th><i class="fas fa-check-square"></i></th><th data-sortable><i class="fas fa-hashtag"></i> ល.រ</th><th data-sortable><i class="fas fa-id-card"></i> លេខកម្ចី</th><th data-sortable><i class="fas fa-user"></i> ឈ្មោះ</th><th data-sortable><i class="fas fa-venus-mars"></i> ភេទ</th><th data-sortable><i class="fas fa-user-tie"></i> មន្ត្រីឥណទាន</th><th><i class="fas fa-map-marker-alt"></i> ភូមិ</th><th><i class="fas fa-map-marker-alt"></i> ឃុំ</th><th><i class="fas fa-map-marker-alt"></i> ស្រុក</th><th data-sortable><i class="fas fa-map-marked-alt"></i> ខេត្ត</th><th><i class="fas fa-phone"></i> លេខទូរសព្ទ</th><th data-sortable><i class="fas fa-dollar-sign"></i> ប្រាក់កម្ចី</th><th data-sortable><i class="fas fa-percent"></i> អត្រាការប្រាក់ (%)</th><th><i class="fas fa-landmark"></i> សេវារដ្ឋបាល</th><th><i class="fas fa-shield-alt"></i> សេវាធានារ៉ាប់រង</th><th data-sortable><i class="fas fa-clock"></i> រយៈពេល (ខែ)</th><th data-sortable><i class="fas fa-tasks"></i> ស្ថានភាព</th><th><i class="fas fa-cogs"></i> សកម្មភាព</th></tr></thead>
+            <thead><tr><th><input type="checkbox" id="selectAllLoans" title="ជ្រើសទាំងអស់ក្នុងទំព័រនេះ" onclick="toggleSelectAllLoans(this.checked)"></th><th data-sortable><i class="fas fa-hashtag"></i> ល.រ</th><th data-sortable><i class="fas fa-id-card"></i> លេខកម្ចី</th><th data-sortable><i class="fas fa-user"></i> ឈ្មោះ</th><th data-sortable><i class="fas fa-venus-mars"></i> ភេទ</th><th data-sortable><i class="fas fa-user-tie"></i> មន្ត្រីឥណទាន</th><th><i class="fas fa-map-marker-alt"></i> ភូមិ</th><th><i class="fas fa-map-marker-alt"></i> ឃុំ</th><th><i class="fas fa-map-marker-alt"></i> ស្រុក</th><th data-sortable><i class="fas fa-map-marked-alt"></i> ខេត្ត</th><th><i class="fas fa-phone"></i> លេខទូរសព្ទ</th><th data-sortable><i class="fas fa-dollar-sign"></i> ប្រាក់កម្ចី</th><th data-sortable><i class="fas fa-percent"></i> អត្រាការប្រាក់ (%)</th><th><i class="fas fa-landmark"></i> សេវារដ្ឋបាល</th><th><i class="fas fa-shield-alt"></i> សេវាធានារ៉ាប់រង</th><th data-sortable><i class="fas fa-clock"></i> រយៈពេល (ខែ)</th><th data-sortable><i class="fas fa-tasks"></i> ស្ថានភាព</th><th><i class="fas fa-cogs"></i> សកម្មភាព</th></tr></thead>
             <tbody id="loansTableBody"></tbody>
             <tfoot>
                 <tr class="summary-row">
