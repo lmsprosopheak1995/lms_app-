@@ -792,6 +792,14 @@ function openNewLoanForm() {
 }
 function openLoanFormModal() { document.getElementById('loanFormModal').style.display = 'flex'; }
 function closeLoanFormModal() { document.getElementById('loanFormModal').style.display = 'none'; }
+// Esc closes the loan form, but only when no other popup (confirm, payment, history...) is open above it.
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  const m = document.getElementById('loanFormModal');
+  if (!m || m.style.display === 'none' || !m.style.display) return;
+  const otherOpen = Array.from(document.querySelectorAll('.modal')).some(x => x !== m && x.style.display && x.style.display !== 'none');
+  if (!otherOpen) closeLoanFormModal();
+});
 
 function createLoanTableRow(loan, index) {
   const tr = document.createElement("tr");
