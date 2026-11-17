@@ -723,6 +723,8 @@
             </div>
         </form>
 
+        <div id="savingsOverduePanel"></div>
+
         <h3><i class="fas fa-table"></i> បញ្ជីគណនីសន្សំ</h3>
         <div class="table-container"><table id="savingsAccountsTable">
             <thead><tr><th><i class="fas fa-hashtag"></i> ល.រ</th><th><i class="fas fa-id-card"></i> លេខគណនី</th><th><i class="fas fa-user"></i> ឈ្មោះអតិថិជន</th><th><i class="fas fa-phone"></i> លេខទូរសព្ទ</th><th><i class="fas fa-bullseye"></i> គោលដៅ</th><th><i class="fas fa-coins"></i> សន្សំប្រចាំខែ</th><th><i class="fas fa-clock"></i> រយៈពេល (ខែ)</th><th><i class="fas fa-piggy-bank"></i> សន្សំបានហើយ</th><th><i class="fas fa-percentage"></i> ការប្រាក់</th><th><i class="fas fa-tasks"></i> ស្ថានភាព</th><th><i class="fas fa-cogs"></i> សកម្មភាព</th></tr></thead>
@@ -736,6 +738,7 @@
         </table></div>
         <div style="max-width:1000px;margin:10px auto;text-align:center">
             <button id="printSavingsScheduleBtn" class="btn" onclick="printSavingsSchedule()"><i class="fas fa-print"></i> បោះពុម្ពសៀវភៅសន្សំ</button>
+            <button id="printSavingsStatementBtn" class="btn" onclick="printSavingsStatement()"><i class="fas fa-receipt"></i> បោះពុម្ពប្រតិបត្តិការពិត</button>
             <button id="exportSavingsScheduleBtn" class="btn btn-info" onclick="exportSavingsScheduleToExcel()"><i class="fas fa-file-excel"></i> នាំចេញទៅ Excel</button>
         </div>
 
