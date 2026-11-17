@@ -711,8 +711,8 @@
                 <div><label for="savingsInterestType"><i class="fas fa-percentage"></i> ការប្រាក់</label><select id="savingsInterestType"><option value="none">គ្មានការប្រាក់</option><option value="monthly">ប្រចាំខែ</option><option value="annual">ប្រចាំឆ្នាំ</option></select></div>
                 <div id="savingsInterestRateWrap" style="display:none"><label for="savingsInterestRate"><i class="fas fa-percent"></i> អត្រាការប្រាក់ (%)</label><input id="savingsInterestRate" type="number" inputmode="decimal" min="0" step="0.01" value="0"/></div>
                 <div id="savingsTaxRateWrap" style="display:none"><label for="savingsTaxRate"><i class="fas fa-file-invoice-dollar"></i> កាត់ពន្ធលើការប្រាក់ (%)</label><input id="savingsTaxRate" type="number" inputmode="decimal" min="0" max="100" step="0.01" value="0"/></div>
-                <div><label for="savingsHasMembershipFee"><i class="fas fa-user-plus"></i> ប្រាក់ចូលរួមមុន</label><select id="savingsHasMembershipFee"><option value="no">មិនមាន</option><option value="yes">មាន</option></select></div>
-                <div id="savingsMembershipFeeAmountWrap" style="display:none"><label for="savingsMembershipFeeAmount"><i class="fas fa-hand-holding-usd"></i> ចំនួនប្រាក់ចូលរួម</label><input id="savingsMembershipFeeAmount" type="number" inputmode="decimal" min="0" step="0.01" value="0"/></div>
+                <div><label for="savingsHasMembershipFee"><i class="fas fa-user-plus"></i> ប្រាក់សន្សំដំបូង</label><select id="savingsHasMembershipFee" onchange="updateSavingsTermPreview()"><option value="no">មិនមាន</option><option value="yes">មាន</option></select></div>
+                <div id="savingsMembershipFeeAmountWrap" style="display:none"><label for="savingsMembershipFeeAmount"><i class="fas fa-hand-holding-usd"></i> ចំនួនប្រាក់សន្សំដំបូង</label><input id="savingsMembershipFeeAmount" oninput="updateSavingsTermPreview()" type="number" inputmode="decimal" min="0" step="0.01" value="0"/></div>
                 <div style="grid-column: 1 / -1;"><label for="savingsNotes"><i class="fas fa-sticky-note"></i> កំណត់ចំណាំ</label><textarea id="savingsNotes" rows="2"></textarea></div>
             </div>
             <div style="margin-top:15px;">
@@ -751,7 +751,7 @@
                 <div><i class="fas fa-percentage"></i> ការប្រាក់សរុប</div><div class="right" id="savingsSummaryInterest">0.00</div>
                 <div><i class="fas fa-file-invoice-dollar"></i> ពន្ធកាត់សរុប</div><div class="right" id="savingsSummaryTax">0.00</div>
                 <div><i class="fas fa-hand-holding-usd"></i> ការប្រាក់សុទ្ធសរុប</div><div class="right" id="savingsSummaryNetInterest">0.00</div>
-                <div><i class="fas fa-user-plus"></i> ប្រាក់ចូលរួមមុន</div><div class="right" id="savingsSummaryMembershipFee">-</div>
+                <div><i class="fas fa-user-plus"></i> ប្រាក់សន្សំដំបូង</div><div class="right" id="savingsSummaryMembershipFee">-</div>
             </div>
         </div>
     </div>
