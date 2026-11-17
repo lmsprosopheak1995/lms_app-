@@ -9,6 +9,18 @@
 // may in turn have a withholding tax rate deducted from it, and/or charge a one-time upfront
 // membership fee recorded separately from the deposit schedule.
 
+// The "ប្រាក់ចូលរួមមុន" field (stored as membershipFeeAmount) is the customer's INITIAL DEPOSIT.
+// It counts toward the savings goal, so the remaining months are computed from (goal - initial).
+function getSavingsInitialDeposit(account) {
+    if (!account || !account.hasMembershipFee) return 0;
+    return Math.max(0, Number(account.membershipFeeAmount) || 0);
+}
+
+function calcSavingsTerm(goal, monthly, initial = 0) {
+    const remaining = Math.max(0, Number(goal) - Number(initial || 0));
+    return Math.max(1, Math.ceil(remaining / Number(monthly)));
+}
+
 function getSavingsMonthlyRate(account) {
     const rate = Number(account.interestRate) || 0;
     if (account.interestType === 'monthly') return rate / 100;
@@ -46,9 +58,10 @@ function buildSavingsSchedule(account, forceRecalculate = false) {
     const schedule = [];
     const goal = Number(account.goalAmount);
     const monthly = Number(account.monthlyAmount);
-    const term = Math.max(1, Math.ceil(goal / monthly));
-    let cumulative = 0;
-    let cumulativePaid = 0;
+    const initial = Math.min(getSavingsInitialDeposit(account), goal);
+    const term = calcSavingsTerm(goal, monthly, initial);
+    let cumulative = initial;      // running total starts from the initial deposit
+    let cumulativePaid = initial;  // interest-bearing balance also starts from the initial deposit
     const originalDay = parseDate(account.startDate).getDate();
     const monthlyRate = getSavingsMonthlyRate(account);
     const taxRate = Number(account.taxRate) || 0;
@@ -135,7 +148,11 @@ function validateSavingsForm() {
         if (taxRate < 0 || taxRate > 100) errors.push('អត្រាកាត់ពន្ធត្រូវនៅចន្លោះ 0-100%');
     }
     if (document.getElementById('savingsHasMembershipFee').value === 'yes' && Number(document.getElementById('savingsMembershipFeeAmount').value) <= 0) {
-        errors.push('ចំនួនប្រាក់ចូលរួម (>0)');
+        errors.push('ចំនួនប្រាក់សន្សំដំបូង (>0)');
+    }
+    if (document.getElementById('savingsHasMembershipFee').value === 'yes' &&
+        Number(document.getElementById('savingsMembershipFeeAmount').value) >= Number(document.getElementById('savingsGoalAmount').value)) {
+        errors.push('ប្រាក់សន្សំដំបូងត្រូវតិចជាងគោលដៅសន្សំ');
     }
 
     if (errors.length) {
@@ -230,8 +247,10 @@ function updateSavingsTermPreview() {
     const goal = Number(document.getElementById('savingsGoalAmount').value) || 0;
     const monthly = Number(document.getElementById('savingsMonthlyAmount').value) || 0;
     const termEl = document.getElementById('savingsEstimatedTerm');
+    const hasInitial = document.getElementById('savingsHasMembershipFee').value === 'yes';
+    const initial = hasInitial ? (Number(document.getElementById('savingsMembershipFeeAmount').value) || 0) : 0;
     if (goal > 0 && monthly > 0) {
-        termEl.value = Math.ceil(goal / monthly);
+        termEl.value = calcSavingsTerm(goal, monthly, Math.min(initial, goal));
     } else {
         termEl.value = '';
     }
@@ -244,7 +263,7 @@ function getSavingsWithdrawnAmount(account) {
 
 function getSavingsSavedAmount(account) {
     const schedule = buildSavingsSchedule(account);
-    const deposited = schedule.reduce((sum, s) => sum + s.paidAmount, 0);
+    const deposited = getSavingsInitialDeposit(account) + schedule.reduce((sum, s) => sum + s.paidAmount, 0);
     return Math.max(0, deposited - getSavingsWithdrawnAmount(account));
 }
 
@@ -264,7 +283,7 @@ function displaySavingsAccounts() {
     }
     const fragment = document.createDocumentFragment();
     savingsAccounts.forEach((account, idx) => {
-        const term = Math.max(1, Math.ceil(Number(account.goalAmount) / Number(account.monthlyAmount)));
+        const term = calcSavingsTerm(Number(account.goalAmount), Number(account.monthlyAmount), Math.min(getSavingsInitialDeposit(account), Number(account.goalAmount)));
         const saved = getSavingsSavedAmount(account);
         const statusInfo = getSavingsComputedStatus(account);
         const interestLabel = getSavingsInterestLabel(account);
@@ -372,6 +391,23 @@ function renderSavingsSchedule(account, forceRecalculate = false) {
     }
     const statusLabels = { unpaid: 'មិនទាន់បង់', partial: 'បង់បានមួយផ្នែក', paid: 'បានបង់' };
     const fragment = document.createDocumentFragment();
+    const initialDeposit = getSavingsInitialDeposit(account);
+    if (initialDeposit > 0) {
+        const tr0 = document.createElement('tr');
+        tr0.innerHTML = `
+            <td>0</td>
+            <td>${formatDateDMY(account.startDate)}</td>
+            <td class="right">${fmtMoney(initialDeposit, account.currency)}</td>
+            <td class="right">${fmtMoney(initialDeposit, account.currency)}</td>
+            <td class="right" style="font-weight:bold; color: var(--success)">${fmtMoney(0, account.currency)}</td>
+            <td class="right">${fmtMoney(initialDeposit, account.currency)}</td>
+            <td class="right">${fmtMoney(0, account.currency)}</td>
+            <td class="right">${fmtMoney(0, account.currency)}</td>
+            <td class="right">${fmtMoney(0, account.currency)}</td>
+            <td class="status-cell"><span class="status-badge status-paid">ប្រាក់សន្សំដំបូង</span></td>
+            <td class="center actions">-</td>`;
+        fragment.appendChild(tr0);
+    }
     schedule.forEach(s => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -395,9 +431,8 @@ function renderSavingsSchedule(account, forceRecalculate = false) {
 
 function updateSavingsSummary(account) {
     const schedule = buildSavingsSchedule(account);
-    const deposited = schedule.reduce((sum, s) => sum + s.paidAmount, 0);
     const withdrawn = getSavingsWithdrawnAmount(account);
-    const saved = Math.max(0, deposited - withdrawn);
+    const saved = getSavingsSavedAmount(account);
     const remaining = Math.max(0, Number(account.goalAmount) - saved);
     const totalInterest = schedule.reduce((sum, s) => sum + s.interest, 0);
     const totalTax = schedule.reduce((sum, s) => sum + s.tax, 0);
@@ -648,6 +683,10 @@ function printSavingsSchedule() {
     const schedule = buildSavingsSchedule(account);
 
     let rowsHtml = '';
+    const initialDeposit = getSavingsInitialDeposit(account);
+    if (initialDeposit > 0) {
+        rowsHtml += `<tr><td class="center">0</td><td class="center">${formatDateDMY(account.startDate)}</td><td class="right">${fmtMoney(initialDeposit, account.currency)}</td><td class="right">${fmtMoney(0, account.currency)}</td><td class="right">${fmtMoney(0, account.currency)}</td><td class="right">${fmtMoney(0, account.currency)}</td><td class="right">${fmtMoney(initialDeposit, account.currency)}</td></tr>`;
+    }
     schedule.forEach(s => {
         rowsHtml += `<tr><td class="center">${s.index}</td><td class="center">${formatDateDMY(s.date)}</td><td class="right">${fmtMoney(s.amount, account.currency)}</td><td class="right">${fmtMoney(s.interest, account.currency)}</td><td class="right">${fmtMoney(s.tax, account.currency)}</td><td class="right">${fmtMoney(s.netInterest, account.currency)}</td><td class="right">${fmtMoney(s.cumulative, account.currency)}</td></tr>`;
     });
@@ -658,7 +697,7 @@ function printSavingsSchedule() {
             <tr><td>លេខគណនី</td><td><strong>${esc(account.id)}</strong></td><td>ការប្រាក់</td><td><strong>${esc(getSavingsInterestLabel(account))}</strong></td></tr>
             <tr><td>ឈ្មោះគណនី</td><td><strong>${esc(account.customerName)}</strong></td><td>គោលដៅសន្សំ</td><td><strong>${fmtMoney(account.goalAmount, account.currency)}</strong></td></tr>
             <tr><td>ថ្ងៃ-ខែ-ឆ្នាំ</td><td><strong>${formatDateDMY(account.startDate)}</strong></td><td>សន្សំប្រចាំខែ</td><td><strong>${fmtMoney(account.monthlyAmount, account.currency)}</strong></td></tr>
-            <tr><td>ប្រាក់ចូលរួមមុន</td><td><strong>${account.hasMembershipFee ? fmtMoney(account.membershipFeeAmount, account.currency) : 'មិនមាន'}</strong></td><td>ដកប្រាក់សរុប</td><td><strong>${fmtMoney(getSavingsWithdrawnAmount(account), account.currency)}</strong></td></tr>
+            <tr><td>ប្រាក់សន្សំដំបូង</td><td><strong>${account.hasMembershipFee ? fmtMoney(account.membershipFeeAmount, account.currency) : 'មិនមាន'}</strong></td><td>ដកប្រាក់សរុប</td><td><strong>${fmtMoney(getSavingsWithdrawnAmount(account), account.currency)}</strong></td></tr>
         </table>
         <table class="print-schedule-table">
             <thead><tr><th>លេខរៀង</th><th>ថ្ងៃ-ខែ-ឆ្នាំ</th><th>ប្រាក់សន្សំ</th><th>ការប្រាក់</th><th>ពន្ធ</th><th>ការប្រាក់សុទ្ធ</th><th>សរុប</th></tr></thead>
@@ -696,6 +735,14 @@ function exportSavingsScheduleToExcel() {
         'បានបង់': s.paidAmount.toFixed(2), 'នៅសល់': s.remainingAmount.toFixed(2), 'សរុប': s.cumulative.toFixed(2),
         'ការប្រាក់': s.interest.toFixed(2), 'ពន្ធ': s.tax.toFixed(2), 'ការប្រាក់សុទ្ធ': s.netInterest.toFixed(2), 'ស្ថានភាព': s.status
     }));
+    const initialDeposit = getSavingsInitialDeposit(currentSavingsAccount);
+    if (initialDeposit > 0) {
+        data.unshift({
+            'លេខរៀង': 0, 'ថ្ងៃ-ខែ-ឆ្នាំ': formatDateDMY(currentSavingsAccount.startDate), 'ប្រាក់សន្សំ': initialDeposit.toFixed(2),
+            'បានបង់': initialDeposit.toFixed(2), 'នៅសល់': '0.00', 'សរុប': initialDeposit.toFixed(2),
+            'ការប្រាក់': '0.00', 'ពន្ធ': '0.00', 'ការប្រាក់សុទ្ធ': '0.00', 'ស្ថានភាព': 'initial'
+        });
+    }
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'SavingsSchedule');
