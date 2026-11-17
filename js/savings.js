@@ -277,6 +277,7 @@ function getSavingsComputedStatus(account) {
 function displaySavingsAccounts() {
     const tbody = document.getElementById('savingsAccountsTableBody');
     tbody.innerHTML = '';
+    renderSavingsOverduePanel();
     if (savingsAccounts.length === 0) {
         tbody.innerHTML = `<tr><td colspan="11" class="center" style="color:#999">មិនមានគណនីសន្សំទេ</td></tr>`;
         return;
@@ -749,3 +750,134 @@ function exportSavingsScheduleToExcel() {
     XLSX.writeFile(workbook, `${currentSavingsAccount.id}_savings_schedule.xlsx`);
 }
 
+
+// =====================================================================
+// Overdue savings accounts (installments whose due date has passed and are not fully paid)
+// =====================================================================
+function getTodayISO() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function getSavingsOverdueInfo(account) {
+    if (!account || account.status === 'closed') return null;
+    if (getSavingsComputedStatus(account).key === 'completed') return null;
+    const schedule = buildSavingsSchedule(account);
+    const today = parseDate(getTodayISO());
+    const overdue = schedule.filter(s => s.status !== 'paid' && s.remainingAmount > 0.01 && parseDate(s.date) < today);
+    if (overdue.length === 0) return null;
+    const oldest = parseDate(overdue[0].date);
+    return {
+        count: overdue.length,
+        amount: overdue.reduce((sum, s) => sum + s.remainingAmount, 0),
+        daysLate: Math.floor((today - oldest) / 86400000),
+        oldestDate: overdue[0].date
+    };
+}
+
+function renderSavingsOverduePanel() {
+    const panel = document.getElementById('savingsOverduePanel');
+    if (!panel) return;
+    const rows = [];
+    savingsAccounts.forEach(account => {
+        const info = getSavingsOverdueInfo(account);
+        if (info) rows.push({ account, info });
+    });
+    if (rows.length === 0) { panel.innerHTML = ''; return; }
+    rows.sort((a, b) => b.info.daysLate - a.info.daysLate);
+    const body = rows.map((r, i) => `
+        <tr class="clickable-row" onclick="loadSavingsAccount('${esc(r.account.id)}')">
+            <td>${i + 1}</td>
+            <td>${esc(r.account.id)}</td>
+            <td>${esc(r.account.customerName)}</td>
+            <td>${esc(r.account.customerPhone || '')}</td>
+            <td class="right">${r.info.count}</td>
+            <td class="right" style="color:var(--danger);font-weight:bold">${fmtMoney(r.info.amount, r.account.currency)}</td>
+            <td>${formatDateDMY(r.info.oldestDate)}</td>
+            <td class="right" style="color:var(--danger);font-weight:bold">${r.info.daysLate} ថ្ងៃ</td>
+        </tr>`).join('');
+    panel.innerHTML = `
+        <h3 style="color:var(--danger)"><i class="fas fa-exclamation-triangle"></i> គណនីយឺតយ៉ាវ (${rows.length})</h3>
+        <div class="table-container"><table>
+            <thead><tr><th>ល.រ</th><th>លេខគណនី</th><th>ឈ្មោះអតិថិជន</th><th>លេខទូរសព្ទ</th><th>ចំនួនខែយឺត</th><th>ប្រាក់ជំពាក់</th><th>កាលកំណត់ចាស់បំផុត</th><th>យឺតជាង</th></tr></thead>
+            <tbody>${body}</tbody>
+        </table></div>`;
+}
+
+// =====================================================================
+// Real-transaction statement (actual deposits/withdrawals with running balance)
+// =====================================================================
+function getSavingsTransactions(account) {
+    const tx = [];
+    const initial = getSavingsInitialDeposit(account);
+    if (initial > 0) {
+        tx.push({ date: account.startDate, label: 'ប្រាក់សន្សំដំបូង', ref: '0', note: '', deposit: initial, withdraw: 0, order: 0, ts: '' });
+    }
+    const schedule = buildSavingsSchedule(account);
+    schedule.forEach(sc => {
+        (savingsPayments[`${account.id}-${sc.index}`] || []).forEach(p => {
+            tx.push({ date: p.date, label: 'ដាក់ប្រាក់', ref: String(sc.index), note: p.note || '', deposit: Number(p.amount) || 0, withdraw: 0, order: 1, ts: p.ts || '' });
+        });
+    });
+    (savingsWithdrawals[account.id] || []).forEach(w => {
+        tx.push({ date: w.date, label: 'ដកប្រាក់', ref: '', note: w.note || '', deposit: 0, withdraw: Number(w.amount) || 0, order: 2, ts: w.ts || '' });
+    });
+    tx.sort((a, b) => (parseDate(a.date) - parseDate(b.date)) || (a.order - b.order) || a.ts.localeCompare(b.ts));
+    let balance = 0;
+    tx.forEach(t => { balance += t.deposit - t.withdraw; t.balance = balance; });
+    return tx;
+}
+
+function printSavingsStatement() {
+    if (!currentSavingsAccount) { showToast('សូមជ្រើសរើសគណនីសន្សំជាមុនសិន', 'error'); return; }
+    const account = currentSavingsAccount;
+    const tx = getSavingsTransactions(account);
+    if (tx.length === 0) { showToast('មិនទាន់មានប្រតិបត្តិការទេ', 'error'); return; }
+
+    const totalDeposit = tx.reduce((sum, t) => sum + t.deposit, 0);
+    const totalWithdraw = tx.reduce((sum, t) => sum + t.withdraw, 0);
+    const rowsHtml = tx.map((t, i) => `<tr>
+        <td class="center">${i + 1}</td>
+        <td class="center">${formatDateDMY(t.date)}</td>
+        <td>${esc(t.label)}</td>
+        <td class="center">${esc(t.ref)}</td>
+        <td class="right">${t.deposit > 0 ? fmtMoney(t.deposit, account.currency) : ''}</td>
+        <td class="right">${t.withdraw > 0 ? fmtMoney(t.withdraw, account.currency) : ''}</td>
+        <td class="right">${fmtMoney(t.balance, account.currency)}</td>
+        <td>${esc(t.note)}</td>
+    </tr>`).join('');
+
+    const bodyHtml = `
+        <div class="receipt-header"><h2>សៀវភៅសន្សំ (ប្រតិបត្តិការពិត) - SAVINGS STATEMENT</h2></div>
+        <table class="print-info-table">
+            <tr><td>លេខគណនី</td><td><strong>${esc(account.id)}</strong></td><td>គោលដៅសន្សំ</td><td><strong>${fmtMoney(account.goalAmount, account.currency)}</strong></td></tr>
+            <tr><td>ឈ្មោះគណនី</td><td><strong>${esc(account.customerName)}</strong></td><td>សន្សំប្រចាំខែ</td><td><strong>${fmtMoney(account.monthlyAmount, account.currency)}</strong></td></tr>
+            <tr><td>ថ្ងៃចាប់ផ្តើម</td><td><strong>${formatDateDMY(account.startDate)}</strong></td><td>សមតុល្យបច្ចុប្បន្ន</td><td><strong>${fmtMoney(getSavingsSavedAmount(account), account.currency)}</strong></td></tr>
+        </table>
+        <table class="print-schedule-table">
+            <thead><tr><th>ល.រ</th><th>ថ្ងៃ-ខែ-ឆ្នាំ</th><th>ប្រភេទ</th><th>ខែទី</th><th>ដាក់ចូល</th><th>ដកចេញ</th><th>សមតុល្យ</th><th>កំណត់ចំណាំ</th></tr></thead>
+            <tbody>${rowsHtml}</tbody>
+            <tfoot><tr><td colspan="4" class="right"><strong>សរុប</strong></td><td class="right"><strong>${fmtMoney(totalDeposit, account.currency)}</strong></td><td class="right"><strong>${fmtMoney(totalWithdraw, account.currency)}</strong></td><td class="right"><strong>${fmtMoney(tx[tx.length - 1].balance, account.currency)}</strong></td><td></td></tr></tfoot>
+        </table>`;
+
+    const pageStyle = `
+        @page { size: A4; margin: 15mm; }
+        body { font-family: 'Khmer OS', Arial, sans-serif; font-size: 13px; color:#000; }
+        .receipt-header { text-align:center; margin-bottom:16px; }
+        .receipt-header h2 { margin:0; }
+        table.print-info-table, table.print-schedule-table { width:100%; border-collapse:collapse; margin-bottom:14px; }
+        table.print-info-table th, table.print-info-table td, table.print-schedule-table th, table.print-schedule-table td { border:1px solid #333; padding:6px 8px; }
+        table.print-schedule-table thead th { background:#f0f0f0; }
+        .right { text-align:right; }
+        .center { text-align:center; }
+    `;
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`<html><head><title>Savings Statement - ${esc(account.id)}</title><style>${pageStyle}</style></head><body>${bodyHtml}</body></html>`);
+    printWindow.document.close();
+    setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+        printWindow.close();
+    }, 250);
+}
