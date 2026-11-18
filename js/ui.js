@@ -244,6 +244,11 @@ function switchTab(t) {
     else if (t === 'expenses') { renderExpensesTable(); }
     else if (t === 'map') { initMap(); }
     else if (t === 'savings') { displaySavingsAccounts(); }
+    else if (t === 'installments') {
+        if (!document.getElementById('insStartDate').value) document.getElementById('insStartDate').value = formatDateISO(new Date());
+        displayInstallmentContracts();
+        updateInstallmentPreview();
+    }
 }
 
 function switchSubTab(parentTab, subTab) {

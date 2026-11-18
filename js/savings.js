@@ -462,7 +462,7 @@ function openSavingsDepositModal(accountId, installmentIndex) {
     currentSavingsPayment = { accountId, installmentIndex };
 
     document.getElementById('savingsModalAccountId').textContent = accountId;
-    document.getElementById('savingsModalInstallment').textContent = `${installmentIndex}/${Math.max(1, Math.ceil(Number(account.goalAmount) / Number(account.monthlyAmount)))}`;
+    document.getElementById('savingsModalInstallment').textContent = `${installmentIndex}/${calcSavingsTerm(Number(account.goalAmount), Number(account.monthlyAmount), Math.min(getSavingsInitialDeposit(account), Number(account.goalAmount)))}`;
     document.getElementById('savingsModalDueDate').textContent = formatDateDMY(installment.date);
     document.getElementById('savingsModalAmount').textContent = fmtMoney(installment.amount, account.currency);
     document.getElementById('savingsModalPaidAmount').textContent = fmtMoney(installment.paidAmount, account.currency);

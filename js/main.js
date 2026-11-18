@@ -129,6 +129,8 @@ async function initApp() {
   savingsAccounts = loadData(LS_KEYS.savingsAccounts);
   savingsPayments = loadData(LS_KEYS.savingsPayments, true);
   savingsWithdrawals = loadData(LS_KEYS.savingsWithdrawals, true);
+  installmentContracts = loadData(LS_KEYS.installmentContracts);
+  installmentPayments = loadData(LS_KEYS.installmentPayments, true);
   initAppSettings();
 
   // Bring loan.status up to date for any loan that's fully paid but hasn't been flipped to
@@ -151,6 +153,7 @@ async function initApp() {
   generateNotifications();
   renderDashboard();
   clearSavingsForm();
+  clearInstallmentForm();
   initAIWidget();
 
   // --- Centralized Event Listeners ---
@@ -247,6 +250,9 @@ async function refreshAppData() {
     savingsAccounts = loadData(LS_KEYS.savingsAccounts);
     savingsPayments = loadData(LS_KEYS.savingsPayments, true);
     savingsWithdrawals = loadData(LS_KEYS.savingsWithdrawals, true);
+    installmentContracts = loadData(LS_KEYS.installmentContracts);
+    installmentPayments = loadData(LS_KEYS.installmentPayments, true);
+    clearInstallmentScheduleCache();
     initAppSettings();
 
     reconcileLoanStatuses();

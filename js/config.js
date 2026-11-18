@@ -27,7 +27,8 @@ const LS_KEYS = {
     loanRequests: 'lms_loanRequests_v1',
     migrationVersion: 'lms_migration_version',
     theme: 'lms_theme_v1',
-    savingsAccounts: 'lms_savingsAccounts_v1', savingsPayments: 'lms_savingsPayments_v1', savingsIdCounter: 'lms_savingsIdCounter_v1', savingsWithdrawals: 'lms_savingsWithdrawals_v1'
+    savingsAccounts: 'lms_savingsAccounts_v1', savingsPayments: 'lms_savingsPayments_v1', savingsIdCounter: 'lms_savingsIdCounter_v1', savingsWithdrawals: 'lms_savingsWithdrawals_v1',
+    installmentContracts: 'lms_installmentContracts_v1', installmentPayments: 'lms_installmentPayments_v1'
 };
 const DEFAULT_AVATAR_SRC = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NjYyI+PHBhdGggZD0iTTEyIDEyYzIuMjEgMCA0LTEuNzkgNC00cy0xLjc5LTQtNC00LTQgMS43OS00IDQgMS43OSA0IDQgNHptMCAyYy0yLjY3IDAtOCAxLjM0LTggNHYyaDE2di0yYzAtMi42Ni01LjMzLTQtOC00eiIvPjwvc3ZnPg==';
 const PERMISSIONS = {
@@ -40,10 +41,10 @@ const PERMISSIONS = {
   // app_user_roles (schema.sql, not in this repo) must also allow managers to PATCH
   // is_frozen/failed_attempts on other users' rows, or their attempts will fail at the DB
   // layer even though the UI lets them try.
-  admin:   { canManageUsers: true, canManageAccountStatus: true, canDeleteCustomer: true, canArchiveLoan: true, canDeleteLoan: true, canDeleteSavings: true, canEditLoan: true, canRefinanceLoan: true, canViewAllLoans: true, canManageSystem: true, canManagePayments: true, canWriteOff: true, canApproveLoan: true },
-  manager: { canManageUsers: false, canManageAccountStatus: true, canDeleteCustomer: true, canArchiveLoan: true, canDeleteLoan: true, canDeleteSavings: true, canEditLoan: true, canRefinanceLoan: true, canViewAllLoans: true, canManageSystem: false, canManagePayments: true, canWriteOff: true, canApproveLoan: true },
-  officer: { canManageUsers: false, canManageAccountStatus: false, canDeleteCustomer: false, canArchiveLoan: false, canDeleteLoan: false, canDeleteSavings: false, canEditLoan: false, canRefinanceLoan: false, canViewAllLoans: false, canManageSystem: false, canManagePayments: true, canWriteOff: false, canApproveLoan: false },
-  viewer:  { canManageUsers: false, canManageAccountStatus: false, canDeleteCustomer: false, canArchiveLoan: false, canDeleteLoan: false, canDeleteSavings: false, canEditLoan: false, canRefinanceLoan: false, canViewAllLoans: true, canManageSystem: false, canManagePayments: false, canWriteOff: false, canApproveLoan: false }
+  admin:   { canManageUsers: true, canManageAccountStatus: true, canDeleteCustomer: true, canArchiveLoan: true, canDeleteLoan: true, canDeleteSavings: true, canDeleteInstallments: true, canEditLoan: true, canRefinanceLoan: true, canViewAllLoans: true, canManageSystem: true, canManagePayments: true, canWriteOff: true, canApproveLoan: true },
+  manager: { canManageUsers: false, canManageAccountStatus: true, canDeleteCustomer: true, canArchiveLoan: true, canDeleteLoan: true, canDeleteSavings: true, canDeleteInstallments: true, canEditLoan: true, canRefinanceLoan: true, canViewAllLoans: true, canManageSystem: false, canManagePayments: true, canWriteOff: true, canApproveLoan: true },
+  officer: { canManageUsers: false, canManageAccountStatus: false, canDeleteCustomer: false, canArchiveLoan: false, canDeleteLoan: false, canDeleteSavings: false, canDeleteInstallments: false, canEditLoan: false, canRefinanceLoan: false, canViewAllLoans: false, canManageSystem: false, canManagePayments: true, canWriteOff: false, canApproveLoan: false },
+  viewer:  { canManageUsers: false, canManageAccountStatus: false, canDeleteCustomer: false, canArchiveLoan: false, canDeleteLoan: false, canDeleteSavings: false, canDeleteInstallments: false, canEditLoan: false, canRefinanceLoan: false, canViewAllLoans: true, canManageSystem: false, canManagePayments: false, canWriteOff: false, canApproveLoan: false }
 };
 const ROWS_PER_PAGE = 25;
 const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutes
@@ -78,4 +79,11 @@ let savingsWithdrawals = {};
 let currentSavingsAccount = null;
 let currentSavingsPayment = { accountId: null, installmentIndex: null };
 let savingsScheduleCache = {};
+
+// Store installment (រំលស់ជាមួយហាង) module state (see installments.js)
+let installmentContracts = [];
+let installmentPayments = {};
+let currentInstallmentContract = null;
+let currentInstallmentPayment = { contractId: null, installmentIndex: null };
+let installmentScheduleCache = {};
 
