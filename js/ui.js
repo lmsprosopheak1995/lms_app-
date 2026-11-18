@@ -249,6 +249,11 @@ function switchTab(t) {
         displayInstallmentContracts();
         updateInstallmentPreview();
     }
+    else if (t === 'pawn') {
+        if (!document.getElementById('pwnStartDate').value) document.getElementById('pwnStartDate').value = formatDateISO(new Date());
+        displayPawnContracts();
+        updatePawnPreview();
+    }
 }
 
 function switchSubTab(parentTab, subTab) {

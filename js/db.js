@@ -58,11 +58,13 @@ function getEntityConfig(key) {
     [LS_KEYS.loanRequests]:       { table: 'loan_requests',         shape: 'array' },
     [LS_KEYS.savingsAccounts]:    { table: 'savings_accounts',      shape: 'array' },
     [LS_KEYS.installmentContracts]: { table: 'installment_contracts', shape: 'array' },
+    [LS_KEYS.pawnContracts]:      { table: 'pawn_contracts',        shape: 'array' },
 
     [LS_KEYS.payments]:           { table: 'partial_payments',      shape: 'keyed-pair', parentColumn: 'loan_id' },
     [LS_KEYS.savingsPayments]:    { table: 'savings_deposits',      shape: 'keyed-pair', parentColumn: 'account_id' },
     [LS_KEYS.savingsWithdrawals]: { table: 'savings_withdrawals',   shape: 'keyed-single', parentColumn: 'account_id' },
     [LS_KEYS.installmentPayments]: { table: 'installment_payments', shape: 'keyed-pair', parentColumn: 'contract_id' },
+    [LS_KEYS.pawnTransactions]:   { table: 'pawn_transactions',     shape: 'keyed-single', parentColumn: 'pawn_id' },
     [LS_KEYS.loanHistory]:        { table: 'loan_history',          shape: 'history' },
   };
   return map[key] || null;
@@ -147,6 +149,8 @@ function assignGlobal(key, value) {
     case LS_KEYS.savingsAccounts: savingsAccounts = value; break;
     case LS_KEYS.installmentContracts: installmentContracts = value; break;
     case LS_KEYS.installmentPayments: installmentPayments = value; break;
+    case LS_KEYS.pawnContracts: pawnContracts = value; break;
+    case LS_KEYS.pawnTransactions: pawnTransactions = value; break;
     case LS_KEYS.payments: payments = value; break;
     case LS_KEYS.savingsPayments: savingsPayments = value; break;
     case LS_KEYS.savingsWithdrawals: savingsWithdrawals = value; break;
@@ -160,7 +164,7 @@ async function loadAllCloudData() {
     LS_KEYS.customers, LS_KEYS.loans, LS_KEYS.refinances, LS_KEYS.holidays,
     LS_KEYS.collaterals, LS_KEYS.guarantors, LS_KEYS.expenses,
     LS_KEYS.notifications, LS_KEYS.loanProducts, LS_KEYS.savingsAccounts,
-    LS_KEYS.loanRequests, LS_KEYS.installmentContracts
+    LS_KEYS.loanRequests, LS_KEYS.installmentContracts, LS_KEYS.pawnContracts
   ];
 
   await Promise.all(arrayKeys.map(async key => {
@@ -179,6 +183,7 @@ async function loadAllCloudData() {
   await loadKeyedPairEntity(LS_KEYS.payments);
   await loadKeyedPairEntity(LS_KEYS.savingsPayments);
   await loadKeyedPairEntity(LS_KEYS.installmentPayments);
+  await loadKeyedSingleEntity(LS_KEYS.pawnTransactions);
   await loadKeyedSingleEntity(LS_KEYS.savingsWithdrawals);
   await loadHistoryEntity(LS_KEYS.loanHistory);
   await loadAppSettingsEntity();
@@ -618,7 +623,7 @@ const REALTIME_WATCHED_TABLES = [
   'customers', 'loans', 'partial_payments', 'refinances', 'holidays',
   'collaterals', 'guarantors', 'expenses', 'notifications', 'loan_products',
   'savings_accounts', 'savings_deposits', 'savings_withdrawals', 'app_settings',
-  'installment_contracts', 'installment_payments',
+  'installment_contracts', 'installment_payments', 'pawn_contracts', 'pawn_transactions',
   'app_user_roles'
 ];
 
@@ -669,7 +674,8 @@ const REALTIME_TABLE_TO_KEY = {
   customers: LS_KEYS.customers, loans: LS_KEYS.loans, refinances: LS_KEYS.refinances,
   holidays: LS_KEYS.holidays, collaterals: LS_KEYS.collaterals, guarantors: LS_KEYS.guarantors,
   expenses: LS_KEYS.expenses, notifications: LS_KEYS.notifications, loan_products: LS_KEYS.loanProducts,
-  savings_accounts: LS_KEYS.savingsAccounts, installment_contracts: LS_KEYS.installmentContracts
+  savings_accounts: LS_KEYS.savingsAccounts, installment_contracts: LS_KEYS.installmentContracts,
+  pawn_contracts: LS_KEYS.pawnContracts
 };
 
 async function refreshEntityFromCloud(table) {
@@ -695,6 +701,8 @@ async function refreshEntityFromCloud(table) {
       await loadKeyedSingleEntity(LS_KEYS.savingsWithdrawals);
     } else if (table === 'installment_payments') {
       await loadKeyedPairEntity(LS_KEYS.installmentPayments);
+    } else if (table === 'pawn_transactions') {
+      await loadKeyedSingleEntity(LS_KEYS.pawnTransactions);
     } else {
       const key = REALTIME_TABLE_TO_KEY[table];
       const cfg = getEntityConfig(key);
@@ -723,6 +731,7 @@ function refreshVisibleUI() {
       case 'collectionsTab': renderCollectionsTable(); break;
       case 'savingsTab': displaySavingsAccounts(); break;
       case 'installmentsTab': if (typeof displayInstallmentContracts === 'function') displayInstallmentContracts(); break;
+      case 'pawnTab': if (typeof displayPawnContracts === 'function') displayPawnContracts(); break;
       case 'analysisTab': renderAnalysisCharts(); break;
       case 'expensesTab': renderExpensesTable(); break;
     }
