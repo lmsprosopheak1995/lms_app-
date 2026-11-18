@@ -71,6 +71,10 @@ function computeInstallmentRows(contract) {
     const isPercent = (contract.interestRateType || 'percent') === 'percent';
     const method = contract.interestMethod || 'declining';
     const factor = INS_UNIT_DAYS[periodUnit] / INS_UNIT_DAYS[interestUnit];
+    // Service fee (អត្រាសេវាប្រចាំខែ %) is always quoted per month; scaled to the payment period.
+    const serviceRate = Number(contract.serviceFeeRate) || 0;
+    const feeFactor = INS_UNIT_DAYS[periodUnit] / INS_UNIT_DAYS.month;
+    const waiveFirst = contract.waiveFirstInterest === true || contract.waiveFirstInterest === 'yes';
 
     const principalPer = insRound(principal / n, cur);
     let balance = principal;
@@ -80,14 +84,18 @@ function computeInstallmentRows(contract) {
         let interest;
         if (!isPercent) interest = rate * factor;
         else interest = (method === 'flat' ? principal : balance) * (rate / 100) * factor;
+        if (waiveFirst && i === 1) interest = 0; // លើកលែងការប្រាក់ខែដំបូង
         interest = insRound(interest, cur);
+        // Service fee uses the same base as the interest method (remaining balance, or flat financed amount)
+        const serviceFee = insRound((method === 'flat' ? principal : balance) * (serviceRate / 100) * feeFactor, cur);
         balance = Math.max(0, insRound(balance - p, cur));
         rows.push({
             index: i,
             date: contract.startDate ? insAddPeriod(contract.startDate, periodUnit, i) : '',
             principal: p,
             interest,
-            amount: insRound(p + interest, cur),
+            serviceFee,
+            amount: insRound(p + interest + serviceFee, cur),
             balanceAfter: balance
         });
     }
@@ -112,11 +120,12 @@ function getInstallmentTotals(contract) {
     const price = Number(contract.price) || 0;
     const down = Number(contract.downPayment) || 0;
     const totalInterest = rows.reduce((s, r) => s + r.interest, 0);
+    const totalServiceFee = rows.reduce((s, r) => s + (r.serviceFee || 0), 0);
     const totalPayable = rows.reduce((s, r) => s + r.amount, 0);
     const paid = rows.reduce((s, r) => s + r.paidAmount, 0);
     return {
         price, down, financed: Math.max(0, price - down),
-        totalInterest, totalPayable, paid,
+        totalInterest, totalServiceFee, totalPayable, paid,
         remaining: Math.max(0, totalPayable - paid)
     };
 }
@@ -164,6 +173,8 @@ function createInstallmentDataFromForm() {
         interestRateType: v('insInterestRateType'),
         interestRate: parseFloat(v('insInterestRate')) || 0,
         interestMethod: v('insInterestMethod'),
+        serviceFeeRate: parseFloat(v('insServiceFeeRate')) || 0,
+        waiveFirstInterest: v('insWaiveFirstInterest') === 'yes',
         note: v('insNote').trim()
     };
 }
@@ -177,6 +188,7 @@ function validateInstallmentForm(d) {
     if (d.downPayment < 0 || d.downPayment >= d.price) errors.push('ប្រាក់កក់ត្រូវតិចជាងតម្លៃទំនិញ');
     if (!(d.termCount >= 1)) errors.push('ចំនួនដំណាក់កាលបង់ (≥1)');
     if (d.interestRate < 0) errors.push('អត្រាការប្រាក់មិនអាចអវិជ្ជមាន');
+    if (d.serviceFeeRate < 0) errors.push('អត្រាសេវាមិនអាចអវិជ្ជមាន');
     if (errors.length) {
         showToast('សូមពិនិត្យមើលកំហុស:\n - ' + errors.join('\n - '), 'error');
         return false;
@@ -194,6 +206,7 @@ function updateInstallmentPreview() {
     }
     const rows = computeInstallmentRows(d);
     const totalInterest = rows.reduce((s, r) => s + r.interest, 0);
+    const totalServiceFee = rows.reduce((s, r) => s + r.serviceFee, 0);
     const totalPayable = rows.reduce((s, r) => s + r.amount, 0);
     const first = rows[0];
     const last = rows[rows.length - 1];
@@ -201,6 +214,7 @@ function updateInstallmentPreview() {
         <div>ទឹកប្រាក់រំលស់ (តម្លៃ − កក់)</div><div>${fmtMoney(d.price - d.downPayment, d.currency)}</div>
         <div>ដំណាក់កាលទី 1 ត្រូវបង់</div><div>${fmtMoney(first.amount, d.currency)}</div>
         <div>ការប្រាក់សរុប</div><div>${fmtMoney(totalInterest, d.currency)}</div>
+        <div>សេវាសរុប</div><div>${fmtMoney(totalServiceFee, d.currency)}</div>
         <div>ត្រូវបង់សរុប (ក្រៅពីកក់)</div><div style="font-weight:bold">${fmtMoney(totalPayable, d.currency)}</div>
         <div>ថ្ងៃបង់ចុងក្រោយ</div><div>${formatDateDMY(last.date)}</div>`;
 }
@@ -261,6 +275,8 @@ function loadInstallmentContract(contractId) {
     set('insPeriodUnit', c.periodUnit); set('insInterestUnit', c.interestUnit);
     set('insInterestRateType', c.interestRateType); set('insInterestRate', c.interestRate);
     set('insInterestMethod', c.interestMethod); set('insNote', c.note);
+    set('insServiceFeeRate', c.serviceFeeRate || 0);
+    set('insWaiveFirstInterest', (c.waiveFirstInterest === true || c.waiveFirstInterest === 'yes') ? 'yes' : 'no');
     document.getElementById('installmentFormTitle').innerHTML = `<i class="fas fa-store"></i> កិច្ចសន្យារំលស់: ${esc(c.id)}`;
     updateInstallmentPreview();
     renderInstallmentSchedule(c, true);
@@ -375,6 +391,7 @@ function renderInstallmentSchedule(contract, forceRecalculate = false) {
             <td>${formatDateDMY(r.date)}</td>
             <td class="right">${fmtMoney(r.principal, cur)}</td>
             <td class="right">${fmtMoney(r.interest, cur)}</td>
+            <td class="right">${fmtMoney(r.serviceFee, cur)}</td>
             <td class="right">${fmtMoney(r.amount, cur)}</td>
             <td class="right">${fmtMoney(r.paidAmount, cur)}</td>
             <td class="right" style="font-weight:bold;color:${r.remainingAmount > 0 ? 'var(--danger)' : 'var(--success)'}">${fmtMoney(r.remainingAmount, cur)}</td>
@@ -396,6 +413,7 @@ function updateInstallmentSummary(contract) {
         <div>ប្រាក់កក់</div><div>${fmtMoney(t.down, cur)}</div>
         <div>ទឹកប្រាក់រំលស់</div><div>${fmtMoney(t.financed, cur)}</div>
         <div>ការប្រាក់សរុប</div><div>${fmtMoney(t.totalInterest, cur)}</div>
+        <div>សេវាសរុប</div><div>${fmtMoney(t.totalServiceFee, cur)}</div>
         <div>ត្រូវបង់សរុប</div><div>${fmtMoney(t.totalPayable, cur)}</div>
         <div>បានបង់</div><div style="color:var(--success);font-weight:bold">${fmtMoney(t.paid, cur)}</div>
         <div>នៅសល់</div><div style="color:var(--danger);font-weight:bold">${fmtMoney(t.remaining, cur)}</div>
@@ -514,7 +532,7 @@ function printInstallmentSchedule() {
 
     const rowsHtml = rows.map(r => `<tr>
         <td class="center">${r.index}</td><td class="center">${formatDateDMY(r.date)}</td>
-        <td class="right">${fmtMoney(r.principal, cur)}</td><td class="right">${fmtMoney(r.interest, cur)}</td>
+        <td class="right">${fmtMoney(r.principal, cur)}</td><td class="right">${fmtMoney(r.interest, cur)}</td><td class="right">${fmtMoney(r.serviceFee, cur)}</td>
         <td class="right">${fmtMoney(r.amount, cur)}</td><td class="right">${fmtMoney(r.paidAmount, cur)}</td>
         <td class="right">${fmtMoney(r.remainingAmount, cur)}</td><td class="right">${fmtMoney(r.balanceAfter, cur)}</td>
     </tr>`).join('');
@@ -523,19 +541,20 @@ function printInstallmentSchedule() {
         ? `${fmtMoney(c.interestRate, cur)} / ${INS_UNIT_LABEL[c.interestUnit]}`
         : `${c.interestRate}% / ${INS_UNIT_LABEL[c.interestUnit]}`;
 
+    const feeText = (Number(c.serviceFeeRate) > 0 ? `, សេវា ${c.serviceFeeRate}% / ខែ` : '') + (c.waiveFirstInterest ? ', លើកលែងការប្រាក់ដំបូង' : '');
     const bodyHtml = `
         <div class="receipt-header"><h2>កិច្ចសន្យារំលស់ជាមួយហាង - INSTALLMENT SCHEDULE</h2></div>
         <table class="print-info-table">
             <tr><td>លេខកិច្ចសន្យា</td><td><strong>${esc(c.id)}</strong></td><td>ថ្ងៃចាប់ផ្តើម</td><td><strong>${formatDateDMY(c.startDate)}</strong></td></tr>
             <tr><td>អតិថិជន</td><td><strong>${esc(c.customerName)}</strong> ${esc(c.customerPhone || '')}</td><td>អ្នកធានា</td><td>${esc(c.guarantorName || '-')} ${esc(c.guarantorPhone || '')}</td></tr>
-            <tr><td>ទំនិញ</td><td><strong>${esc(c.itemName)}</strong> ${esc(c.itemSerial || '')}</td><td>ការប្រាក់</td><td>${interestText} (${c.interestMethod === 'flat' ? 'លើដើមថេរ' : 'លើសមតុល្យនៅសល់'})</td></tr>
+            <tr><td>ទំនិញ</td><td><strong>${esc(c.itemName)}</strong> ${esc(c.itemSerial || '')}</td><td>ការប្រាក់</td><td>${interestText} (${c.interestMethod === 'flat' ? 'លើដើមថេរ' : 'លើសមតុល្យនៅសល់'})${feeText}</td></tr>
             <tr><td>តម្លៃទំនិញ</td><td>${fmtMoney(t.price, cur)}</td><td>ប្រាក់កក់</td><td>${fmtMoney(t.down, cur)}</td></tr>
             <tr><td>ទឹកប្រាក់រំលស់</td><td>${fmtMoney(t.financed, cur)}</td><td>ត្រូវបង់សរុប</td><td><strong>${fmtMoney(t.totalPayable, cur)}</strong></td></tr>
         </table>
         <table class="print-schedule-table">
-            <thead><tr><th>ល.រ</th><th>ថ្ងៃ-ខែ-ឆ្នាំ</th><th>ដើម</th><th>ការប្រាក់</th><th>ត្រូវបង់</th><th>បានបង់</th><th>នៅសល់</th><th>សមតុល្យដើម</th></tr></thead>
+            <thead><tr><th>ល.រ</th><th>ថ្ងៃ-ខែ-ឆ្នាំ</th><th>ដើម</th><th>ការប្រាក់</th><th>សេវា</th><th>ត្រូវបង់</th><th>បានបង់</th><th>នៅសល់</th><th>សមតុល្យដើម</th></tr></thead>
             <tbody>${rowsHtml}</tbody>
-            <tfoot><tr><td colspan="4" class="right"><strong>សរុប</strong></td><td class="right"><strong>${fmtMoney(t.totalPayable, cur)}</strong></td><td class="right"><strong>${fmtMoney(t.paid, cur)}</strong></td><td class="right"><strong>${fmtMoney(t.remaining, cur)}</strong></td><td></td></tr></tfoot>
+            <tfoot><tr><td colspan="5" class="right"><strong>សរុប</strong></td><td class="right"><strong>${fmtMoney(t.totalPayable, cur)}</strong></td><td class="right"><strong>${fmtMoney(t.paid, cur)}</strong></td><td class="right"><strong>${fmtMoney(t.remaining, cur)}</strong></td><td></td></tr></tfoot>
         </table>
         <table class="sign-table"><tr><td>ហត្ថលេខាអតិថិជន</td><td>ហត្ថលេខាអ្នកធានា</td><td>ហត្ថលេខាហាង</td></tr></table>`;
 
