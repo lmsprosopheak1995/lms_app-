@@ -243,7 +243,14 @@
                     <option value="non-resident">អនិវាសនជន (ជនបរទេស)</option>
                   </select>
                 </div>
-                <div style="align-self: center;"><label class="form-check"><input type="checkbox" id="custBlacklisted"> <i class="fas fa-ban"></i> ដាក់ក្នុងបញ្ជីខ្មៅ (Blacklist)</label></div>
+                <div style="align-self: center;"><label class="form-check"><input type="checkbox" id="custBlacklisted" onchange="toggleBlacklistFields()"> <i class="fas fa-ban"></i> ដាក់ក្នុងបញ្ជីខ្មៅ (Blacklist)</label></div>
+                <div id="custBlacklistDetails" style="display:none; grid-column: 1 / -1;">
+                    <div class="grid autofit" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                        <div style="grid-column: 1 / -1;"><label for="custBlacklistReason"><i class="fas fa-comment-alt"></i> មូលហេតុដាក់បញ្ជីខ្មៅ</label><textarea id="custBlacklistReason" rows="2"></textarea></div>
+                        <div><label for="custBlacklistDate"><i class="fas fa-calendar-alt"></i> កាលបរិច្ឆេទ</label><input type="date" id="custBlacklistDate"/></div>
+                        <div><label for="custBlacklistApprover"><i class="fas fa-user-check"></i> អ្នកអនុម័ត</label><select id="custBlacklistApprover"></select></div>
+                    </div>
+                </div>
             </div>
             <div style="margin-top:20px; text-align:right;">
               <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> រក្សាទុក</button>
@@ -1423,6 +1430,19 @@
             <button class="btn btn-muted" onclick="closeReceipt()">បិទ</button>
         </div>
       </div>
+    </div>
+
+    <div class="modal" id="customerHistoryModal">
+        <div class="modal-content modal-lg">
+            <h4><i class="fas fa-history"></i> ប្រវត្តិអតិថិជន: <span id="customerHistoryName"></span></h4>
+            <div class="table-container" style="max-height: 500px;">
+                <table>
+                    <thead><tr><th>កាលបរិច្ឆេទ</th><th>អ្នកប្រើ</th><th>សកម្មភាព</th><th>ព័ត៌មានលម្អិត</th></tr></thead>
+                    <tbody id="customerHistoryTableBody"></tbody>
+                </table>
+            </div>
+            <div class="modal-actions"><button class="btn btn-muted" onclick="closeCustomerHistory()">បិទ</button></div>
+        </div>
     </div>
 
     <div class="modal" id="historyModal">
