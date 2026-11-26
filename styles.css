@@ -1096,3 +1096,11 @@ tr.next-due-row td:first-child { box-shadow: inset 3px 0 0 var(--primary, #0d6ef
 @media (min-width: 1400px) { #customersListTable { font-size: 14px; } }
 /* narrow desktops/tablets keep the table scrollable instead of squeezing columns; phones (<=768px) use the stacked-card layout above */
 @media (min-width: 769px) and (max-width: 1100px) { #customersListTable { min-width: 1000px; } }
+
+/* ===== Wide layout for tables / lists / toolbars on the Loans, Savings, Installments and Pawn tabs.
+   Forms and summary cards keep their centered 1000px width (easier to read). ===== */
+#loansTab > .card:first-child,
+#loansTab #batchActionsContainer { max-width: none !important; margin-left: 0 !important; margin-right: 0 !important; }
+#loansTab .kpi-cards, #loansTab .loan-progress, #loansTab .loan-quick-tools { max-width: none; }
+#installmentDetail, #pawnDetail { max-width: none !important; margin-left: 0 !important; margin-right: 0 !important; }
+
