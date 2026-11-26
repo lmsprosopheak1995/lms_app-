@@ -232,6 +232,7 @@
                 <div><label for="custName"><i class="fas fa-user"></i> ឈ្មោះអតិថិជន</label><input id="custName" required/></div>
                 <div><label for="custGender"><i class="fas fa-venus-mars"></i> ភេទ</label><select id="custGender"><option value="ប្រុស">ប្រុស</option><option value="ស្រី">ស្រី</option></select></div>
                 <div><label for="custPhone"><i class="fas fa-phone"></i> លេខទូរសព្ទ</label><input id="custPhone"/></div>
+                <div><label for="custIdNumber"><i class="fas fa-address-card"></i> លេខអត្តសញ្ញាណប័ណ្ណ</label><input id="custIdNumber"/></div>
                 <div><label for="custVillage"><i class="fas fa-map-marker-alt"></i> ភូមិ</label><input id="custVillage"/></div>
                 <div><label for="custCommune"><i class="fas fa-map-marker-alt"></i> ឃុំ</label><input id="custCommune"/></div>
                 <div><label for="custDistrict"><i class="fas fa-map-marker-alt"></i> ស្រុក</label><input id="custDistrict"/></div>
@@ -276,6 +277,20 @@
                 <option value="none">គ្មានកម្ចី</option>
             </select></div>
             <div><select id="custFilterProvince" onchange="renderCustomersListTable()"><option value="all">ខេត្តទាំងអស់</option></select></div>
+            <div><select id="custFilterKyc" onchange="renderCustomersListTable()">
+                <option value="all">KYC ទាំងអស់</option>
+                <option value="complete">ព័ត៌មានគ្រប់គ្រាន់</option>
+                <option value="incomplete">ព័ត៌មានខ្វះ</option>
+            </select></div>
+            <div><select id="custFilterRisk" onchange="renderCustomersListTable()">
+                <option value="all">ចំណាត់ថ្នាក់ទាំងអស់</option>
+                <option value="normal">ធម្មតា (0 ថ្ងៃ)</option>
+                <option value="watch">តាមដាន (1-30 ថ្ងៃ)</option>
+                <option value="substandard">ក្រោមស្តង់ដា (31-60)</option>
+                <option value="doubtful">សង្ស័យ (61-90)</option>
+                <option value="loss">បាត់បង់ (>90)</option>
+                <option value="none">គ្មានកម្ចីសកម្ម</option>
+            </select></div>
             <div><select id="custSort" onchange="renderCustomersListTable()">
                 <option value="name">តម្រៀបតាមឈ្មោះ</option>
                 <option value="daysLate">ថ្ងៃយឺតច្រើនជាងគេមុន</option>
@@ -298,6 +313,7 @@
                 <th><i class="fas fa-wallet"></i> សរុបនៅសល់</th>
                 <th><i class="fas fa-calendar-day"></i> ថ្ងៃបង់បន្ទាប់</th>
                 <th><i class="fas fa-hourglass-end"></i> ថ្ងៃយឺត</th>
+                <th><i class="fas fa-shield-alt"></i> ចំណាត់ថ្នាក់</th>
                 <th><i class="fas fa-cogs"></i> សកម្មភាព</th>
               </tr>
             </thead>
