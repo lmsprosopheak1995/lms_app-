@@ -30,7 +30,7 @@ const LS_KEYS = {
     savingsAccounts: 'lms_savingsAccounts_v1', savingsPayments: 'lms_savingsPayments_v1', savingsIdCounter: 'lms_savingsIdCounter_v1', savingsWithdrawals: 'lms_savingsWithdrawals_v1',
     installmentContracts: 'lms_installmentContracts_v1', installmentPayments: 'lms_installmentPayments_v1',
     pawnContracts: 'lms_pawnContracts_v1', pawnTransactions: 'lms_pawnTransactions_v1',
-    customerHistory: 'lms_customerHistory_v1'
+    customerHistory: 'lms_customerHistory_v1', collectionLogs: 'lms_collectionLogs_v1'
 };
 const DEFAULT_AVATAR_SRC = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NjYyI+PHBhdGggZD0iTTEyIDEyYzIuMjEgMCA0LTEuNzkgNC00cy0xLjc5LTQtNC00LTQgMS43OS00IDQgMS43OSA0IDQgNHptMCAyYy0yLjY3IDAtOCAxLjM0LTggNHYyaDE2di0yYzAtMi42Ni01LjMzLTQtOC00eiIvPjwvc3ZnPg==';
 const PERMISSIONS = {
@@ -96,4 +96,7 @@ let currentPawnContract = null;
 
 // Customer audit trail (customerId -> array of entries, newest first). See customers.js
 let customerHistory = {};
+
+// Collection follow-up log (customerId -> array of entries). See customers.js
+let collectionLogs = {};
 

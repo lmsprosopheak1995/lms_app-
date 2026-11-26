@@ -134,6 +134,7 @@ async function initApp() {
   pawnContracts = loadData(LS_KEYS.pawnContracts);
   pawnTransactions = loadData(LS_KEYS.pawnTransactions, true);
   customerHistory = loadData(LS_KEYS.customerHistory, true);
+  collectionLogs = loadData(LS_KEYS.collectionLogs, true);
   initAppSettings();
 
   // Bring loan.status up to date for any loan that's fully paid but hasn't been flipped to
@@ -260,6 +261,7 @@ async function refreshAppData() {
     pawnContracts = loadData(LS_KEYS.pawnContracts);
     pawnTransactions = loadData(LS_KEYS.pawnTransactions, true);
     customerHistory = loadData(LS_KEYS.customerHistory, true);
+    collectionLogs = loadData(LS_KEYS.collectionLogs, true);
     initAppSettings();
 
     reconcileLoanStatuses();

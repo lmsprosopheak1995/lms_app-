@@ -303,17 +303,21 @@ function getFilteredCustomerRows() {
     const sortBy = (document.getElementById('custSort') || {}).value || 'name';
     const kycFilter = (document.getElementById('custFilterKyc') || {}).value || 'all';
     const riskFilter = (document.getElementById('custFilterRisk') || {}).value || 'all';
+    const collFilter = (document.getElementById('custFilterCollection') || {}).value || 'all';
 
     const rows = customers
         .map(cust => {
             const sum = getCustomerLoanSummary(cust);
-            return { cust, status: getCustomerLoanStatus(cust), sum, risk: getCustomerRisk(sum), kycMissing: getCustomerKycMissing(cust) };
+            return { cust, status: getCustomerLoanStatus(cust), sum, risk: getCustomerRisk(sum), kycMissing: getCustomerKycMissing(cust), col: getCollectionSummary(cust.id) };
         })
         .filter(r => {
             if (q && !`${r.cust.name} ${r.cust.phone || ''} ${r.cust.province || ''} ${r.cust.idNumber || ''}`.toLowerCase().includes(q)) return false;
             if (kycFilter === 'complete' && r.kycMissing.length > 0) return false;
             if (kycFilter === 'incomplete' && r.kycMissing.length === 0) return false;
             if (riskFilter !== 'all' && r.risk.key !== riskFilter) return false;
+            if (collFilter === 'followup' && !r.col.followUpDue) return false;
+            if (collFilter === 'broken' && !r.col.brokenPromise) return false;
+            if (collFilter === 'uncontacted' && !(r.sum.maxDaysLate > 0 && !r.col.last)) return false;
             if (statusFilter !== 'all' && r.status.key !== statusFilter) return false;
             if (provinceFilter !== 'all' && (r.cust.province || '') !== provinceFilter) return false;
             return true;
@@ -355,15 +359,20 @@ function renderCustomersListTable() {
     }
     const todayISO = formatDateISO(new Date());
     const fragment = document.createDocumentFragment();
-    rows.forEach(({ cust, status, sum, risk, kycMissing }, index) => {
+    const canCollect = hasPermission('canManagePayments');
+    rows.forEach(({ cust, status, sum, risk, kycMissing, col }, index) => {
         const tr = document.createElement('tr');
         const outstandingHtml = Object.keys(sum.outstanding).map(cur => fmtMoney(sum.outstanding[cur], cur)).join('<br>') || '-';
         const nextDueHtml = sum.nextDue
             ? `<span style="${sum.nextDue < todayISO ? 'color:var(--danger);font-weight:bold' : ''}">${formatDateDMY(sum.nextDue)}</span>`
             : '-';
-        const daysLateHtml = sum.maxDaysLate > 0
+        let daysLateHtml = sum.maxDaysLate > 0
             ? `<span style="color:var(--danger);font-weight:bold">${sum.maxDaysLate} ថ្ងៃ</span>`
             : '-';
+        // collection follow-up hints under the days-late figure
+        if (col.brokenPromise) daysLateHtml += '<br><small style="color:var(--danger)"><i class="fas fa-times-circle"></i> មិនបានគោរពសន្យា</small>';
+        if (col.followUpDue) daysLateHtml += `<br><small style="color:var(--warning, #e0a800)"><i class="fas fa-bell"></i> តាមដាន ${formatDateDMY(col.nextFollowUp)}</small>`;
+        else if (col.nextFollowUp) daysLateHtml += `<br><small style="opacity:.75"><i class="fas fa-phone"></i> តាមដាន ${formatDateDMY(col.nextFollowUp)}</small>`;
 
         const kycHtml = kycMissing.length
             ? `<br><small style="color:var(--warning, #e0a800)" title="ព័ត៌មាន KYC ខ្វះ"><i class="fas fa-exclamation-circle"></i> ខ្វះ ${kycMissing.length}: ${esc(kycMissing.join(', '))}</small>`
@@ -372,12 +381,14 @@ function renderCustomersListTable() {
             ? `<span class="status-badge" title="${esc(risk.range)}" style="background:${risk.color};color:#fff;padding:2px 10px;border-radius:12px;">${risk.label}</span>`
             : '-';
 
+        const collectBtn = canCollect ? `<button class="btn btn-success btn-sm" title="កំណត់ហេតុតាមទារ" onclick="openCollectionModal('${esc(cust.id)}')"><i class="fas fa-phone-volume"></i></button>` : '';
         const actionButtons = canEdit ? `
             <td class="actions">
+                ${collectBtn}
                 <button class="btn btn-muted btn-sm" title="ប្រវត្តិ" onclick="openCustomerHistory('${esc(cust.id)}')"><i class="fas fa-history"></i></button>
                 <button class="btn btn-info btn-sm" onclick="showCustomerForm('${esc(cust.id)}')"><i class="fas fa-edit"></i> កែប្រែ</button>
                 <button class="btn btn-danger btn-sm" onclick="deleteCustomer('${esc(cust.id)}')"><i class="fas fa-trash-alt"></i> លុប</button>
-            </td>` : '<td>No Actions</td>';
+            </td>` : (collectBtn ? `<td class="actions">${collectBtn}</td>` : '<td>No Actions</td>');
 
         tr.innerHTML = `
             <td>${index + 1}</td>
@@ -417,6 +428,8 @@ function exportCustomersToExcel() {
         'ថ្ងៃបង់បន្ទាប់': r.sum.nextDue ? formatDateDMY(r.sum.nextDue) : '',
         'ថ្ងៃយឺត': r.sum.maxDaysLate,
         'ចំណាត់ថ្នាក់': r.risk.key === 'none' ? '' : r.risk.label,
+        'ទំនាក់ទំនងចុងក្រោយ': r.col.last ? formatDateDMY(r.col.last.date) : '',
+        'តាមដានបន្ទាប់': r.col.nextFollowUp ? formatDateDMY(r.col.nextFollowUp) : '',
         'KYC ខ្វះ': r.kycMissing.join(', ')
     }));
     const worksheet = XLSX.utils.json_to_sheet(data);
@@ -878,4 +891,137 @@ function openCustomerHistory(customerId) {
 
 function closeCustomerHistory() {
     document.getElementById('customerHistoryModal').style.display = 'none';
+}
+
+
+// =====================================================================
+// Collection follow-up log (កំណត់ហេតុតាមទារ): calls / visits, promises to pay, next follow-up date
+// Stored per customer in collectionLogs (table collection_logs).
+// =====================================================================
+const COLLECTION_METHODS = { call: 'ទូរសព្ទ', visit: 'ទៅជួបផ្ទាល់', message: 'សារ / Telegram', other: 'ផ្សេងៗ' };
+const COLLECTION_OUTCOMES = {
+    reached: 'ទាក់ទងបាន', no_answer: 'មិនលើក / មិនឃើញ', promised: 'សន្យាបង់',
+    refused: 'បដិសេធ', paid: 'បានបង់', other: 'ផ្សេងៗ'
+};
+let currentCollectionCustomerId = null;
+
+function getCollectionLogs(customerId) {
+    return [...(collectionLogs[customerId] || [])].sort((a, b) => (b.date + b.ts).localeCompare(a.date + a.ts));
+}
+
+// Summary used by the customers list: last contact, next follow-up, and whether a promise was broken.
+function getCollectionSummary(customerId) {
+    const logs = getCollectionLogs(customerId);            // newest first
+    const today = formatDateISO(new Date());
+    const last = logs[0] || null;
+    let nextFollowUp = null;
+    if (last && last.outcome !== 'paid' && last.nextFollowUp) nextFollowUp = last.nextFollowUp;
+    const promiseLog = logs.find(l => l.promiseDate);
+    const brokenPromise = !!(promiseLog && promiseLog.promiseDate < today &&
+        !logs.some(l => l.outcome === 'paid' && (l.date + l.ts) > (promiseLog.date + promiseLog.ts)));
+    return { last, nextFollowUp, followUpDue: !!(nextFollowUp && nextFollowUp <= today), brokenPromise };
+}
+
+function openCollectionModal(customerId) {
+    const cust = customers.find(c => c.id === customerId);
+    if (!cust) return;
+    currentCollectionCustomerId = customerId;
+
+    const sum = getCustomerLoanSummary(cust);
+    const outstanding = Object.keys(sum.outstanding).map(cur => fmtMoney(sum.outstanding[cur], cur)).join(' + ') || '-';
+    const phone = cust.phone ? `<a href="tel:${esc(cust.phone)}">${esc(cust.phone)}</a>` : '-';
+    document.getElementById('colInfo').innerHTML = `
+        <div>អតិថិជន</div><div><strong>${esc(cust.name)}</strong></div>
+        <div>ទូរសព្ទ</div><div>${phone}</div>
+        <div>សរុបនៅសល់</div><div>${outstanding}</div>
+        <div>ថ្ងៃយឺត</div><div style="${sum.maxDaysLate > 0 ? 'color:var(--danger);font-weight:bold' : ''}">${sum.maxDaysLate > 0 ? sum.maxDaysLate + ' ថ្ងៃ' : '-'}</div>`;
+
+    const openLoans = loans.filter(l => l.customerId === customerId).filter(l => {
+        const k = getLoanComputedStatus(l).key;
+        return k === 'active' || k === 'overdue';
+    });
+    document.getElementById('colLoan').innerHTML = '<option value="">-- មិនបញ្ជាក់កម្ចី --</option>' +
+        openLoans.map(l => `<option value="${esc(l.id)}">${esc(l.id)}</option>`).join('');
+
+    document.getElementById('colForm').reset();
+    document.getElementById('colDate').value = formatDateISO(new Date());
+    renderCollectionTable();
+    document.getElementById('collectionModal').style.display = 'flex';
+}
+
+function closeCollectionModal() {
+    document.getElementById('collectionModal').style.display = 'none';
+    currentCollectionCustomerId = null;
+}
+
+function renderCollectionTable() {
+    const tbody = document.getElementById('colTableBody');
+    const customerId = currentCollectionCustomerId;
+    const logs = getCollectionLogs(customerId);
+    const canDelete = hasPermission('canEditLoan');
+    if (logs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="center">មិនទាន់មានកំណត់ហេតុតាមទារ</td></tr>';
+        return;
+    }
+    tbody.innerHTML = logs.map(l => {
+        const promise = l.promiseDate
+            ? `${formatDateDMY(l.promiseDate)}${l.promiseAmount ? ' / ' + fmtMoney(l.promiseAmount, l.promiseCurrency || 'USD') : ''}`
+            : '-';
+        return `<tr>
+            <td>${formatDateDMY(l.date)}</td>
+            <td>${esc(COLLECTION_METHODS[l.method] || l.method)}</td>
+            <td>${esc(COLLECTION_OUTCOMES[l.outcome] || l.outcome)}${l.loanId ? `<br><small>${esc(l.loanId)}</small>` : ''}</td>
+            <td>${promise}</td>
+            <td>${l.nextFollowUp ? formatDateDMY(l.nextFollowUp) : '-'}${l.note ? `<br><small>${esc(l.note)}</small>` : ''}</td>
+            <td>${esc(getOfficerFullName(l.user))}</td>
+            <td class="center">${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteCollectionLog('${esc(l.id)}')"><i class="fas fa-trash"></i></button>` : ''}</td>
+        </tr>`;
+    }).join('');
+}
+
+function saveCollectionLog(e) {
+    e.preventDefault();
+    if (!hasPermission('canManagePayments')) { showToast('Permission Denied.', 'error'); return; }
+    const customerId = currentCollectionCustomerId;
+    if (!customerId) return;
+    const val = id => document.getElementById(id).value;
+    const entry = {
+        id: genId(),
+        ts: new Date().toISOString(),
+        user: currentUser ? currentUser.username : 'N/A',
+        date: val('colDate'),
+        method: val('colMethod'),
+        outcome: val('colOutcome'),
+        loanId: val('colLoan'),
+        promiseDate: val('colPromiseDate'),
+        promiseAmount: parseFloat(val('colPromiseAmount')) || 0,
+        promiseCurrency: val('colPromiseCurrency'),
+        nextFollowUp: val('colNextDate'),
+        note: val('colNote').trim()
+    };
+    if (!entry.date) { showToast('សូមបញ្ចូលកាលបរិច្ឆេទ', 'error'); return; }
+    if (entry.outcome === 'promised' && !entry.promiseDate) { showToast('សូមបញ្ចូលថ្ងៃសន្យាបង់', 'error'); return; }
+    if (entry.promiseDate && entry.promiseDate < entry.date) { showToast('ថ្ងៃសន្យាបង់មិនអាចមុនថ្ងៃទំនាក់ទំនងទេ', 'error'); return; }
+    if (entry.nextFollowUp && entry.nextFollowUp < entry.date) { showToast('ថ្ងៃតាមដានបន្ទាប់មិនអាចមុនថ្ងៃទំនាក់ទំនងទេ', 'error'); return; }
+
+    if (!collectionLogs[customerId]) collectionLogs[customerId] = [];
+    collectionLogs[customerId].push(entry);
+    persistData(LS_KEYS.collectionLogs, collectionLogs);
+
+    document.getElementById('colForm').reset();
+    document.getElementById('colDate').value = formatDateISO(new Date());
+    renderCollectionTable();
+    renderCustomersListTable();
+    showToast('កំណត់ហេតុតាមទារត្រូវបានរក្សាទុក', 'success');
+}
+
+async function deleteCollectionLog(logId) {
+    if (!hasPermission('canEditLoan')) { showToast('Permission Denied.', 'error'); return; }
+    const customerId = currentCollectionCustomerId;
+    if (!customerId || !collectionLogs[customerId]) return;
+    if (!(await customConfirm('តើអ្នកពិតជាចង់លុបកំណត់ហេតុនេះឬ?'))) return;
+    collectionLogs[customerId] = collectionLogs[customerId].filter(l => l.id !== logId);
+    persistData(LS_KEYS.collectionLogs, collectionLogs);
+    renderCollectionTable();
+    renderCustomersListTable();
 }
