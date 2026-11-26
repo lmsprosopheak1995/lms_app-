@@ -320,9 +320,11 @@ async function renderCustomerProfile() {
     document.getElementById('profileDetailPhone').textContent = customer.phone || 'N/A';
     document.getElementById('profileDetailAddress').textContent = `${customer.village}, ${customer.commune}, ${customer.district}, ${customer.province}`;
     document.getElementById('profileDetailCreated').textContent = formatDateDMY(customer.createdAt);
-    const statusText = customer.isBlacklisted ? 'Blacklisted' : 'Active';
-    const statusClass = customer.isBlacklisted ? 'unpaid' : 'paid';
-    document.getElementById('profileDetailStatus').innerHTML = `<span class="status-badge status-${statusClass}">${statusText}</span>`;
+    // Profile shows BOTH: the blacklist flag (if set) and the loan-based status, so a blacklisted
+    // customer's loan situation is not hidden.
+    const loanStatus = getCustomerLoanStatus({ ...customer, isBlacklisted: false });
+    const blacklistBadge = customer.isBlacklisted ? '<span class="status-badge status-unpaid">បញ្ជីខ្មៅ</span> ' : '';
+    document.getElementById('profileDetailStatus').innerHTML = `${blacklistBadge}<span class="status-badge ${loanStatus.cls}">${loanStatus.text}</span>`;
 
     // Populate loans table
     const loansBody = document.getElementById('profileLoansTableBody');
