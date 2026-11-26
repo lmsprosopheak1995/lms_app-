@@ -291,6 +291,12 @@
                 <option value="loss">បាត់បង់ (>90)</option>
                 <option value="none">គ្មានកម្ចីសកម្ម</option>
             </select></div>
+            <div><select id="custFilterCollection" onchange="renderCustomersListTable()">
+                <option value="all">តាមទារទាំងអស់</option>
+                <option value="followup">ដល់ថ្ងៃតាមដាន</option>
+                <option value="broken">មិនបានគោរពសន្យា</option>
+                <option value="uncontacted">យឺត ហើយមិនទាន់ទាក់ទង</option>
+            </select></div>
             <div><select id="custSort" onchange="renderCustomersListTable()">
                 <option value="name">តម្រៀបតាមឈ្មោះ</option>
                 <option value="daysLate">ថ្ងៃយឺតច្រើនជាងគេមុន</option>
@@ -1446,6 +1452,35 @@
             <button class="btn btn-muted" onclick="closeReceipt()">បិទ</button>
         </div>
       </div>
+    </div>
+
+    <div class="modal" id="collectionModal">
+        <div class="modal-content modal-lg">
+            <h4><i class="fas fa-phone-volume"></i> កំណត់ហេតុតាមទារ</h4>
+            <div id="colInfo" class="summary-grid" style="margin-bottom: 12px;"></div>
+            <form id="colForm" class="card" style="background: var(--input-bg);" onsubmit="saveCollectionLog(event)">
+                <div class="grid autofit" style="grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));">
+                    <div><label for="colDate">កាលបរិច្ឆេទ</label><input type="date" id="colDate" required/></div>
+                    <div><label for="colMethod">វិធីទំនាក់ទំនង</label><select id="colMethod"><option value="call">ទូរសព្ទ</option><option value="visit">ទៅជួបផ្ទាល់</option><option value="message">សារ / Telegram</option><option value="other">ផ្សេងៗ</option></select></div>
+                    <div><label for="colOutcome">លទ្ធផល</label><select id="colOutcome"><option value="reached">ទាក់ទងបាន</option><option value="no_answer">មិនលើក / មិនឃើញ</option><option value="promised">សន្យាបង់</option><option value="refused">បដិសេធ</option><option value="paid">បានបង់</option><option value="other">ផ្សេងៗ</option></select></div>
+                    <div><label for="colLoan">កម្ចីពាក់ព័ន្ធ</label><select id="colLoan"></select></div>
+                    <div><label for="colPromiseDate">ថ្ងៃសន្យាបង់</label><input type="date" id="colPromiseDate"/></div>
+                    <div><label for="colPromiseAmount">ចំនួនសន្យាបង់</label><input type="number" inputmode="decimal" step="0.01" min="0" id="colPromiseAmount"/></div>
+                    <div><label for="colPromiseCurrency">រូបិយប័ណ្ណ</label><select id="colPromiseCurrency"><option value="USD">USD ($)</option><option value="KHR">KHR (៛)</option></select></div>
+                    <div><label for="colNextDate">ថ្ងៃតាមដានបន្ទាប់</label><input type="date" id="colNextDate"/></div>
+                    <div style="grid-column: 1 / -1;"><label for="colNote">កំណត់ចំណាំ</label><input type="text" id="colNote"/></div>
+                </div>
+                <div class="modal-actions" style="margin-top:10px;"><button type="submit" class="btn btn-success"><i class="fas fa-save"></i> រក្សាទុក</button></div>
+            </form>
+            <h5 style="margin-top:14px;">ប្រវត្តិតាមទារ</h5>
+            <div class="table-container" style="max-height: 260px;">
+                <table>
+                    <thead><tr><th>កាលបរិច្ឆេទ</th><th>វិធី</th><th>លទ្ធផល</th><th>សន្យាបង់</th><th>តាមដានបន្ទាប់ / ចំណាំ</th><th>ដោយ</th><th></th></tr></thead>
+                    <tbody id="colTableBody"></tbody>
+                </table>
+            </div>
+            <div class="modal-actions"><button class="btn btn-muted" onclick="closeCollectionModal()">បិទ</button></div>
+        </div>
     </div>
 
     <div class="modal" id="customerHistoryModal">
