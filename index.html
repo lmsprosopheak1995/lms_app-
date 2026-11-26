@@ -257,6 +257,26 @@
             <h4 style="margin: 0; text-align: left; justify-content: flex-start;"><i class="fas fa-list-ul"></i> បញ្ជីអតិថិជន</h4>
             <button class="btn btn-primary" onclick="showCustomerForm()"><i class="fas fa-user-plus"></i> បន្ថែមអតិថិជនថ្មី</button>
         </div>
+        <div class="grid autofit" style="margin-bottom:12px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); align-items:end;">
+            <div><input id="custSearch" type="text" placeholder="ស្វែងរក: ឈ្មោះ, ទូរសព្ទ, ខេត្ត" oninput="renderCustomersListTable()"/></div>
+            <div><select id="custFilterStatus" onchange="renderCustomersListTable()">
+                <option value="all">ស្ថានភាពទាំងអស់</option>
+                <option value="blacklisted">បញ្ជីខ្មៅ</option>
+                <option value="written_off">កម្ចីបំណុលមិនអាចសងបាន</option>
+                <option value="overdue">មានការយឺត</option>
+                <option value="active">កំពុងមានកម្ចី</option>
+                <option value="completed">បានបញ្ចប់កម្ចី</option>
+                <option value="none">គ្មានកម្ចី</option>
+            </select></div>
+            <div><select id="custFilterProvince" onchange="renderCustomersListTable()"><option value="all">ខេត្តទាំងអស់</option></select></div>
+            <div><select id="custSort" onchange="renderCustomersListTable()">
+                <option value="name">តម្រៀបតាមឈ្មោះ</option>
+                <option value="daysLate">ថ្ងៃយឺតច្រើនជាងគេមុន</option>
+                <option value="activeCount">កម្ចីសកម្មច្រើនជាងគេមុន</option>
+                <option value="nextDue">ថ្ងៃបង់បន្ទាប់ជិតជាងគេមុន</option>
+            </select></div>
+            <div><button type="button" class="btn btn-success" onclick="exportCustomersToExcel()"><i class="fas fa-file-excel"></i> នាំចេញ Excel</button> <span id="custListCount" style="margin-left:8px;opacity:.7"></span></div>
+        </div>
         <div class="table-container" style="max-height: 600px;">
           <table id="customersListTable">
             <thead>
