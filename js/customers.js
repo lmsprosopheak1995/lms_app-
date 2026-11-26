@@ -168,6 +168,22 @@ async function deleteCustomer(customerId) {
     }
 }
 
+// Customer status shown in the customers list, derived from the customer's loans.
+// Priority: blacklist > written-off loan > overdue loan > active loan > all loans completed > no loans.
+// Loans that are pending/rejected (never disbursed) or refinanced (replaced by a newer loan) are ignored.
+function getCustomerLoanStatus(customer) {
+    if (customer.isBlacklisted) return { text: 'បញ្ជីខ្មៅ', cls: 'status-unpaid' };
+    const keys = loans
+        .filter(l => l.customerId === customer.id)
+        .map(l => getLoanComputedStatus(l).key)
+        .filter(k => k !== 'pending' && k !== 'rejected' && k !== 'refinanced' && k !== 'unknown');
+    if (keys.length === 0) return { text: 'គ្មានកម្ចី', cls: 'status-pending' };
+    if (keys.includes('written_off')) return { text: 'កម្ចីបំណុលមិនអាចសងបាន', cls: 'status-written_off' };
+    if (keys.includes('overdue')) return { text: 'មានការយឺត', cls: 'status-overdue' };
+    if (keys.includes('active')) return { text: 'កំពុងមានកម្ចី', cls: 'status-active' };
+    return { text: 'បានបញ្ចប់កម្ចី', cls: 'status-completed' };
+}
+
 function renderCustomersListTable() {
     const tbody = document.getElementById('customersListTableBody');
     tbody.innerHTML = '';
@@ -175,8 +191,7 @@ function renderCustomersListTable() {
     const fragment = document.createDocumentFragment();
     customers.sort((a, b) => a.name.localeCompare(b.name)).forEach((cust, index) => {
         const tr = document.createElement('tr');
-        const statusText = cust.isBlacklisted ? 'បញ្ជីខ្មៅ' : 'ធម្មតា';
-        const statusClass = cust.isBlacklisted ? 'status-unpaid' : 'status-paid';
+        const { text: statusText, cls: statusClass } = getCustomerLoanStatus(cust);
         
         const actionButtons = canEdit ? `
             <td class="actions">
