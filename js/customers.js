@@ -47,6 +47,7 @@ async function saveCustomer(e) {
         name: document.getElementById('custName').value.trim(),
         gender: document.getElementById('custGender').value,
         phone: document.getElementById('custPhone').value.trim(),
+        idNumber: document.getElementById('custIdNumber').value.trim(),
         village: document.getElementById('custVillage').value.trim(),
         commune: document.getElementById('custCommune').value.trim(),
         district: document.getElementById('custDistrict').value.trim(),
@@ -67,6 +68,18 @@ async function saveCustomer(e) {
         showToast('សូមបញ្ចូលឈ្មោះអតិថិជន', 'error');
         return;
     }
+
+    // Duplicate warnings: same ID number (strong) or same phone (families may share one, so only a warning).
+    const normPhone = p => String(p || '').replace(/\D/g, '').slice(-8);
+    const normId = v => String(v || '').replace(/\s/g, '').toLowerCase();
+    const dupId = customerData.idNumber
+        ? customers.find(c => c.id !== customerData.id && c.idNumber && normId(c.idNumber) === normId(customerData.idNumber))
+        : null;
+    if (dupId && !(await customConfirm(`លេខអត្តសញ្ញាណប័ណ្ណនេះមានរួចហើយសម្រាប់អតិថិជន "${dupId.name}"។ តើអ្នកពិតជាចង់រក្សាទុកដដែលឬ?`, 'ការព្រមាន: លេខអត្តសញ្ញាណប័ណ្ណជាន់គ្នា'))) return;
+    const dupPhone = normPhone(customerData.phone).length >= 8
+        ? customers.find(c => c.id !== customerData.id && normPhone(c.phone) === normPhone(customerData.phone))
+        : null;
+    if (dupPhone && !(await customConfirm(`លេខទូរសព្ទនេះមានរួចហើយសម្រាប់អតិថិជន "${dupPhone.name}"។ តើអ្នកចង់រក្សាទុកដដែលឬ?`, 'ការព្រមាន: លេខទូរសព្ទជាន់គ្នា'))) return;
 
     const prevCustomer = customerId ? { ...(customers.find(c => c.id === customerId) || {}) } : null;
     if (customerData.isBlacklisted && (!customerData.blacklistReason || !customerData.blacklistDate || !customerData.blacklistApprover)) {
@@ -146,6 +159,7 @@ function loadCustomerIntoForm(customerId) {
         document.getElementById('custName').value = customer.name;
         document.getElementById('custGender').value = customer.gender;
         document.getElementById('custPhone').value = customer.phone;
+        document.getElementById('custIdNumber').value = customer.idNumber || '';
         document.getElementById('custVillage').value = customer.village;
         document.getElementById('custCommune').value = customer.commune;
         document.getElementById('custDistrict').value = customer.district;
@@ -232,6 +246,32 @@ function getCustomerLoanStatus(customer) {
     return { key: 'completed', text: 'បានបញ្ចប់កម្ចី', cls: 'status-completed' };
 }
 
+// Risk classification by the customer's longest days-past-due. Edit the buckets to match your
+// institution's / regulator's policy (these are generic aging buckets, not a legal standard).
+const CUSTOMER_RISK_BUCKETS = [
+    { key: 'normal',      max: 0,        label: 'ធម្មតា',       range: '0 ថ្ងៃ',     color: 'var(--success)' },
+    { key: 'watch',       max: 30,       label: 'តាមដាន',       range: '1-30 ថ្ងៃ',  color: 'var(--warning, #e0a800)' },
+    { key: 'substandard', max: 60,       label: 'ក្រោមស្តង់ដា', range: '31-60 ថ្ងៃ', color: '#fd7e14' },
+    { key: 'doubtful',    max: 90,       label: 'សង្ស័យ',       range: '61-90 ថ្ងៃ', color: 'var(--danger)' },
+    { key: 'loss',        max: Infinity, label: 'បាត់បង់',      range: '>90 ថ្ងៃ',   color: '#7b1113' }
+];
+
+function getCustomerRisk(sum) {
+    if (!sum.activeCount) return { key: 'none', label: '-', range: '', color: null };
+    return CUSTOMER_RISK_BUCKETS.find(b => sum.maxDaysLate <= b.max);
+}
+
+// KYC completeness: which required items are still missing for this customer.
+function getCustomerKycMissing(c) {
+    const missing = [];
+    if (!c.phone) missing.push('លេខទូរសព្ទ');
+    if (!c.idNumber) missing.push('លេខអត្តសញ្ញាណប័ណ្ណ');
+    if (!c.idCardFront) missing.push('រូបអត្តសញ្ញាណប័ណ្ណមុខ');
+    if (!c.idCardBack) missing.push('រូបអត្តសញ្ញាណប័ណ្ណក្រោយ');
+    if (!c.province) missing.push('ខេត្ត');
+    return missing;
+}
+
 // Loan exposure of one customer, from their currently open loans (active or overdue):
 // count, outstanding amount per currency, earliest unpaid due date, and the longest days-past-due.
 function getCustomerLoanSummary(customer) {
@@ -261,11 +301,19 @@ function getFilteredCustomerRows() {
     const statusFilter = (document.getElementById('custFilterStatus') || {}).value || 'all';
     const provinceFilter = (document.getElementById('custFilterProvince') || {}).value || 'all';
     const sortBy = (document.getElementById('custSort') || {}).value || 'name';
+    const kycFilter = (document.getElementById('custFilterKyc') || {}).value || 'all';
+    const riskFilter = (document.getElementById('custFilterRisk') || {}).value || 'all';
 
     const rows = customers
-        .map(cust => ({ cust, status: getCustomerLoanStatus(cust), sum: getCustomerLoanSummary(cust) }))
+        .map(cust => {
+            const sum = getCustomerLoanSummary(cust);
+            return { cust, status: getCustomerLoanStatus(cust), sum, risk: getCustomerRisk(sum), kycMissing: getCustomerKycMissing(cust) };
+        })
         .filter(r => {
-            if (q && !`${r.cust.name} ${r.cust.phone || ''} ${r.cust.province || ''}`.toLowerCase().includes(q)) return false;
+            if (q && !`${r.cust.name} ${r.cust.phone || ''} ${r.cust.province || ''} ${r.cust.idNumber || ''}`.toLowerCase().includes(q)) return false;
+            if (kycFilter === 'complete' && r.kycMissing.length > 0) return false;
+            if (kycFilter === 'incomplete' && r.kycMissing.length === 0) return false;
+            if (riskFilter !== 'all' && r.risk.key !== riskFilter) return false;
             if (statusFilter !== 'all' && r.status.key !== statusFilter) return false;
             if (provinceFilter !== 'all' && (r.cust.province || '') !== provinceFilter) return false;
             return true;
@@ -302,12 +350,12 @@ function renderCustomersListTable() {
     const countEl = document.getElementById('custListCount');
     if (countEl) countEl.textContent = `${rows.length} / ${customers.length}`;
     if (rows.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:#888">មិនមានអតិថិជន</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;color:#888">មិនមានអតិថិជន</td></tr>';
         return;
     }
     const todayISO = formatDateISO(new Date());
     const fragment = document.createDocumentFragment();
-    rows.forEach(({ cust, status, sum }, index) => {
+    rows.forEach(({ cust, status, sum, risk, kycMissing }, index) => {
         const tr = document.createElement('tr');
         const outstandingHtml = Object.keys(sum.outstanding).map(cur => fmtMoney(sum.outstanding[cur], cur)).join('<br>') || '-';
         const nextDueHtml = sum.nextDue
@@ -315,6 +363,13 @@ function renderCustomersListTable() {
             : '-';
         const daysLateHtml = sum.maxDaysLate > 0
             ? `<span style="color:var(--danger);font-weight:bold">${sum.maxDaysLate} ថ្ងៃ</span>`
+            : '-';
+
+        const kycHtml = kycMissing.length
+            ? `<br><small style="color:var(--warning, #e0a800)" title="ព័ត៌មាន KYC ខ្វះ"><i class="fas fa-exclamation-circle"></i> ខ្វះ ${kycMissing.length}: ${esc(kycMissing.join(', '))}</small>`
+            : '';
+        const riskHtml = risk.color
+            ? `<span class="status-badge" title="${esc(risk.range)}" style="background:${risk.color};color:#fff;padding:2px 10px;border-radius:12px;">${risk.label}</span>`
             : '-';
 
         const actionButtons = canEdit ? `
@@ -326,7 +381,7 @@ function renderCustomersListTable() {
 
         tr.innerHTML = `
             <td>${index + 1}</td>
-            <td>${esc(cust.name)}</td>
+            <td>${esc(cust.name)}${kycHtml}</td>
             <td>${esc(cust.gender)}</td>
             <td>${esc(cust.phone)}</td>
             <td>${esc(cust.province)}</td>
@@ -335,6 +390,7 @@ function renderCustomersListTable() {
             <td class="right">${outstandingHtml}</td>
             <td>${nextDueHtml}</td>
             <td class="right">${daysLateHtml}</td>
+            <td class="center">${riskHtml}</td>
             ${actionButtons}
         `;
         fragment.appendChild(tr);
@@ -352,13 +408,16 @@ function exportCustomersToExcel() {
         'ឈ្មោះអតិថិជន': r.cust.name,
         'ភេទ': r.cust.gender,
         'លេខទូរសព្ទ': r.cust.phone || '',
+        'លេខអត្តសញ្ញាណប័ណ្ណ': r.cust.idNumber || '',
         'ខេត្ត': r.cust.province || '',
         'ស្ថានភាព': r.status.text,
         'កម្ចីសកម្ម': r.sum.activeCount,
         'សរុបនៅសល់ (USD)': Number((r.sum.outstanding.USD || 0).toFixed(2)),
         'សរុបនៅសល់ (KHR)': Math.round(r.sum.outstanding.KHR || 0),
         'ថ្ងៃបង់បន្ទាប់': r.sum.nextDue ? formatDateDMY(r.sum.nextDue) : '',
-        'ថ្ងៃយឺត': r.sum.maxDaysLate
+        'ថ្ងៃយឺត': r.sum.maxDaysLate,
+        'ចំណាត់ថ្នាក់': r.risk.key === 'none' ? '' : r.risk.label,
+        'KYC ខ្វះ': r.kycMissing.join(', ')
     }));
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
@@ -762,7 +821,7 @@ function toggleBlacklistFields() {
 }
 
 const CUSTOMER_AUDIT_FIELDS = [
-    ['name', 'ឈ្មោះ'], ['gender', 'ភេទ'], ['phone', 'លេខទូរសព្ទ'], ['village', 'ភូមិ'],
+    ['name', 'ឈ្មោះ'], ['gender', 'ភេទ'], ['phone', 'លេខទូរសព្ទ'], ['idNumber', 'លេខអត្តសញ្ញាណប័ណ្ណ'], ['village', 'ភូមិ'],
     ['commune', 'ឃុំ'], ['district', 'ស្រុក'], ['province', 'ខេត្ត'], ['residency', 'និវាសនជន']
 ];
 
