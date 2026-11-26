@@ -320,7 +320,9 @@ function buildSchedule(loan, forceRecalculate = false) {
   }
 
   let schedule;
-  if (loan.calculationType === 'dynamic') {
+  if (loan.calculationType === 'ap') {
+      schedule = buildApSchedule(loan);
+  } else if (loan.calculationType === 'dynamic') {
       schedule = buildDynamicSchedule(loan);
   } else {
       schedule = buildFixedSchedule(loan);
@@ -540,6 +542,127 @@ function buildDynamicSchedule(loan) {
       schedule.push({ index: i, date: pmtDate.toISOString().split('T')[0], principal, interest, lateInterest, penalty, serviceFee, adminFee, insuranceFee, total, balance: balance < 0.005 ? 0 : balance, status, isAdjusted, paidAmount, remainingAmount, daysLate: daysLate > 0 ? daysLate : 0 });
   }
   return applyExtraPrincipalPayments(loan, schedule, monthlyRate);
+}
+
+
+// ---------------------------------------------------------------------------------------------
+// AP-style ("actual/365") schedule — reproduces the repayment table printed by AP People /
+// Active People's Microfinance. Enable it by saving a loan with calculationType === 'ap'.
+//
+//  • interest  = opening balance × (monthly rate × 12) × actualDays ÷ 365
+//  • service fee (interestRate-like, "អត្រាសេវា") = same formula on the *remaining balance*
+//    using the monthly service rate (serviceRate field, e.g. 0.66) — NOT a flat % of the loan
+//  • actualDays = real calendar days between the previous due date and this one
+//    (first period starts on loanDate, i.e. the disbursement date)
+//  • due date = firstPaymentDate (or loanDate + 1 month) with the same day-of-month every month;
+//    a Sunday (and any holiday) moves to the next day, but the NEXT period still counts from the
+//    shifted date while the nominal day-of-month (e.g. the 2nd) is kept
+//  • level payment (PMT) is solved so the balance reaches 0 on the last installment, rounded to
+//    2 decimals; every row is rounded to cents and the last row clears the remaining balance
+//  • if waiveFirstInterest is ticked: installment #1 principal is computed as if interest were
+//    charged (PMT − fee − interest) but the interest itself is not collected
+// ---------------------------------------------------------------------------------------------
+function buildApSchedule(loan) {
+  const r2 = x => Math.round((Number(x) + Number.EPSILON) * 100) / 100;
+  const L = Number(loan.loanAmount);
+  const term = Number(loan.loanTerm);
+  const unitMult = { day: 365, week: 52, month: 12, year: 1 }[loan.interestUnit] || 12;
+  const annInt = (Number(loan.interestRate) / 100) * unitMult;      // e.g. 1.5%/month -> 18%/yr
+  const annFee = (Number(loan.serviceRate) || 0) / 100 * 12;        // e.g. 0.66%/month -> 7.92%/yr
+  const waive = !!loan.waiveFirstInterest;
+
+  // ---- timezone-proof calendar helpers (work on y/m/d numbers, never on local midnight) ----
+  const ymd = s => formatDateISO(parseDate(s)).split('-').map(Number);          // [y, m, d]
+  const utc = (y, m, d) => Date.UTC(y, m - 1, d);
+  const iso = t => new Date(t).toISOString().split('T')[0];                      // t is a UTC ms
+  const dim = (y, m) => new Date(Date.UTC(y, m, 0)).getUTCDate();                // days in month m
+  const [ly, lm, ld] = ymd(loan.loanDate);
+  let ay, am, ad;
+  if (loan.firstPaymentDate) [ay, am, ad] = ymd(loan.firstPaymentDate);
+  else { ay = lm === 12 ? ly + 1 : ly; am = lm === 12 ? 1 : lm + 1; ad = ld; }
+  const nominalDay = ad;
+
+  // ---- due dates + actual day counts ----
+  const dates = [], days = [];
+  let prev = utc(ly, lm, ld);
+  for (let i = 0; i < term; i++) {
+    const tot = (am - 1) + i;
+    const y = ay + Math.floor(tot / 12), m = (tot % 12) + 1;
+    let t = utc(y, m, Math.min(nominalDay, dim(y, m)));
+    let adjusted = false;
+    while (new Date(t).getUTCDay() === 0 || holidays.some(h => h.date === iso(t))) { t += 864e5; adjusted = true; }
+    dates.push({ t, adjusted });
+    days.push(Math.round((t - prev) / 864e5));
+    prev = t;
+  }
+
+  // ---- solve the level payment ----
+  const run = (P, round) => {
+    const f = round ? r2 : (x => x);
+    let bal = L; const rows = [];
+    for (let i = 0; i < term; i++) {
+      let I = f(bal * annInt * days[i] / 365);
+      const F = f(bal * annFee * days[i] / 365);
+      let principal, collectedInterest = I;
+      if (i === term - 1) principal = bal;
+      else principal = f(P - I - F);
+      if (i === 0 && waive) collectedInterest = 0;
+      if (i === term - 1) principal = bal;
+      bal = f(bal - principal);
+      rows.push({ principal, interest: collectedInterest, fee: F, bal });
+    }
+    return rows;
+  };
+  let lo = 0, hi = L * 2;
+  for (let k = 0; k < 100; k++) {
+    const mid = (lo + hi) / 2;
+    const rows = run(mid, false);
+    const last = rows[rows.length - 1];
+    const lastPay = last.principal + last.interest + last.fee;
+    if (lastPay > mid) lo = mid; else hi = mid;
+  }
+  const P = term > 1 ? r2((lo + hi) / 2) : 0;
+  const base = run(P, true);
+
+  // ---- build schedule rows with payments / overdue status (same rules as buildFixedSchedule) ----
+  const schedule = [];
+  const adminFee = Number(loan.adminFee) || 0;
+  const insuranceFee = Number(loan.insuranceFee) || 0;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  let openBal = L;
+  for (let i = 0; i < term; i++) {
+    const b = base[i];
+    const principal = b.principal, interest = b.interest, serviceFee = b.fee;
+    const paymentKey = `${loan.loanId}-${i + 1}`;
+    const partials = payments[paymentKey] || [];
+    const paidAmount = partials.reduce((s, p) => s + p.amount, 0);
+    const isPayoffSettled = partials.some(p => p.isPayoff);
+    const [dy, dm, dd] = iso(dates[i].t).split('-').map(Number);
+    const dueDate = new Date(dy, dm - 1, dd); dueDate.setHours(0, 0, 0, 0);
+    const daysLate = Math.floor((today.getTime() - dueDate.getTime()) / 864e5);
+
+    const totalDueBeforeLate = principal + interest + serviceFee + adminFee + insuranceFee;
+    let status = 'unpaid', lateInterest = 0, penalty = 0;
+    if (paidAmount > 0) status = (totalDueBeforeLate - paidAmount) <= 0.01 ? 'paid' : 'partial';
+    if (isPayoffSettled) status = 'paid';
+    else if (status !== 'paid' && dueDate < today) {
+      status = 'overdue';
+      lateInterest = getLateInterest(loan, dueDate, principal, daysLate);
+      const penaltyAlreadyPaid = partials.some(p => p.isPenaltyPayment === true);
+      if (!penaltyAlreadyPaid && loan.penaltyFee > 0) {
+        penalty = (loan.penaltyType === 'percent') ? principal * (loan.penaltyFee / 100) : loan.penaltyFee;
+      }
+    }
+    const total = totalDueBeforeLate + lateInterest + penalty;
+    const remainingAmount = isPayoffSettled ? 0 : total - paidAmount;
+    schedule.push({
+      index: i + 1, date: iso(dates[i].t), principal, interest, lateInterest, penalty,
+      serviceFee, adminFee, insuranceFee, total, balance: isPayoffSettled ? 0 : (b.bal < 0.005 ? 0 : b.bal),
+      status, isAdjusted: dates[i].adjusted, paidAmount, remainingAmount,
+      daysLate: daysLate > 0 ? daysLate : 0, periodDays: days[i]
+    });
+  }
+  return schedule;
 }
 
 
