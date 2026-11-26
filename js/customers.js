@@ -184,6 +184,29 @@ function getCustomerLoanStatus(customer) {
     return { text: 'បានបញ្ចប់កម្ចី', cls: 'status-completed' };
 }
 
+// Loan exposure of one customer, from their currently open loans (active or overdue):
+// count, outstanding amount per currency, earliest unpaid due date, and the longest days-past-due.
+function getCustomerLoanSummary(customer) {
+    const openLoans = loans.filter(l => l.customerId === customer.id).filter(l => {
+        const k = getLoanComputedStatus(l).key;
+        return k === 'active' || k === 'overdue';
+    });
+    const outstanding = {};
+    let nextDue = null;
+    let maxDaysLate = 0;
+    openLoans.forEach(l => {
+        const schedule = buildSchedule(l);
+        const remaining = schedule.reduce((sum, p) => sum + (p.remainingAmount || 0), 0);
+        outstanding[l.currency] = (outstanding[l.currency] || 0) + remaining;
+        schedule.forEach(p => {
+            if (p.status === 'paid') return;
+            if (!nextDue || p.date < nextDue) nextDue = p.date;
+            if ((p.daysLate || 0) > maxDaysLate) maxDaysLate = p.daysLate;
+        });
+    });
+    return { activeCount: openLoans.length, outstanding, nextDue, maxDaysLate };
+}
+
 function renderCustomersListTable() {
     const tbody = document.getElementById('customersListTableBody');
     tbody.innerHTML = '';
@@ -192,6 +215,15 @@ function renderCustomersListTable() {
     customers.sort((a, b) => a.name.localeCompare(b.name)).forEach((cust, index) => {
         const tr = document.createElement('tr');
         const { text: statusText, cls: statusClass } = getCustomerLoanStatus(cust);
+        const sum = getCustomerLoanSummary(cust);
+        const todayISO = formatDateISO(new Date());
+        const outstandingHtml = Object.keys(sum.outstanding).map(cur => fmtMoney(sum.outstanding[cur], cur)).join('<br>') || '-';
+        const nextDueHtml = sum.nextDue
+            ? `<span style="${sum.nextDue < todayISO ? 'color:var(--danger);font-weight:bold' : ''}">${formatDateDMY(sum.nextDue)}</span>`
+            : '-';
+        const daysLateHtml = sum.maxDaysLate > 0
+            ? `<span style="color:var(--danger);font-weight:bold">${sum.maxDaysLate} ថ្ងៃ</span>`
+            : '-';
         
         const actionButtons = canEdit ? `
             <td class="actions">
@@ -206,6 +238,10 @@ function renderCustomersListTable() {
             <td>${esc(cust.phone)}</td>
             <td>${esc(cust.province)}</td>
             <td class="status-cell"><span class="status-badge ${statusClass}">${statusText}</span></td>
+            <td class="center">${sum.activeCount || '-'}</td>
+            <td class="right">${outstandingHtml}</td>
+            <td>${nextDueHtml}</td>
+            <td class="right">${daysLateHtml}</td>
             ${actionButtons}
         `;
         fragment.appendChild(tr);
