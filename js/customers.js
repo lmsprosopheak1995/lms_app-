@@ -172,16 +172,16 @@ async function deleteCustomer(customerId) {
 // Priority: blacklist > written-off loan > overdue loan > active loan > all loans completed > no loans.
 // Loans that are pending/rejected (never disbursed) or refinanced (replaced by a newer loan) are ignored.
 function getCustomerLoanStatus(customer) {
-    if (customer.isBlacklisted) return { text: 'បញ្ជីខ្មៅ', cls: 'status-unpaid' };
+    if (customer.isBlacklisted) return { key: 'blacklisted', text: 'បញ្ជីខ្មៅ', cls: 'status-unpaid' };
     const keys = loans
         .filter(l => l.customerId === customer.id)
         .map(l => getLoanComputedStatus(l).key)
         .filter(k => k !== 'pending' && k !== 'rejected' && k !== 'refinanced' && k !== 'unknown');
-    if (keys.length === 0) return { text: 'គ្មានកម្ចី', cls: 'status-pending' };
-    if (keys.includes('written_off')) return { text: 'កម្ចីបំណុលមិនអាចសងបាន', cls: 'status-written_off' };
-    if (keys.includes('overdue')) return { text: 'មានការយឺត', cls: 'status-overdue' };
-    if (keys.includes('active')) return { text: 'កំពុងមានកម្ចី', cls: 'status-active' };
-    return { text: 'បានបញ្ចប់កម្ចី', cls: 'status-completed' };
+    if (keys.length === 0) return { key: 'none', text: 'គ្មានកម្ចី', cls: 'status-pending' };
+    if (keys.includes('written_off')) return { key: 'written_off', text: 'កម្ចីបំណុលមិនអាចសងបាន', cls: 'status-written_off' };
+    if (keys.includes('overdue')) return { key: 'overdue', text: 'មានការយឺត', cls: 'status-overdue' };
+    if (keys.includes('active')) return { key: 'active', text: 'កំពុងមានកម្ចី', cls: 'status-active' };
+    return { key: 'completed', text: 'បានបញ្ចប់កម្ចី', cls: 'status-completed' };
 }
 
 // Loan exposure of one customer, from their currently open loans (active or overdue):
@@ -207,16 +207,60 @@ function getCustomerLoanSummary(customer) {
     return { activeCount: openLoans.length, outstanding, nextDue, maxDaysLate };
 }
 
+// Rows for the customers list after applying the search box, status/province filters and sort order.
+function getFilteredCustomerRows() {
+    const q = ((document.getElementById('custSearch') || {}).value || '').trim().toLowerCase();
+    const statusFilter = (document.getElementById('custFilterStatus') || {}).value || 'all';
+    const provinceFilter = (document.getElementById('custFilterProvince') || {}).value || 'all';
+    const sortBy = (document.getElementById('custSort') || {}).value || 'name';
+
+    const rows = customers
+        .map(cust => ({ cust, status: getCustomerLoanStatus(cust), sum: getCustomerLoanSummary(cust) }))
+        .filter(r => {
+            if (q && !`${r.cust.name} ${r.cust.phone || ''} ${r.cust.province || ''}`.toLowerCase().includes(q)) return false;
+            if (statusFilter !== 'all' && r.status.key !== statusFilter) return false;
+            if (provinceFilter !== 'all' && (r.cust.province || '') !== provinceFilter) return false;
+            return true;
+        });
+
+    const byName = (a, b) => a.cust.name.localeCompare(b.cust.name);
+    rows.sort((a, b) => {
+        if (sortBy === 'daysLate') return (b.sum.maxDaysLate - a.sum.maxDaysLate) || byName(a, b);
+        if (sortBy === 'activeCount') return (b.sum.activeCount - a.sum.activeCount) || byName(a, b);
+        if (sortBy === 'nextDue') {
+            const x = a.sum.nextDue || '9999-12-31', y = b.sum.nextDue || '9999-12-31';
+            return x.localeCompare(y) || byName(a, b);
+        }
+        return byName(a, b);
+    });
+    return rows;
+}
+
+function populateCustomerProvinceFilter() {
+    const sel = document.getElementById('custFilterProvince');
+    if (!sel) return;
+    const current = sel.value || 'all';
+    const provinces = [...new Set(customers.map(c => c.province).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    sel.innerHTML = '<option value="all">ខេត្តទាំងអស់</option>' + provinces.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
+    sel.value = provinces.includes(current) ? current : 'all';
+}
+
 function renderCustomersListTable() {
     const tbody = document.getElementById('customersListTableBody');
     tbody.innerHTML = '';
+    populateCustomerProvinceFilter();
     const canEdit = currentUser.role === 'admin' || currentUser.role === 'manager';
+    const rows = getFilteredCustomerRows();
+    const countEl = document.getElementById('custListCount');
+    if (countEl) countEl.textContent = `${rows.length} / ${customers.length}`;
+    if (rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:#888">មិនមានអតិថិជន</td></tr>';
+        return;
+    }
+    const todayISO = formatDateISO(new Date());
     const fragment = document.createDocumentFragment();
-    customers.sort((a, b) => a.name.localeCompare(b.name)).forEach((cust, index) => {
+    rows.forEach(({ cust, status, sum }, index) => {
         const tr = document.createElement('tr');
-        const { text: statusText, cls: statusClass } = getCustomerLoanStatus(cust);
-        const sum = getCustomerLoanSummary(cust);
-        const todayISO = formatDateISO(new Date());
         const outstandingHtml = Object.keys(sum.outstanding).map(cur => fmtMoney(sum.outstanding[cur], cur)).join('<br>') || '-';
         const nextDueHtml = sum.nextDue
             ? `<span style="${sum.nextDue < todayISO ? 'color:var(--danger);font-weight:bold' : ''}">${formatDateDMY(sum.nextDue)}</span>`
@@ -224,20 +268,20 @@ function renderCustomersListTable() {
         const daysLateHtml = sum.maxDaysLate > 0
             ? `<span style="color:var(--danger);font-weight:bold">${sum.maxDaysLate} ថ្ងៃ</span>`
             : '-';
-        
+
         const actionButtons = canEdit ? `
             <td class="actions">
                 <button class="btn btn-info btn-sm" onclick="showCustomerForm('${esc(cust.id)}')"><i class="fas fa-edit"></i> កែប្រែ</button>
                 <button class="btn btn-danger btn-sm" onclick="deleteCustomer('${esc(cust.id)}')"><i class="fas fa-trash-alt"></i> លុប</button>
             </td>` : '<td>No Actions</td>';
-            
+
         tr.innerHTML = `
             <td>${index + 1}</td>
             <td>${esc(cust.name)}</td>
             <td>${esc(cust.gender)}</td>
             <td>${esc(cust.phone)}</td>
             <td>${esc(cust.province)}</td>
-            <td class="status-cell"><span class="status-badge ${statusClass}">${statusText}</span></td>
+            <td class="status-cell"><span class="status-badge ${status.cls}">${status.text}</span></td>
             <td class="center">${sum.activeCount || '-'}</td>
             <td class="right">${outstandingHtml}</td>
             <td>${nextDueHtml}</td>
@@ -247,6 +291,30 @@ function renderCustomersListTable() {
         fragment.appendChild(tr);
     });
     tbody.appendChild(fragment);
+}
+
+// Exports exactly what the list currently shows (respecting search / filters / sort).
+function exportCustomersToExcel() {
+    if (typeof XLSX === 'undefined') { showToast('មិនអាចផ្ទុក library Excel (XLSX) បានទេ', 'error'); return; }
+    const rows = getFilteredCustomerRows();
+    if (rows.length === 0) { showToast('គ្មានទិន្នន័យសម្រាប់នាំចេញ', 'error'); return; }
+    const data = rows.map((r, i) => ({
+        'ល.រ': i + 1,
+        'ឈ្មោះអតិថិជន': r.cust.name,
+        'ភេទ': r.cust.gender,
+        'លេខទូរសព្ទ': r.cust.phone || '',
+        'ខេត្ត': r.cust.province || '',
+        'ស្ថានភាព': r.status.text,
+        'កម្ចីសកម្ម': r.sum.activeCount,
+        'សរុបនៅសល់ (USD)': Number((r.sum.outstanding.USD || 0).toFixed(2)),
+        'សរុបនៅសល់ (KHR)': Math.round(r.sum.outstanding.KHR || 0),
+        'ថ្ងៃបង់បន្ទាប់': r.sum.nextDue ? formatDateDMY(r.sum.nextDue) : '',
+        'ថ្ងៃយឺត': r.sum.maxDaysLate
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Customers');
+    XLSX.writeFile(workbook, `Customers_${formatDateISO(new Date())}.xlsx`);
 }
 
 function populateCustomerDropdowns() {
