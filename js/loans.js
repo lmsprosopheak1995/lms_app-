@@ -320,8 +320,8 @@ function buildSchedule(loan, forceRecalculate = false) {
   }
 
   let schedule;
-  if (loan.calculationType === 'ap') {
-      schedule = buildApSchedule(loan);
+  if (loan.calculationType === 'actual365') {
+      schedule = buildActual365Schedule(loan);
   } else if (loan.calculationType === 'dynamic') {
       schedule = buildDynamicSchedule(loan);
   } else {
@@ -546,8 +546,9 @@ function buildDynamicSchedule(loan) {
 
 
 // ---------------------------------------------------------------------------------------------
-// AP-style ("actual/365") schedule — reproduces the repayment table printed by AP People /
-// Active People's Microfinance. Enable it by saving a loan with calculationType === 'ap'.
+// Actual/365 schedule — interest and service fee are charged on the remaining balance by the real
+// number of days in each period (common with microfinance institutions). Enable it by saving a
+// loan with calculationType === 'actual365'.
 //
 //  • interest  = opening balance × (monthly rate × 12) × actualDays ÷ 365
 //  • service fee (interestRate-like, "អត្រាសេវា") = same formula on the *remaining balance*
@@ -562,7 +563,7 @@ function buildDynamicSchedule(loan) {
 //  • if waiveFirstInterest is ticked: installment #1 principal is computed as if interest were
 //    charged (PMT − fee − interest) but the interest itself is not collected
 // ---------------------------------------------------------------------------------------------
-function buildApSchedule(loan) {
+function buildActual365Schedule(loan) {
   const r2 = x => Math.round((Number(x) + Number.EPSILON) * 100) / 100;
   const L = Number(loan.loanAmount);
   const term = Number(loan.loanTerm);
