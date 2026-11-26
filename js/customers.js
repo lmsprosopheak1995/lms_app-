@@ -7,6 +7,7 @@ function clearCustomerForm() {
     document.getElementById('customerForm').reset();
     document.getElementById('customerId').value = '';
     document.getElementById('customerFormTitle').innerHTML = '<i class="fas fa-user-plus"></i> បន្ថែមអតិថិជនថ្មី';
+    toggleBlacklistFields();
 }
 
 function showCustomerForm(customerId = null) {
@@ -29,7 +30,7 @@ function hideCustomerForm() {
     clearCustomerForm();
 }
 
-function saveCustomer(e) {
+async function saveCustomer(e) {
     if (e) e.preventDefault();
     const customerId = document.getElementById('customerId').value;
 
@@ -40,6 +41,7 @@ function saveCustomer(e) {
 
     const isNewCustomer = !customerId;
 
+    const isBl = document.getElementById('custBlacklisted').checked;
     const customerData = {
         id: customerId || 'CUST-' + Date.now(),
         name: document.getElementById('custName').value.trim(),
@@ -50,7 +52,10 @@ function saveCustomer(e) {
         district: document.getElementById('custDistrict').value.trim(),
         province: document.getElementById('custProvince').value.trim(),
         residency: document.getElementById('custResidency').value,
-        isBlacklisted: document.getElementById('custBlacklisted').checked,
+        isBlacklisted: isBl,
+        blacklistReason: isBl ? document.getElementById('custBlacklistReason').value.trim() : '',
+        blacklistDate: isBl ? document.getElementById('custBlacklistDate').value : '',
+        blacklistApprover: isBl ? document.getElementById('custBlacklistApprover').value : '',
     };
 
     if (isNewCustomer) {
@@ -61,6 +66,21 @@ function saveCustomer(e) {
     if (!customerData.name) {
         showToast('សូមបញ្ចូលឈ្មោះអតិថិជន', 'error');
         return;
+    }
+
+    const prevCustomer = customerId ? { ...(customers.find(c => c.id === customerId) || {}) } : null;
+    if (customerData.isBlacklisted && (!customerData.blacklistReason || !customerData.blacklistDate || !customerData.blacklistApprover)) {
+        showToast('សូមបំពេញមូលហេតុ កាលបរិច្ឆេទ និងអ្នកអនុម័ត សម្រាប់បញ្ជីខ្មៅ', 'error');
+        return;
+    }
+    let unblacklistReason = '';
+    if (prevCustomer && prevCustomer.isBlacklisted && !customerData.isBlacklisted) {
+        const why = await customPrompt('សូមបញ្ចូលមូលហេតុនៃការដកអតិថិជននេះចេញពីបញ្ជីខ្មៅ', '', 'ដកចេញពីបញ្ជីខ្មៅ');
+        if (!why || !why.trim()) {
+            showToast('ត្រូវការមូលហេតុ ដើម្បីដកចេញពីបញ្ជីខ្មៅ', 'error');
+            return;
+        }
+        unblacklistReason = why.trim();
     }
 
     if (customerId) {
@@ -78,6 +98,29 @@ function saveCustomer(e) {
     }
 
     persistData(LS_KEYS.customers, customers);
+
+    // ----- audit trail -----
+    if (isNewCustomer) {
+        logCustomerChange(customerData.id, 'Create Customer', { 'ឈ្មោះ': customerData.name, 'លេខទូរសព្ទ': customerData.phone, 'ខេត្ត': customerData.province });
+    } else {
+        const changes = diffCustomerFields(prevCustomer, customerData);
+        if (Object.keys(changes).length) logCustomerChange(customerData.id, 'Update Customer', changes);
+    }
+    const wasBl = !!(prevCustomer && prevCustomer.isBlacklisted);
+    const blInfo = () => ({
+        'មូលហេតុ': customerData.blacklistReason,
+        'កាលបរិច្ឆេទ': formatDateDMY(customerData.blacklistDate),
+        'អ្នកអនុម័ត': getOfficerFullName(customerData.blacklistApprover)
+    });
+    if (customerData.isBlacklisted && !wasBl) {
+        logCustomerChange(customerData.id, 'Blacklisted', blInfo());
+    } else if (customerData.isBlacklisted && wasBl &&
+        (prevCustomer.blacklistReason !== customerData.blacklistReason || prevCustomer.blacklistDate !== customerData.blacklistDate || prevCustomer.blacklistApprover !== customerData.blacklistApprover)) {
+        logCustomerChange(customerData.id, 'Blacklist Updated', blInfo());
+    } else if (!customerData.isBlacklisted && wasBl) {
+        logCustomerChange(customerData.id, 'Removed from Blacklist', { 'មូលហេតុដកចេញ': unblacklistReason, 'មូលហេតុដាក់បញ្ជីខ្មៅដើម': prevCustomer.blacklistReason || '-' });
+    }
+
     showToast('រក្សាទុកព័ត៌មានអតិថិជនបានជោគជ័យ!', 'success');
 
     notifyTelegram(`${isNewCustomer ? '👤 <b>អតិថិជនថ្មីត្រូវបានបង្កើត</b>' : '✏️ <b>ព័ត៌មានអតិថិជនត្រូវបានកែប្រែ</b>'}\nឈ្មោះ: ${customerData.name}\nទូរស័ព្ទ: ${customerData.phone || 'N/A'}${customerData.isBlacklisted ? '\n⚠️ ស្ថានភាព: បញ្ជីខ្មៅ (Blacklisted)' : ''}\nដោយ: ${(currentUser && currentUser.fullName) || 'N/A'}`);
@@ -109,6 +152,10 @@ function loadCustomerIntoForm(customerId) {
         document.getElementById('custProvince').value = customer.province;
         document.getElementById('custResidency').value = customer.residency || 'resident';
         document.getElementById('custBlacklisted').checked = customer.isBlacklisted || false;
+        toggleBlacklistFields();
+        document.getElementById('custBlacklistReason').value = customer.blacklistReason || '';
+        if (customer.blacklistDate) document.getElementById('custBlacklistDate').value = customer.blacklistDate;
+        if (customer.blacklistApprover) document.getElementById('custBlacklistApprover').value = customer.blacklistApprover;
         document.getElementById('customerFormTitle').innerHTML = '<i class="fas fa-user-edit"></i> កែប្រែព័ត៌មានអតិថិជន';
     }
 }
@@ -152,6 +199,7 @@ async function deleteCustomer(customerId) {
         });
 
         persistData(LS_KEYS.customers, customers);
+        logCustomerChange(customerId, 'Delete Customer', { 'ឈ្មោះ': deletedCust ? deletedCust.name : customerId, 'លេខទូរសព្ទ': deletedCust ? deletedCust.phone : '', 'កម្ចីដែលបានលុប': loanIdsToDelete.join(', ') || '-' });
         if (loanIdsToDelete.length > 0) {
             persistData(LS_KEYS.loans, loans);
             persistData(LS_KEYS.payments, payments);
@@ -271,6 +319,7 @@ function renderCustomersListTable() {
 
         const actionButtons = canEdit ? `
             <td class="actions">
+                <button class="btn btn-muted btn-sm" title="ប្រវត្តិ" onclick="openCustomerHistory('${esc(cust.id)}')"><i class="fas fa-history"></i></button>
                 <button class="btn btn-info btn-sm" onclick="showCustomerForm('${esc(cust.id)}')"><i class="fas fa-edit"></i> កែប្រែ</button>
                 <button class="btn btn-danger btn-sm" onclick="deleteCustomer('${esc(cust.id)}')"><i class="fas fa-trash-alt"></i> លុប</button>
             </td>` : '<td>No Actions</td>';
@@ -382,7 +431,7 @@ function displaySelectedCustomerInfo() {
 
     if (customer && customer.id) {
         if (customer.isBlacklisted) {
-            showToast('ការព្រមាន៖ អតិថិជននេះស្ថិតនៅក្នុងបញ្ជីខ្មៅ។', 'error');
+            showToast('ការព្រមាន៖ អតិថិជននេះស្ថិតនៅក្នុងបញ្ជីខ្មៅ។' + (customer.blacklistReason ? ` មូលហេតុ៖ ${customer.blacklistReason}` : ''), 'error');
         }
         infoDiv.innerHTML = `
             <strong><i class="fas fa-venus-mars"></i> ភេទ:</strong> ${esc(customer.gender)} | 
@@ -428,7 +477,10 @@ async function renderCustomerProfile() {
     // customer's loan situation is not hidden.
     const loanStatus = getCustomerLoanStatus({ ...customer, isBlacklisted: false });
     const blacklistBadge = customer.isBlacklisted ? '<span class="status-badge status-unpaid">បញ្ជីខ្មៅ</span> ' : '';
-    document.getElementById('profileDetailStatus').innerHTML = `${blacklistBadge}<span class="status-badge ${loanStatus.cls}">${loanStatus.text}</span>`;
+    const blDetails = customer.isBlacklisted
+        ? `<div style="font-size:12px;margin-top:4px;opacity:.85">មូលហេតុ: ${esc(customer.blacklistReason || '-')} | កាលបរិច្ឆេទ: ${customer.blacklistDate ? formatDateDMY(customer.blacklistDate) : '-'} | អ្នកអនុម័ត: ${esc(customer.blacklistApprover ? getOfficerFullName(customer.blacklistApprover) : '-')}</div>`
+        : '';
+    document.getElementById('profileDetailStatus').innerHTML = `${blacklistBadge}<span class="status-badge ${loanStatus.cls}">${loanStatus.text}</span>${blDetails}`;
 
     // Populate loans table
     const loansBody = document.getElementById('profileLoansTableBody');
@@ -688,3 +740,83 @@ async function printCustomerIdCard() {
 }
 
 
+// =====================================================================
+// Blacklist details (reason / date / approver) + customer audit trail
+// =====================================================================
+function toggleBlacklistFields() {
+    const checkbox = document.getElementById('custBlacklisted');
+    const box = document.getElementById('custBlacklistDetails');
+    if (!checkbox || !box) return;
+    box.style.display = checkbox.checked ? '' : 'none';
+    if (!checkbox.checked) return;
+
+    const sel = document.getElementById('custBlacklistApprover');
+    if (sel.options.length === 0) {
+        const approvers = getUsers().filter(u => u.role === 'admin' || u.role === 'manager');
+        sel.innerHTML = '<option value="">-- ជ្រើសរើសអ្នកអនុម័ត --</option>' +
+            approvers.map(u => `<option value="${esc(u.username)}">${esc(u.fullName || u.username)}</option>`).join('');
+    }
+    const dateEl = document.getElementById('custBlacklistDate');
+    if (!dateEl.value) dateEl.value = formatDateISO(new Date());
+    if (!sel.value && currentUser && (currentUser.role === 'admin' || currentUser.role === 'manager')) sel.value = currentUser.username;
+}
+
+const CUSTOMER_AUDIT_FIELDS = [
+    ['name', 'ឈ្មោះ'], ['gender', 'ភេទ'], ['phone', 'លេខទូរសព្ទ'], ['village', 'ភូមិ'],
+    ['commune', 'ឃុំ'], ['district', 'ស្រុក'], ['province', 'ខេត្ត'], ['residency', 'និវាសនជន']
+];
+
+function diffCustomerFields(before, after) {
+    const changes = {};
+    CUSTOMER_AUDIT_FIELDS.forEach(([field, label]) => {
+        const a = (before && before[field]) || '';
+        const b = (after && after[field]) || '';
+        if (a !== b) changes[label] = `${a || '-'} → ${b || '-'}`;
+    });
+    return changes;
+}
+
+function logCustomerChange(customerId, action, details = {}) {
+    if (!customerId) return;
+    if (!customerHistory[customerId]) customerHistory[customerId] = [];
+    customerHistory[customerId].unshift({
+        id: genId(),
+        ts: new Date().toISOString(),
+        user: currentUser ? currentUser.username : 'System',
+        action,
+        details
+    });
+    persistData(LS_KEYS.customerHistory, customerHistory);
+}
+
+const CUSTOMER_ACTION_LABELS = {
+    'Create Customer': 'បង្កើតអតិថិជន',
+    'Update Customer': 'កែប្រែព័ត៌មាន',
+    'Blacklisted': 'ដាក់ក្នុងបញ្ជីខ្មៅ',
+    'Blacklist Updated': 'កែព័ត៌មានបញ្ជីខ្មៅ',
+    'Removed from Blacklist': 'ដកចេញពីបញ្ជីខ្មៅ',
+    'Delete Customer': 'លុបអតិថិជន'
+};
+
+function openCustomerHistory(customerId) {
+    const cust = customers.find(c => c.id === customerId);
+    document.getElementById('customerHistoryName').textContent = cust ? cust.name : customerId;
+    const tbody = document.getElementById('customerHistoryTableBody');
+    const list = [...(customerHistory[customerId] || [])].sort((a, b) => new Date(b.ts) - new Date(a.ts));
+    if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="center">មិនទាន់មានប្រវត្តិកត់ត្រា (ប្រវត្តិចាប់ផ្តើមកត់ពីពេលមុខងារនេះដំណើរការ)</td></tr>';
+    } else {
+        tbody.innerHTML = list.map(log => `
+            <tr>
+                <td>${new Date(log.ts).toLocaleString('en-GB')}</td>
+                <td>${esc(getOfficerFullName(log.user))}</td>
+                <td>${esc(CUSTOMER_ACTION_LABELS[log.action] || log.action)}</td>
+                <td class="history-detail-cell">${renderHistoryDetailsTable(log.details)}</td>
+            </tr>`).join('');
+    }
+    document.getElementById('customerHistoryModal').style.display = 'flex';
+}
+
+function closeCustomerHistory() {
+    document.getElementById('customerHistoryModal').style.display = 'none';
+}

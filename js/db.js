@@ -65,6 +65,7 @@ function getEntityConfig(key) {
     [LS_KEYS.savingsWithdrawals]: { table: 'savings_withdrawals',   shape: 'keyed-single', parentColumn: 'account_id' },
     [LS_KEYS.installmentPayments]: { table: 'installment_payments', shape: 'keyed-pair', parentColumn: 'contract_id' },
     [LS_KEYS.pawnTransactions]:   { table: 'pawn_transactions',     shape: 'keyed-single', parentColumn: 'pawn_id' },
+    [LS_KEYS.customerHistory]:    { table: 'customer_history',      shape: 'keyed-single', parentColumn: 'customer_id' },
     [LS_KEYS.loanHistory]:        { table: 'loan_history',          shape: 'history' },
   };
   return map[key] || null;
@@ -151,6 +152,7 @@ function assignGlobal(key, value) {
     case LS_KEYS.installmentPayments: installmentPayments = value; break;
     case LS_KEYS.pawnContracts: pawnContracts = value; break;
     case LS_KEYS.pawnTransactions: pawnTransactions = value; break;
+    case LS_KEYS.customerHistory: customerHistory = value; break;
     case LS_KEYS.payments: payments = value; break;
     case LS_KEYS.savingsPayments: savingsPayments = value; break;
     case LS_KEYS.savingsWithdrawals: savingsWithdrawals = value; break;
@@ -184,6 +186,7 @@ async function loadAllCloudData() {
   await loadKeyedPairEntity(LS_KEYS.savingsPayments);
   await loadKeyedPairEntity(LS_KEYS.installmentPayments);
   await loadKeyedSingleEntity(LS_KEYS.pawnTransactions);
+  await loadKeyedSingleEntity(LS_KEYS.customerHistory);
   await loadKeyedSingleEntity(LS_KEYS.savingsWithdrawals);
   await loadHistoryEntity(LS_KEYS.loanHistory);
   await loadAppSettingsEntity();
@@ -623,7 +626,7 @@ const REALTIME_WATCHED_TABLES = [
   'customers', 'loans', 'partial_payments', 'refinances', 'holidays',
   'collaterals', 'guarantors', 'expenses', 'notifications', 'loan_products',
   'savings_accounts', 'savings_deposits', 'savings_withdrawals', 'app_settings',
-  'installment_contracts', 'installment_payments', 'pawn_contracts', 'pawn_transactions',
+  'installment_contracts', 'installment_payments', 'pawn_contracts', 'pawn_transactions', 'customer_history',
   'app_user_roles'
 ];
 
@@ -703,6 +706,8 @@ async function refreshEntityFromCloud(table) {
       await loadKeyedPairEntity(LS_KEYS.installmentPayments);
     } else if (table === 'pawn_transactions') {
       await loadKeyedSingleEntity(LS_KEYS.pawnTransactions);
+    } else if (table === 'customer_history') {
+      await loadKeyedSingleEntity(LS_KEYS.customerHistory);
     } else {
       const key = REALTIME_TABLE_TO_KEY[table];
       const cfg = getEntityConfig(key);
