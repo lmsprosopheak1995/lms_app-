@@ -2678,7 +2678,11 @@ function buildBankFormatScheduleHtml(loan) {
   schedule.forEach(s => {
     const other = (s.adminFee || 0) + (s.insuranceFee || 0);
     const pay = s.principal + s.interest + s.serviceFee + other;
+    const isLast = s.index === schedule.length;
+    const balBefore = bal;
     bal = Math.max(0, bal - s.principal);
+    // like the bank's paper: the last row keeps the balance before the final payment (e.g. 42.13)
+    const balShown = isLast ? balBefore : bal;
     tot.pay += pay; tot.fee += s.serviceFee; tot.interest += s.interest; tot.principal += s.principal; tot.other += other;
     rows += `<tr>
       <td class="c">${s.index}</td>
@@ -2688,7 +2692,7 @@ function buildBankFormatScheduleHtml(loan) {
       <td class="r">${num(s.interest)}</td>
       ${hasOther ? `<td class="r">${num(other)}</td>` : ''}
       <td class="r">${num(s.principal)}</td>
-      <td class="r">${num(bal < 0.005 ? 0 : bal)}</td>
+      <td class="r">${num(balShown < 0.005 ? 0 : balShown)}</td>
     </tr>`;
   });
 
