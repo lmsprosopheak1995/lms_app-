@@ -1104,3 +1104,7 @@ tr.next-due-row td:first-child { box-shadow: inset 3px 0 0 var(--primary, #0d6ef
 #loansTab .kpi-cards, #loansTab .loan-progress, #loansTab .loan-quick-tools { max-width: none; }
 #installmentDetail, #pawnDetail { max-width: none !important; margin-left: 0 !important; margin-right: 0 !important; }
 
+/* ===== Section headings inside the customer form ===== */
+.form-section-title { grid-column: 1 / -1; margin: 14px 0 2px; padding-bottom: 6px; border-bottom: 1px solid var(--border); font-size: 14px; color: var(--primary, #0d6efd); text-align: left; justify-content: flex-start; }
+.form-section-title:first-child { margin-top: 0; }
+
