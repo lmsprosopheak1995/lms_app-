@@ -3,6 +3,11 @@
 // =====================================================================
 
 // ===================== CUSTOMER (CRM) FUNCTIONS =====================
+// Join address parts with ", " and skip empty ones (avoids ", , , កំពង់ចាម" when some levels are blank).
+function joinAddress(...parts) {
+    return parts.map(p => (p || '').toString().trim()).filter(Boolean).join(', ');
+}
+
 function clearCustomerForm() {
     document.getElementById('customerForm').reset();
     if (typeof resetAddressSelects === 'function') resetAddressSelects();
@@ -584,7 +589,7 @@ function displaySelectedCustomerInfo() {
         infoDiv.innerHTML = `
             <strong><i class="fas fa-venus-mars"></i> ភេទ:</strong> ${esc(customer.gender)} | 
             <strong><i class="fas fa-phone"></i> ទូរស័ព្ទ:</strong> ${esc(customer.phone || 'N/A')} | 
-            <strong><i class="fas fa-map-marked-alt"></i> អាសយដ្ឋាន:</strong> ${esc(customer.village || '')}, ${esc(customer.commune || '')}, ${esc(customer.province || '')}
+            <strong><i class="fas fa-map-marked-alt"></i> អាសយដ្ឋាន:</strong> ${esc(joinAddress(customer.village, customer.commune, customer.province))}
         `;
     } else {
         infoDiv.innerHTML = '';
@@ -623,7 +628,7 @@ async function renderCustomerProfile() {
     document.getElementById('profileDetailIdInfo').textContent = customerIdSummary(customer);
     document.getElementById('profileDetailWork').textContent = customerWorkSummary(customer);
     document.getElementById('profileDetailEmergency').textContent = customerEmergencySummary(customer);
-    document.getElementById('profileDetailAddress').textContent = `${customer.village}, ${customer.commune}, ${customer.district}, ${customer.province}`;
+    document.getElementById('profileDetailAddress').textContent = joinAddress(customer.village, customer.commune, customer.district, customer.province);
     document.getElementById('profileDetailCreated').textContent = formatDateDMY(customer.createdAt);
     // Profile shows BOTH: the blacklist flag (if set) and the loan-based status, so a blacklisted
     // customer's loan situation is not hidden.
@@ -835,7 +840,7 @@ async function printCustomerProfile() {
             <div>អត្តសញ្ញាណ</div><div>${esc(customerIdSummary(customer))}</div>
             <div>មុខរបរ / ចំណូល</div><div>${esc(customerWorkSummary(customer))}</div>
             <div>អ្នកទំនាក់ទំនងបន្ទាន់</div><div>${esc(customerEmergencySummary(customer))}</div>
-            <div>អាសយដ្ឋាន</div><div>${esc(customer.village)}, ${esc(customer.commune)}, ${esc(customer.district)}, ${esc(customer.province)}</div>
+            <div>អាសយដ្ឋាន</div><div>${esc(joinAddress(customer.village, customer.commune, customer.district, customer.province))}</div>
             <div>បានបង្កើតនៅ</div><div>${esc(formatDateDMY(customer.createdAt))}</div>
         </div>
         <h4 style="margin-top:20px;">ប្រវត្តិរូបកម្ចី</h4>
@@ -881,8 +886,8 @@ async function printCustomerIdCard() {
                 <div class="name">${esc(customer.name)}</div>
                 <div>ភេទ: ${esc(customer.gender || '')}</div>
                 <div>ទូរស័ព្ទ: ${esc(customer.phone || '')}</div>
-                <div>អាសយដ្ឋាន: ${esc(customer.village)}, ${esc(customer.commune)}</div>
-                <div>${esc(customer.district)}, ${esc(customer.province)}</div>
+                <div>អាសយដ្ឋាន: ${esc(joinAddress(customer.village, customer.commune))}</div>
+                <div>${esc(joinAddress(customer.district, customer.province))}</div>
                 <div>ID: ${esc(customer.id)}</div>
             </div>
         </div>
