@@ -1362,7 +1362,7 @@ function renderSchedule(t, forceRecalculate = false) {
           case "overdue": n = "យឺតយ៉ាវ"; break;
       }
       l.innerHTML = `<td>${i.index}</td>
-          <td style="white-space:nowrap">${formatDateDMY(i.date)} ${i.isAdjusted ? '<i class="fas fa-calendar-day date-adjusted-icon" title="Pushed from holiday"></i>' : ""}<div style="font-size:.82em; opacity:.8">${formatKhmerDate(i.date)}</div></td>
+          <td style="white-space:nowrap">${formatDateDMY(i.date)} <span style="margin-left:10px; font-weight:600; color:var(--accent, #7dd3fc)">${formatKhmerDate(i.date)}</span> ${i.isAdjusted ? '<i class="fas fa-calendar-day date-adjusted-icon" title="Pushed from holiday"></i>' : ""}</td>
           <td class="right">${fmtMoney(i.principal, t.currency)}</td>
           <td class="right">${fmtMoney(i.interest, t.currency)}</td>
           <td class="right">${fmtMoney(i.lateInterest, t.currency)}</td>
