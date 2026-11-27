@@ -973,6 +973,32 @@ function createLoanTableRow(loan, index) {
   return tr;
 }
 
+// Hides the "admin fee" (col 14) and "insurance fee" (col 15) columns of the main loans list when
+// every loan in the current filtered list has 0 for them; they come back automatically as soon as
+// one loan has a value. Display only. Decided on the whole filtered list so the columns do not
+// flicker when paging.
+const LOAN_LIST_AUTOHIDE_COLS = [{ col: 14, key: 'adminFee' }, { col: 15, key: 'insuranceFee' }];
+function applyLoanTableColumnVisibility(list) {
+  const table = document.getElementById('loansTable');
+  if (!table) return;
+  let hiddenCount = 0;
+  LOAN_LIST_AUTOHIDE_COLS.forEach(c => {
+    const allZero = !!list && list.length > 0 && list.every(l => Math.abs(Number(l[c.key]) || 0) < 0.005);
+    const d = allZero ? 'none' : '';
+    if (allZero) hiddenCount++;
+    table.querySelectorAll('thead tr').forEach(tr => { const th = tr.children[c.col - 1]; if (th) th.style.display = d; });
+    table.querySelectorAll('#loansTableBody tr').forEach(tr => {
+      if (tr.children.length >= 18) { const td = tr.children[c.col - 1]; if (td) td.style.display = d; }
+    });
+  });
+  // the footer's last cell spans columns 13-18; shrink it by the number of hidden columns
+  const lastFootCell = table.querySelector('tfoot tr.summary-row td:last-child');
+  if (lastFootCell) {
+    if (!lastFootCell.dataset.baseSpan) lastFootCell.dataset.baseSpan = lastFootCell.getAttribute('colspan') || '6';
+    lastFootCell.setAttribute('colspan', Math.max(1, Number(lastFootCell.dataset.baseSpan) - hiddenCount));
+  }
+}
+
 function displayLoans() {
   let loansToDisplay = [...loans];
   if (!hasPermission('canViewAllLoans')) {
@@ -1017,6 +1043,7 @@ function displayLoans() {
     loansTableBody.appendChild(fragment);
   }
   updateTableSummary(loansToDisplay);
+  applyLoanTableColumnVisibility(loansToDisplay);
   updateLoanKpis();
   const sa = document.getElementById("selectAllLoans"); if (sa) sa.checked = false;
   refreshLoanSelectionUI();
