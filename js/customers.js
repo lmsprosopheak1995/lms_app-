@@ -5,6 +5,7 @@
 // ===================== CUSTOMER (CRM) FUNCTIONS =====================
 function clearCustomerForm() {
     document.getElementById('customerForm').reset();
+    if (typeof resetAddressSelects === 'function') resetAddressSelects();
     document.getElementById('customerId').value = '';
     document.getElementById('customerFormTitle').innerHTML = '<i class="fas fa-user-plus"></i> បន្ថែមអតិថិជនថ្មី';
     toggleBlacklistFields();
@@ -235,10 +236,7 @@ function loadCustomerIntoForm(customerId) {
         document.getElementById('custEmergencyName').value = customer.emergencyName || '';
         document.getElementById('custEmergencyPhone').value = customer.emergencyPhone || '';
         document.getElementById('custEmergencyRelation').value = customer.emergencyRelation || '';
-        document.getElementById('custVillage').value = customer.village;
-        document.getElementById('custCommune').value = customer.commune;
-        document.getElementById('custDistrict').value = customer.district;
-        document.getElementById('custProvince').value = customer.province;
+        setCustomerAddress(customer);
         document.getElementById('custResidency').value = customer.residency || 'resident';
         document.getElementById('custBlacklisted').checked = customer.isBlacklisted || false;
         toggleBlacklistFields();
