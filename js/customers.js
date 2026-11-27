@@ -30,8 +30,27 @@ function hideCustomerForm() {
     clearCustomerForm();
 }
 
+let openProfileAfterSave = false;
+
+function saveCustomerAndOpenProfile() {
+    openProfileAfterSave = true;
+    document.getElementById('customerForm').requestSubmit();
+}
+
+function calcAge(dobISO) {
+    const d = parseDate(dobISO);
+    if (isNaN(d.getTime())) return null;
+    const t = new Date();
+    let age = t.getFullYear() - d.getFullYear();
+    const m = t.getMonth() - d.getMonth();
+    if (m < 0 || (m === 0 && t.getDate() < d.getDate())) age--;
+    return age;
+}
+
 async function saveCustomer(e) {
     if (e) e.preventDefault();
+    const goToProfile = openProfileAfterSave;   // set by the "save & upload documents" button
+    openProfileAfterSave = false;
     const customerId = document.getElementById('customerId').value;
 
     if (customerId && currentUser.role !== 'admin' && currentUser.role !== 'manager') {
@@ -48,6 +67,24 @@ async function saveCustomer(e) {
         gender: document.getElementById('custGender').value,
         phone: document.getElementById('custPhone').value.trim(),
         idNumber: document.getElementById('custIdNumber').value.trim(),
+        nameLatin: document.getElementById('custNameLatin').value.trim(),
+        dob: document.getElementById('custDob').value,
+        maritalStatus: document.getElementById('custMarital').value,
+        nationality: document.getElementById('custNationality').value.trim(),
+        idType: document.getElementById('custIdType').value,
+        idIssueDate: document.getElementById('custIdIssueDate').value,
+        idExpiryDate: document.getElementById('custIdExpiryDate').value,
+        phone2: document.getElementById('custPhone2').value.trim(),
+        telegram: document.getElementById('custTelegram').value.trim(),
+        addressDetail: document.getElementById('custAddressDetail').value.trim(),
+        occupation: document.getElementById('custOccupation').value.trim(),
+        workplace: document.getElementById('custWorkplace').value.trim(),
+        monthlyIncome: document.getElementById('custMonthlyIncome').value === '' ? '' : parseFloat(document.getElementById('custMonthlyIncome').value) || 0,
+        incomeCurrency: document.getElementById('custIncomeCurrency').value,
+        workYears: document.getElementById('custWorkYears').value === '' ? '' : parseFloat(document.getElementById('custWorkYears').value) || 0,
+        emergencyName: document.getElementById('custEmergencyName').value.trim(),
+        emergencyPhone: document.getElementById('custEmergencyPhone').value.trim(),
+        emergencyRelation: document.getElementById('custEmergencyRelation').value.trim(),
         village: document.getElementById('custVillage').value.trim(),
         commune: document.getElementById('custCommune').value.trim(),
         district: document.getElementById('custDistrict').value.trim(),
@@ -68,6 +105,20 @@ async function saveCustomer(e) {
         showToast('សូមបញ្ចូលឈ្មោះអតិថិជន', 'error');
         return;
     }
+
+    // KYC sanity checks
+    const todayISO = formatDateISO(new Date());
+    if (customerData.dob) {
+        const age = calcAge(customerData.dob);
+        if (age === null || age < 0) { showToast('ថ្ងៃកំណើតមិនត្រឹមត្រូវ', 'error'); return; }
+        if (age < 18 && !(await customConfirm(`អតិថិជននេះមានអាយុ ${age} ឆ្នាំ (ក្រោម 18)។ តើអ្នកចង់រក្សាទុកដដែលឬ?`, 'ការព្រមាន: អាយុក្រោម 18'))) return;
+    }
+    if (customerData.idIssueDate && customerData.idExpiryDate && customerData.idExpiryDate < customerData.idIssueDate) {
+        showToast('ថ្ងៃផុតកំណត់ឯកសារមិនអាចមុនថ្ងៃចេញឯកសារ', 'error');
+        return;
+    }
+    if (customerData.idExpiryDate && customerData.idExpiryDate < todayISO &&
+        !(await customConfirm(`ឯកសារអត្តសញ្ញាណផុតកំណត់ហើយ (${formatDateDMY(customerData.idExpiryDate)})។ តើអ្នកចង់រក្សាទុកដដែលឬ?`, 'ការព្រមាន: ឯកសារផុតកំណត់'))) return;
 
     // Duplicate warnings: same ID number (strong) or same phone (families may share one, so only a warning).
     const normPhone = p => String(p || '').replace(/\D/g, '').slice(-8);
@@ -142,7 +193,13 @@ async function saveCustomer(e) {
     renderCustomersListTable();
     populateCustomerDropdowns();
 
-    if (isNewCustomer) {
+    if (goToProfile) {
+        switchSubTab('customers', 'customerProfile');
+        populateCustomerDropdowns();
+        document.getElementById('customerProfileSelect').value = customerData.id;
+        renderCustomerProfile();
+        showToast('សូម upload រូបថត រូបអត្តសញ្ញាណប័ណ្ណ និងឯកសារនៅទំព័រនេះ។', 'info');
+    } else if (isNewCustomer) {
         switchTab('loans');
         document.getElementById('customerSelect').value = customerData.id;
         displaySelectedCustomerInfo();
@@ -160,6 +217,24 @@ function loadCustomerIntoForm(customerId) {
         document.getElementById('custGender').value = customer.gender;
         document.getElementById('custPhone').value = customer.phone;
         document.getElementById('custIdNumber').value = customer.idNumber || '';
+        document.getElementById('custNameLatin').value = customer.nameLatin || '';
+        document.getElementById('custDob').value = customer.dob || '';
+        document.getElementById('custMarital').value = customer.maritalStatus || '';
+        document.getElementById('custNationality').value = customer.nationality || 'ខ្មែរ';
+        document.getElementById('custIdType').value = customer.idType || 'national';
+        document.getElementById('custIdIssueDate').value = customer.idIssueDate || '';
+        document.getElementById('custIdExpiryDate').value = customer.idExpiryDate || '';
+        document.getElementById('custPhone2').value = customer.phone2 || '';
+        document.getElementById('custTelegram').value = customer.telegram || '';
+        document.getElementById('custAddressDetail').value = customer.addressDetail || '';
+        document.getElementById('custOccupation').value = customer.occupation || '';
+        document.getElementById('custWorkplace').value = customer.workplace || '';
+        document.getElementById('custMonthlyIncome').value = customer.monthlyIncome === undefined ? '' : customer.monthlyIncome;
+        document.getElementById('custIncomeCurrency').value = customer.incomeCurrency || 'USD';
+        document.getElementById('custWorkYears').value = customer.workYears === undefined ? '' : customer.workYears;
+        document.getElementById('custEmergencyName').value = customer.emergencyName || '';
+        document.getElementById('custEmergencyPhone').value = customer.emergencyPhone || '';
+        document.getElementById('custEmergencyRelation').value = customer.emergencyRelation || '';
         document.getElementById('custVillage').value = customer.village;
         document.getElementById('custCommune').value = customer.commune;
         document.getElementById('custDistrict').value = customer.district;
@@ -269,6 +344,9 @@ function getCustomerKycMissing(c) {
     if (!c.idCardFront) missing.push('រូបអត្តសញ្ញាណប័ណ្ណមុខ');
     if (!c.idCardBack) missing.push('រូបអត្តសញ្ញាណប័ណ្ណក្រោយ');
     if (!c.province) missing.push('ខេត្ត');
+    if (!c.dob) missing.push('ថ្ងៃកំណើត');
+    if (!c.occupation) missing.push('មុខរបរ');
+    if (!c.emergencyName || !c.emergencyPhone) missing.push('អ្នកទំនាក់ទំនងបន្ទាន់');
     return missing;
 }
 
@@ -375,7 +453,7 @@ function renderCustomersListTable() {
         else if (col.nextFollowUp) daysLateHtml += `<br><small style="opacity:.75"><i class="fas fa-phone"></i> តាមដាន ${formatDateDMY(col.nextFollowUp)}</small>`;
 
         const kycHtml = kycMissing.length
-            ? `<br><small style="color:var(--warning, #e0a800)" title="ព័ត៌មាន KYC ខ្វះ"><i class="fas fa-exclamation-circle"></i> ខ្វះ ${kycMissing.length}: ${esc(kycMissing.join(', '))}</small>`
+            ? `<br><small style="color:var(--warning, #e0a800)" title="ខ្វះ: ${esc(kycMissing.join(', '))}"><i class="fas fa-exclamation-circle"></i> ខ្វះ ${kycMissing.length}: ${esc(kycMissing.slice(0, 2).join(', '))}${kycMissing.length > 2 ? ' +' + (kycMissing.length - 2) : ''}</small>`
             : '';
         const riskHtml = risk.color
             ? `<span class="status-badge" title="${esc(risk.range)}" style="background:${risk.color};color:#fff;padding:2px 10px;border-radius:12px;">${risk.label}</span>`
@@ -542,7 +620,11 @@ async function renderCustomerProfile() {
     resolveCustomerImageUrl(customer.idCardBack).then(src => { document.getElementById('idCardBackPreview').src = src; });
     document.getElementById('profileDetailName').textContent = customer.name;
     document.getElementById('profileDetailGender').textContent = customer.gender;
-    document.getElementById('profileDetailPhone').textContent = customer.phone || 'N/A';
+    document.getElementById('profileDetailPhone').textContent = [customer.phone, customer.phone2].filter(Boolean).join(' / ') || 'N/A';
+    document.getElementById('profileDetailDob').textContent = customer.dob ? `${formatDateDMY(customer.dob)} (${calcAge(customer.dob)} ឆ្នាំ)` : '-';
+    document.getElementById('profileDetailIdInfo').textContent = customerIdSummary(customer);
+    document.getElementById('profileDetailWork').textContent = customerWorkSummary(customer);
+    document.getElementById('profileDetailEmergency').textContent = customerEmergencySummary(customer);
     document.getElementById('profileDetailAddress').textContent = `${customer.village}, ${customer.commune}, ${customer.district}, ${customer.province}`;
     document.getElementById('profileDetailCreated').textContent = formatDateDMY(customer.createdAt);
     // Profile shows BOTH: the blacklist flag (if set) and the loan-based status, so a blacklisted
@@ -750,7 +832,11 @@ async function printCustomerProfile() {
         <h2>${esc(customer.name)}</h2>
         <div class="info-grid">
             <div>ភេទ</div><div>${esc(customer.gender || '')}</div>
-            <div>លេខទូរសព្ទ</div><div>${esc(customer.phone || '')}</div>
+            <div>លេខទូរសព្ទ</div><div>${esc([customer.phone, customer.phone2].filter(Boolean).join(' / '))}</div>
+            <div>ថ្ងៃកំណើត</div><div>${esc(customer.dob ? formatDateDMY(customer.dob) : '-')}</div>
+            <div>អត្តសញ្ញាណ</div><div>${esc(customerIdSummary(customer))}</div>
+            <div>មុខរបរ / ចំណូល</div><div>${esc(customerWorkSummary(customer))}</div>
+            <div>អ្នកទំនាក់ទំនងបន្ទាន់</div><div>${esc(customerEmergencySummary(customer))}</div>
             <div>អាសយដ្ឋាន</div><div>${esc(customer.village)}, ${esc(customer.commune)}, ${esc(customer.district)}, ${esc(customer.province)}</div>
             <div>បានបង្កើតនៅ</div><div>${esc(formatDateDMY(customer.createdAt))}</div>
         </div>
@@ -835,7 +921,12 @@ function toggleBlacklistFields() {
 
 const CUSTOMER_AUDIT_FIELDS = [
     ['name', 'ឈ្មោះ'], ['gender', 'ភេទ'], ['phone', 'លេខទូរសព្ទ'], ['idNumber', 'លេខអត្តសញ្ញាណប័ណ្ណ'], ['village', 'ភូមិ'],
-    ['commune', 'ឃុំ'], ['district', 'ស្រុក'], ['province', 'ខេត្ត'], ['residency', 'និវាសនជន']
+    ['commune', 'ឃុំ'], ['district', 'ស្រុក'], ['province', 'ខេត្ត'], ['residency', 'និវាសនជន'],
+    ['nameLatin', 'ឈ្មោះឡាតាំង'], ['dob', 'ថ្ងៃកំណើត'], ['maritalStatus', 'ស្ថានភាពគ្រួសារ'], ['nationality', 'សញ្ជាតិ'],
+    ['idType', 'ប្រភេទឯកសារអត្តសញ្ញាណ'], ['idIssueDate', 'ថ្ងៃចេញឯកសារ'], ['idExpiryDate', 'ថ្ងៃផុតកំណត់ឯកសារ'],
+    ['phone2', 'លេខទូរសព្ទទី 2'], ['telegram', 'Telegram'], ['addressDetail', 'ផ្ទះលេខ/ផ្លូវ'],
+    ['occupation', 'មុខរបរ'], ['workplace', 'កន្លែងធ្វើការ'], ['monthlyIncome', 'ចំណូលប្រចាំខែ'], ['incomeCurrency', 'រូបិយប័ណ្ណចំណូល'], ['workYears', 'រយៈពេលធ្វើការ'],
+    ['emergencyName', 'អ្នកទំនាក់ទំនងបន្ទាន់'], ['emergencyPhone', 'ទូរសព្ទអ្នកទំនាក់ទំនងបន្ទាន់'], ['emergencyRelation', 'ទំនាក់ទំនងជាមួយអ្នកខ្ចី']
 ];
 
 function diffCustomerFields(before, after) {
@@ -1025,3 +1116,32 @@ async function deleteCollectionLog(logId) {
     renderCollectionTable();
     renderCustomersListTable();
 }
+
+
+// ---------------------------------------------------------------------
+// Display helpers for the extended KYC fields (profile screen + printout)
+// ---------------------------------------------------------------------
+const CUSTOMER_ID_TYPES = { national: 'អត្តសញ្ញាណប័ណ្ណ', passport: 'លិខិតឆ្លងដែន', family: 'សៀវភៅគ្រួសារ', driver: 'ប័ណ្ណបើកបរ', other: 'ផ្សេងៗ' };
+
+function customerIdSummary(c) {
+    if (!c.idNumber && !c.idExpiryDate) return '-';
+    const parts = [`${CUSTOMER_ID_TYPES[c.idType] || 'អត្តសញ្ញាណ'}: ${c.idNumber || '-'}`];
+    if (c.idIssueDate) parts.push(`ចេញ ${formatDateDMY(c.idIssueDate)}`);
+    if (c.idExpiryDate) parts.push(`ផុត ${formatDateDMY(c.idExpiryDate)}${c.idExpiryDate < formatDateISO(new Date()) ? ' (ផុតកំណត់ហើយ)' : ''}`);
+    return parts.join(' | ');
+}
+
+function customerWorkSummary(c) {
+    const parts = [];
+    if (c.occupation) parts.push(c.occupation);
+    if (c.workplace) parts.push(c.workplace);
+    if (c.monthlyIncome !== undefined && c.monthlyIncome !== '') parts.push(`ចំណូល ${fmtMoney(c.monthlyIncome, c.incomeCurrency || 'USD')}/ខែ`);
+    if (c.workYears !== undefined && c.workYears !== '') parts.push(`${c.workYears} ឆ្នាំ`);
+    return parts.join(' | ') || '-';
+}
+
+function customerEmergencySummary(c) {
+    if (!c.emergencyName && !c.emergencyPhone) return '-';
+    return [c.emergencyName, c.emergencyRelation ? `(${c.emergencyRelation})` : '', c.emergencyPhone].filter(Boolean).join(' ');
+}
+
