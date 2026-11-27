@@ -1517,10 +1517,14 @@
              <div class="summary-grid">
                  <div>Remaining Principal</div><div class="right" id="payoffPrincipal"></div>
                  <div>Accrued Interest (approx.)</div><div class="right" id="payoffInterest"></div>
+                 <div id="payoffFeeLabel" style="display:none">Service Fee (ថ្លៃសេវា)</div><div class="right" id="payoffFee" style="display:none"></div>
+                 <div id="payoffLateLabel" style="display:none">Late Interest (ការប្រាក់យឺត)</div><div class="right" id="payoffLate" style="display:none"></div>
+                 <div id="payoffPenaltyLabel" style="display:none">Penalty (ពិន័យ)</div><div class="right" id="payoffPenalty" style="display:none"></div>
                  <div style="font-weight:bold">Total to Payoff</div><div class="right" style="font-weight:bold" id="payoffTotal"></div>
              </div>
              <label for="payoffDate" style="margin-top:15px;">Payoff Date</label>
-             <input type="date" id="payoffDate"/>
+             <input type="date" id="payoffDate" onchange="recalcPayoff()"/>
+             <small id="payoffDaysNote" style="display:none; opacity:.8"></small>
              <div class="modal-actions">
                  <button class="btn btn-success" onclick="processPayoff()">Process Payoff</button>
                  <button class="btn btn-muted" onclick="closePayoffModal()">បោះបង់</button>
