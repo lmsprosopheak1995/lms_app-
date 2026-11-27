@@ -931,7 +931,7 @@ function createLoanTableRow(loan, index) {
   if (currentLoan && currentLoan.loanId === loan.loanId) {
       tr.classList.add('selected-row');
   }
-  tr.setAttribute('onclick', `loadLoan('${loan.loanId}')`);
+  tr.setAttribute('onclick', `loadLoan('${loan.loanId}', false)`);
   
   const customer = getCustomer(loan.customerId);
   const statusInfo = getLoanComputedStatus(loan);
@@ -1089,7 +1089,9 @@ function updateTableSummary(filteredLoans) {
   `;
 }
 
-function loadLoan(loanIdToLoad){
+// openForm=false: select the loan and show its schedule/summary WITHOUT popping up the loan form
+// (used when the table row is clicked; the "View" button still opens the form).
+function loadLoan(loanIdToLoad, openForm = true){
   const loan = loans.find(l=>l.loanId === loanIdToLoad);
   if(loan){
       clearForm();
@@ -1098,7 +1100,7 @@ function loadLoan(loanIdToLoad){
       if(rowToSelect) {
         rowToSelect.classList.add('selected-row');
       }
-      openLoanFormModal();
+      if (openForm !== false) openLoanFormModal();
 
       document.getElementById('customerSelect').value = loan.customerId;
       displaySelectedCustomerInfo();
