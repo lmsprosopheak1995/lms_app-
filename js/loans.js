@@ -961,6 +961,7 @@ function createLoanTableRow(loan, index) {
       <td>${esc(customer.phone || "")}</td>
       <td class="right"><div>${fmtMoney(loan.loanAmount, loan.currency)}</div><div class="secondary-amount">${fmtMoney(convertCurrency(loan.loanAmount, loan.currency, "USD" === loan.currency ? "KHR" : "USD"), "USD" === loan.currency ? "KHR" : "USD")}</div></td>
       <td class="right">${loan.interestRateType === 'fixed' ? fmtMoney(loan.interestRate, loan.currency) : Number(loan.interestRate).toFixed(2) + '%'}</td>
+      <td class="right">${Number(loan.serviceRate || 0).toFixed(2)}%</td>
       <td class="right">${fmtMoney(loan.adminFee || 0, loan.currency)}</td>
       <td class="right">${fmtMoney(loan.insuranceFee || 0, loan.currency)}</td>
       <td class="right">${loan.loanTerm}</td>
@@ -973,11 +974,11 @@ function createLoanTableRow(loan, index) {
   return tr;
 }
 
-// Hides the "admin fee" (col 14) and "insurance fee" (col 15) columns of the main loans list when
+// Hides the "admin fee" (col 15) and "insurance fee" (col 16) columns of the main loans list when
 // every loan in the current filtered list has 0 for them; they come back automatically as soon as
 // one loan has a value. Display only. Decided on the whole filtered list so the columns do not
 // flicker when paging.
-const LOAN_LIST_AUTOHIDE_COLS = [{ col: 14, key: 'adminFee' }, { col: 15, key: 'insuranceFee' }];
+const LOAN_LIST_AUTOHIDE_COLS = [{ col: 15, key: 'adminFee' }, { col: 16, key: 'insuranceFee' }];
 function applyLoanTableColumnVisibility(list) {
   const table = document.getElementById('loansTable');
   if (!table) return;
@@ -988,13 +989,13 @@ function applyLoanTableColumnVisibility(list) {
     if (allZero) hiddenCount++;
     table.querySelectorAll('thead tr').forEach(tr => { const th = tr.children[c.col - 1]; if (th) th.style.display = d; });
     table.querySelectorAll('#loansTableBody tr').forEach(tr => {
-      if (tr.children.length >= 18) { const td = tr.children[c.col - 1]; if (td) td.style.display = d; }
+      if (tr.children.length >= 19) { const td = tr.children[c.col - 1]; if (td) td.style.display = d; }
     });
   });
-  // the footer's last cell spans columns 13-18; shrink it by the number of hidden columns
+  // the footer's last cell spans columns 13-19; shrink it by the number of hidden columns
   const lastFootCell = table.querySelector('tfoot tr.summary-row td:last-child');
   if (lastFootCell) {
-    if (!lastFootCell.dataset.baseSpan) lastFootCell.dataset.baseSpan = lastFootCell.getAttribute('colspan') || '6';
+    if (!lastFootCell.dataset.baseSpan) lastFootCell.dataset.baseSpan = lastFootCell.getAttribute('colspan') || '7';
     lastFootCell.setAttribute('colspan', Math.max(1, Number(lastFootCell.dataset.baseSpan) - hiddenCount));
   }
 }
@@ -1033,7 +1034,7 @@ function displayLoans() {
   loansTableBody.innerHTML = "";
 
   if (paginatedLoans.length === 0) {
-      loansTableBody.innerHTML = `<tr><td colspan="18" class="center" style="color:#999">មិនមានទិន្នន័យ</td></tr>`;
+      loansTableBody.innerHTML = `<tr><td colspan="19" class="center" style="color:#999">មិនមានទិន្នន័យ</td></tr>`;
   } else {
     const fragment = document.createDocumentFragment();
     paginatedLoans.forEach((l, i) => {
