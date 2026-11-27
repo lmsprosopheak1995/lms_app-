@@ -2641,6 +2641,132 @@ function printLoanSchedule(mode) {
     closePrintOptionsModal();
 }
 
+// ---------------------------------------------------------------------------------------------
+// Bank-format printout: a SEPARATE print (own button in the print-options dialog) laid out like the
+// paper repayment table many microfinance lenders hand out — customer/loan header, a 7-column
+// table (no. | date | total | service fee | interest | principal | balance), a TOTAL row and
+// thumbprint/signature boxes. It only reads the schedule; the existing prints are untouched.
+// Put your own legal wording for the paper (e.g. the borrower's agreement paragraph) in
+// BANK_FORMAT_NOTE below; it is printed under the totals when not empty.
+// ---------------------------------------------------------------------------------------------
+const BANK_FORMAT_NOTE = '';
+
+function formatKhmerDateWithWeekday(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
+  if (!m) return '';
+  const y = +m[1], mo = +m[2], d = +m[3];
+  const wd = ['អាទិត្យ', 'ច័ន្ទ', 'អង្គារ', 'ពុធ', 'ព្រ-ហ', 'សុក្រ', 'សៅរ៍'][new Date(Date.UTC(y, mo - 1, d)).getUTCDay()];
+  const mn = ['មករា', 'កុម្ភៈ', 'មីនា', 'មេសា', 'ឧសភា', 'មិថុនា', 'កក្កដា', 'សីហា', 'កញ្ញា', 'តុលា', 'វិច្ឆិកា', 'ធ្នូ'][mo - 1];
+  return `${wd}-${d}-${mn}-${y}`;
+}
+
+function buildBankFormatScheduleHtml(loan) {
+  const customer = getCustomer(loan.customerId) || {};
+  const schedule = buildSchedule(loan);
+  const num = x => (Math.round((Number(x) || 0) * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const hasOther = schedule.some(s => (s.adminFee || 0) + (s.insuranceFee || 0) > 0.004);
+
+  const unitKh = { day: 'ថ្ងៃ', week: 'សប្តាហ៍', month: 'ខែ', year: 'ឆ្នាំ' }[loan.interestUnit] || 'ខែ';
+  const currencyKh = { USD: 'ដុល្លារអាមេរិក', KHR: 'រៀល' }[loan.currency] || loan.currency || '';
+  const address = [customer.village, customer.commune, customer.district, customer.province].filter(Boolean).join(', ');
+  const rateTxt = `${Number(loan.interestRate || 0).toFixed(2)}%`;
+  const feeTxt = `${Number(loan.serviceRate || 0).toFixed(2)}%`;
+
+  let bal = Number(loan.loanAmount) || 0;
+  const tot = { pay: 0, fee: 0, interest: 0, principal: 0, other: 0 };
+  let rows = '';
+  schedule.forEach(s => {
+    const other = (s.adminFee || 0) + (s.insuranceFee || 0);
+    const pay = s.principal + s.interest + s.serviceFee + other;
+    bal = Math.max(0, bal - s.principal);
+    tot.pay += pay; tot.fee += s.serviceFee; tot.interest += s.interest; tot.principal += s.principal; tot.other += other;
+    rows += `<tr>
+      <td class="c">${s.index}</td>
+      <td>${formatKhmerDateWithWeekday(s.date)}</td>
+      <td class="r">${num(pay)}</td>
+      <td class="r">${num(s.serviceFee)}</td>
+      <td class="r">${num(s.interest)}</td>
+      ${hasOther ? `<td class="r">${num(other)}</td>` : ''}
+      <td class="r">${num(s.principal)}</td>
+      <td class="r">${num(bal < 0.005 ? 0 : bal)}</td>
+    </tr>`;
+  });
+
+  const lastDate = schedule.length ? formatKhmerDateWithWeekday(schedule[schedule.length - 1].date) : '';
+  const bodyHtml = `
+    <div class="head">
+      <div class="row"><span>ឈ្មោះ៖ <b>${esc(customer.name || '')}</b></span><span>លេខទូរស័ព្ទ៖ <b>${esc(customer.phone || '')}</b></span></div>
+      <div class="row"><span>អាស័យដ្ឋាន៖ <b>${esc(address)}</b></span></div>
+      <div class="row">
+        <span>លេខគណនី៖ <b>${esc(loan.accountNumber || loan.loanId || '')}</b></span>
+        <span>អត្រាការប្រាក់/${unitKh}៖ <b>${rateTxt}</b></span>
+        <span>អត្រាសេវា/ខែ៖ <b>${feeTxt}</b></span>
+        <span>រយៈពេលខ្ចី៖ <b>${loan.loanTerm} ខែ</b></span>
+      </div>
+      <div class="row">
+        <span>ទឹកប្រាក់កម្ចី៖ <b>${num(loan.loanAmount)} ${esc(currencyKh)}</b></span>
+        <span>កាលបរិច្ឆេទខ្ចី៖ <b>${formatKhmerDateWithWeekday(loan.loanDate)}</b></span>
+      </div>
+    </div>
+    <h3 class="title">តារាងកាលវិភាគសងប្រាក់</h3>
+    <table class="bank">
+      <thead><tr>
+        <th style="width:6%">ល.រ</th><th>កាលបរិច្ឆេទបង់ប្រាក់</th><th>ប្រាក់សរុបត្រូវបង់</th><th>ថ្លៃសេវាត្រូវបង់</th><th>ការប្រាក់ត្រូវបង់</th>${hasOther ? '<th>សេវាផ្សេងៗ</th>' : ''}<th>ប្រាក់ដើមត្រូវបង់</th><th>ប្រាក់ដើមនៅជំពាក់</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr>
+        <td colspan="2" class="c">សរុប៖</td>
+        <td class="r">${num(tot.pay)}</td><td class="r">${num(tot.fee)}</td><td class="r">${num(tot.interest)}</td>${hasOther ? `<td class="r">${num(tot.other)}</td>` : ''}<td class="r">${num(tot.principal)}</td><td class="r"></td>
+      </tr></tfoot>
+    </table>
+    ${BANK_FORMAT_NOTE ? `<p class="note">${esc(BANK_FORMAT_NOTE)}</p>` : ''}
+    <div class="sign">
+      <div><div class="t">ស្នាមមេដៃស្តាំអ្នកខ្ចី</div><div class="box"></div><div class="n">ឈ្មោះ៖ ........................................</div></div>
+      <div><div class="t">ស្នាមមេដៃស្តាំអ្នករួមខ្ចី (បើមាន)</div><div class="box"></div><div class="n">ឈ្មោះ៖ ........................................</div></div>
+      <div><div class="t">ស្នាមមេដៃស្តាំអ្នកធានា (បើមាន)</div><div class="box"></div><div class="n">ឈ្មោះ៖ ........................................</div></div>
+    </div>
+    <div class="pay">
+      <div><div class="qr"><img src="${QR_PAYMENT_WING_BANK}" alt="Wing Bank KHQR"/><div>Wing Bank — SOPHEAK HEM</div></div>
+      <div class="qr"><img src="${QR_PAYMENT_KHQR}" alt="KHQR"/><div>KHQR — HEM SOPHEAK</div></div></div>
+    </div>`;
+
+  const pageStyle = `
+    @page { size: A4; margin: 12mm; }
+    body { font-family: 'Khmer OS Siemreap', 'Noto Sans Khmer', Arial, sans-serif; font-size: 12px; color:#000; }
+    .head .row { display:flex; flex-wrap:wrap; gap:6px 28px; margin-bottom:6px; }
+    .title { text-align:center; margin:12px 0 8px; font-size:16px; }
+    table.bank { width:100%; border-collapse:collapse; border:1px solid #000; }
+    table.bank th, table.bank td { padding:4px 6px; border-left:1px dotted #000; }
+    table.bank thead th { border-bottom:1px solid #000; border-top:1px solid #000; background:#fff; }
+    table.bank tbody td { border-bottom:1px solid #999; }
+    table.bank tfoot td { border-top:1px solid #000; font-weight:bold; }
+    table.bank td:nth-child(2) { white-space:nowrap; }
+    .r { text-align:right; } .c { text-align:center; }
+    .note { margin:10px 0; line-height:1.6; }
+    .sign { display:flex; justify-content:space-between; gap:12px; margin-top:16px; page-break-inside:avoid; }
+    .sign > div { flex:1; text-align:center; }
+    .sign .t { font-weight:bold; margin-bottom:4px; }
+    .sign .box { height:70px; }
+    .sign .n { text-align:left; font-size:11px; }
+    .pay { margin-top:14px; page-break-inside:avoid; }
+    .pay > div { display:flex; justify-content:center; gap:24px; }
+    .qr { text-align:center; font-size:10px; } .qr img { width:30mm; height:auto; display:block; margin:0 auto 2px; }
+  `;
+  return { titleText: 'តារាងកាលវិភាគសងប្រាក់', bodyHtml, pageStyle };
+}
+
+function printBankFormatSchedule() {
+  if (!currentLoan) { showToast("សូមជ្រើសរើសកម្ចីជាមុនសិន", "error"); return; }
+  const { titleText, bodyHtml, pageStyle } = buildBankFormatScheduleHtml(currentLoan);
+  // no 'noopener' — see the note in printLoanSchedule()
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) { showToast('សូមអនុញ្ញាត Pop-up (Allow Pop-ups) សម្រាប់គេហទំព័រនេះ ដើម្បីអាច Print បាន', 'error'); return; }
+  printWindow.document.write(`<html><head><meta charset="utf-8"><title>${titleText}</title><style>${pageStyle}</style></head><body>${bodyHtml}</body></html>`);
+  printWindow.document.close();
+  setTimeout(() => { printWindow.focus(); printWindow.print(); printWindow.close(); }, 400);
+  closePrintOptionsModal();
+}
+
 function printReceipt() {
     const printArea = document.getElementById('receiptPrint');
     if (!printArea) return;
