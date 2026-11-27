@@ -1298,6 +1298,34 @@ async function deleteLoan(event, loanIdToDelete) {
     notifyTelegram(`🗑️ <b>កម្ចីត្រូវបានលុប</b>\nលេខកម្ចី: ${idsToDelete.join(', ')}\nដោយ: ${(currentUser && currentUser.fullName) || 'N/A'}`);
 }
 
+// Hides the optional money columns of the on-screen schedule table when they are $0.00 on EVERY
+// installment of the selected loan (late interest, penalty, admin fee, insurance fee). As soon as
+// any installment has a value (e.g. a late payment adds late interest/penalty) the column shows
+// again on its own. Display only: schedule data and totals are not changed.
+const SCHEDULE_AUTOHIDE_COLS = [
+  { col: 5, key: 'lateInterest' }, { col: 6, key: 'penalty' },
+  { col: 8, key: 'adminFee' },     { col: 9, key: 'insuranceFee' }
+];
+function applyScheduleColumnVisibility(tbody, schedule) {
+  const table = tbody && tbody.closest('table');
+  if (!table) return;
+  const setCol = (col, hide) => {
+    const d = hide ? 'none' : '';
+    table.querySelectorAll('thead tr').forEach(tr => { const th = tr.children[col - 1]; if (th) th.style.display = d; });
+    tbody.querySelectorAll('tr').forEach(tr => {
+      if (tr.classList.contains('summary-row')) {      // first cell spans columns 1-2
+        const td = tr.children[col - 2]; if (td) td.style.display = d;
+      } else if (tr.children.length >= col) {
+        const td = tr.children[col - 1]; if (td) td.style.display = d;
+      }
+    });
+  };
+  SCHEDULE_AUTOHIDE_COLS.forEach(c => {
+    const allZero = !!schedule && schedule.length > 0 && schedule.every(x => Math.abs(Number(x[c.key]) || 0) < 0.005);
+    setCol(c.col, allZero);
+  });
+}
+
 function renderSchedule(t, forceRecalculate = false) {
   const e = buildSchedule(t, forceRecalculate);
   const s = document.getElementById("scheduleTableBody");
@@ -1305,6 +1333,7 @@ function renderSchedule(t, forceRecalculate = false) {
   if (!e || e.length === 0) {
       document.getElementById("loanProgressBox").style.display = "none";
       s.innerHTML = `<tr><td colspan="15" class="center" style="color:#999">មិនមានតារាងបង់ប្រាក់</td></tr>`;
+      applyScheduleColumnVisibility(s, null);
       return;
   }
   const fragment = document.createDocumentFragment();
@@ -1362,6 +1391,7 @@ function renderSchedule(t, forceRecalculate = false) {
       <td class="right">${fmtMoney(a.paidAmount, t.currency)}</td>
       <td class="right">${fmtMoney(a.remainingAmount, t.currency)}</td>
       <td colspan="3"></td>`, s.appendChild(o);
+  applyScheduleColumnVisibility(s, e);
   renderLoanProgress(t, e);
 }
 
