@@ -1298,6 +1298,16 @@ async function deleteLoan(event, loanIdToDelete) {
     notifyTelegram(`🗑️ <b>កម្ចីត្រូវបានលុប</b>\nលេខកម្ចី: ${idsToDelete.join(', ')}\nដោយ: ${(currentUser && currentUser.fullName) || 'N/A'}`);
 }
 
+// Khmer date text with Khmer numerals, e.g. "២ ធ្នូ ២០២៦" (day month year).
+// Input is a "YYYY-MM-DD" string.
+function formatKhmerDate(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
+  if (!m) return '';
+  const kh = n => String(n).replace(/\d/g, d => '០១២៣៤៥៦៧៨៩'[d]);
+  const mn = ['មករា', 'កុម្ភៈ', 'មីនា', 'មេសា', 'ឧសភា', 'មិថុនា', 'កក្កដា', 'សីហា', 'កញ្ញា', 'តុលា', 'វិច្ឆិកា', 'ធ្នូ'][+m[2] - 1];
+  return `${kh(+m[3])} ${mn} ${kh(m[1])}`;
+}
+
 // Hides the optional money columns of the on-screen schedule table when they are $0.00 on EVERY
 // installment of the selected loan (late interest, penalty, admin fee, insurance fee). As soon as
 // any installment has a value (e.g. a late payment adds late interest/penalty) the column shows
@@ -1352,7 +1362,7 @@ function renderSchedule(t, forceRecalculate = false) {
           case "overdue": n = "យឺតយ៉ាវ"; break;
       }
       l.innerHTML = `<td>${i.index}</td>
-          <td>${formatDateDMY(i.date)} ${i.isAdjusted ? '<i class="fas fa-calendar-day date-adjusted-icon" title="Pushed from holiday"></i>' : ""}</td>
+          <td style="white-space:nowrap">${formatDateDMY(i.date)} ${i.isAdjusted ? '<i class="fas fa-calendar-day date-adjusted-icon" title="Pushed from holiday"></i>' : ""}<div style="font-size:.82em; opacity:.8">${formatKhmerDate(i.date)}</div></td>
           <td class="right">${fmtMoney(i.principal, t.currency)}</td>
           <td class="right">${fmtMoney(i.interest, t.currency)}</td>
           <td class="right">${fmtMoney(i.lateInterest, t.currency)}</td>
