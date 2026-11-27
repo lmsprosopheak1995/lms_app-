@@ -57,12 +57,12 @@ function addrIdx(id) {
 function addrLists(level, pi, di, ci) {
     if (!ADDR_DATA) return [];
     const p = ADDR_DATA[pi];
-    if (level === 'p') return ADDR_DATA.map(x => ({ value: addrProvName(x), label: x.k }));
+    if (level === 'p') return ADDR_DATA.map(x => ({ value: addrProvName(x), label: addrProvName(x) }));
     if (!p) return [];
-    if (level === 'd') return p.d.map(x => ({ value: x.k, label: x.t + x.k }));
+    if (level === 'd') return p.d.map(x => ({ value: x.k, label: x.k }));
     const d = p.d[di];
     if (!d) return [];
-    if (level === 'c') return d.m.map(x => ({ value: x.k, label: x.t + x.k }));
+    if (level === 'c') return d.m.map(x => ({ value: x.k, label: x.k }));
     const c = d.m[ci];
     if (!c) return [];
     return c.v.map(x => ({ value: x[1], label: x[1] }));
@@ -115,3 +115,4 @@ async function initAddressSelects() {
 }
 
 document.addEventListener('DOMContentLoaded', initAddressSelects);
+
