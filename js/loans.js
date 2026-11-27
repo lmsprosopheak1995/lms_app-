@@ -1510,8 +1510,92 @@ function initiateRefinance() {
 }
 
 // ===================== EARLY PAYOFF & WRITE OFF =====================
+// Early payoff for Actual/365 loans: remaining principal + interest and service fee accrued by REAL
+// days (÷365, same formula as the schedule) from the previous due date up to the payoff date.
+// Returns null when nothing is left to pay.
+function calcActual365Payoff(loan, dateISO) {
+  const r2 = x => Math.round((Number(x) + Number.EPSILON) * 100) / 100;
+  const sched = buildSchedule(loan);
+  const k = sched.findIndex(x => x.status !== 'paid');
+  if (k < 0) return null;
+  let openBal = Number(loan.loanAmount) || 0;
+  for (let i = 0; i < k; i++) openBal -= sched[i].principal;
+  openBal = Math.max(0, r2(openBal));
+  const partialPaid = sched.slice(k).reduce((s, x) => s + (Number(x.paidAmount) || 0), 0);
+
+  const ymd = v => formatDateISO(parseDate(v)).split('-').map(Number);
+  const [sy, sm, sd] = ymd(k === 0 ? loan.loanDate : sched[k - 1].date);
+  const [py, pm, pd] = ymd(dateISO);
+  const days = Math.max(0, Math.round((Date.UTC(py, pm - 1, pd) - Date.UTC(sy, sm - 1, sd)) / 864e5));
+
+  const unitMult = { day: 365, week: 52, month: 12, year: 1 }[loan.interestUnit] || 12;
+  const annInt = (Number(loan.interestRate) / 100) * unitMult;
+  const annFee = (Number(loan.serviceRate) || 0) / 100 * 12;
+  let interest = r2(openBal * annInt * days / 365);
+  if (k === 0 && loan.waiveFirstInterest) {
+    // only the FIRST period's interest is waived (loan date -> first due date); days beyond it count
+    const [fy, fm, fd] = ymd(sched[0].date);
+    const firstDays = Math.max(0, Math.round((Date.UTC(fy, fm - 1, fd) - Date.UTC(sy, sm - 1, sd)) / 864e5));
+    interest = r2(openBal * annInt * Math.max(0, days - firstDays) / 365);
+  }
+  const fee = r2(openBal * annFee * days / 365);
+  const principal = Math.max(0, r2(openBal - partialPaid));
+
+  // Late interest + penalty on every unpaid installment already past its due date on the payoff
+  // date (same rules as the schedule, but measured to the payoff date instead of today).
+  let lateInterest = 0, penalty = 0;
+  sched.slice(k).forEach(inst => {
+    if (inst.status === 'paid') return;
+    const [dy, dm, dd] = ymd(inst.date);
+    const lateDays = Math.round((Date.UTC(py, pm - 1, pd) - Date.UTC(dy, dm - 1, dd)) / 864e5);
+    if (lateDays <= 0) return;
+    lateInterest += getLateInterest(loan, new Date(dy, dm - 1, dd), inst.principal, lateDays);
+    const penaltyPaid = (payments[`${loan.loanId}-${inst.index}`] || []).some(p => p.isPenaltyPayment === true);
+    if (!penaltyPaid && loan.penaltyFee > 0) {
+      penalty += (loan.penaltyType === 'percent') ? inst.principal * (loan.penaltyFee / 100) : Number(loan.penaltyFee);
+    }
+  });
+  lateInterest = r2(lateInterest); penalty = r2(penalty);
+
+  const total = Math.max(0, r2(openBal + interest + fee + lateInterest + penalty - partialPaid));
+  return { principal, interest, fee, lateInterest, penalty, total, days };
+}
+
+function refreshActual365Payoff() {
+  const loan = currentLoan;
+  if (!loan || loan.calculationType !== 'actual365') return;
+  const dateISO = document.getElementById('payoffDate').value || formatDateISO(new Date());
+  const p = calcActual365Payoff(loan, dateISO);
+  if (!p) return;
+  document.getElementById('payoffPrincipal').textContent = fmtMoney(p.principal, loan.currency);
+  document.getElementById('payoffInterest').textContent = fmtMoney(p.interest, loan.currency);
+  document.getElementById('payoffFee').textContent = fmtMoney(p.fee, loan.currency);
+  document.getElementById('payoffLate').textContent = fmtMoney(p.lateInterest, loan.currency);
+  document.getElementById('payoffPenalty').textContent = fmtMoney(p.penalty, loan.currency);
+  // late interest / penalty rows only show when there is something to pay
+  [['payoffLateLabel', 'payoffLate', p.lateInterest], ['payoffPenaltyLabel', 'payoffPenalty', p.penalty]].forEach(([a, b, v]) => {
+    const show = v > 0.004;
+    [a, b].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = show ? '' : 'none'; });
+  });
+  document.getElementById('payoffTotal').textContent = fmtMoney(p.total, loan.currency);
+  const note = document.getElementById('payoffDaysNote');
+  if (note) note.textContent = `គណនាតាមចំនួនថ្ងៃពិត: ${p.days} ថ្ងៃ (÷365)`;
+}
+// the date field recalculates the Actual/365 payoff when the date changes
+function recalcPayoff() { refreshActual365Payoff(); }
+
 function openPayoffModal() {
   if (!currentLoan) return;
+  const isA365 = currentLoan.calculationType === 'actual365';
+  ['payoffFeeLabel', 'payoffFee', 'payoffDaysNote'].concat(isA365 ? [] : ['payoffLateLabel', 'payoffLate', 'payoffPenaltyLabel', 'payoffPenalty'])
+    .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = isA365 ? '' : 'none'; });
+  if (isA365) {
+    document.getElementById('payoffLoanId').textContent = currentLoan.loanId;
+    document.getElementById('payoffDate').value = formatDateISO(new Date());
+    refreshActual365Payoff();
+    document.getElementById('payoffModal').style.display = 'flex';
+    return;
+  }
   const schedule = buildSchedule(currentLoan);
   const remainingPrincipal = schedule.reduce((sum, inst) => (inst.status !== 'paid' && inst.status !== 'partial') ? sum + inst.principal : (inst.status === 'partial' ? sum + (inst.principal - Math.max(0, inst.paidAmount - (inst.total - inst.principal))) : sum), 0);
   
