@@ -2728,19 +2728,15 @@ function buildBankFormatScheduleHtml(loan) {
       <div><div class="t">ស្នាមមេដៃស្តាំអ្នកខ្ចី</div><div class="box"></div><div class="n">ឈ្មោះ៖ ........................................</div></div>
       <div><div class="t">ស្នាមមេដៃស្តាំអ្នករួមខ្ចី (បើមាន)</div><div class="box"></div><div class="n">ឈ្មោះ៖ ........................................</div></div>
       <div><div class="t">ស្នាមមេដៃស្តាំអ្នកធានា (បើមាន)</div><div class="box"></div><div class="n">ឈ្មោះ៖ ........................................</div></div>
-    </div>
-    <div class="pay">
-      <div><div class="qr"><img src="${QR_PAYMENT_WING_BANK}" alt="Wing Bank KHQR"/><div>Wing Bank — SOPHEAK HEM</div></div>
-      <div class="qr"><img src="${QR_PAYMENT_KHQR}" alt="KHQR"/><div>KHQR — HEM SOPHEAK</div></div></div>
     </div>`;
 
   const pageStyle = `
-    @page { size: A4; margin: 12mm; }
-    body { font-family: 'Khmer OS Siemreap', 'Noto Sans Khmer', Arial, sans-serif; font-size: 12px; color:#000; }
+    @page { size: A4; margin: 10mm; }
+    body { font-family: 'Khmer OS Siemreap', 'Noto Sans Khmer', Arial, sans-serif; font-size: 11.5px; color:#000; }
     .head .row { display:flex; flex-wrap:wrap; gap:6px 28px; margin-bottom:6px; }
-    .title { text-align:center; margin:12px 0 8px; font-size:16px; }
+    .title { text-align:center; margin:8px 0 6px; font-size:15px; }
     table.bank { width:100%; border-collapse:collapse; border:1px solid #000; }
-    table.bank th, table.bank td { padding:4px 6px; border-left:1px dotted #000; }
+    table.bank th, table.bank td { padding:3px 6px; border-left:1px dotted #000; }
     table.bank thead th { border-bottom:1px solid #000; border-top:1px solid #000; background:#fff; }
     table.bank tbody td { border-bottom:1px solid #999; }
     table.bank tfoot td { border-top:1px solid #000; font-weight:bold; }
@@ -2750,11 +2746,8 @@ function buildBankFormatScheduleHtml(loan) {
     .sign { display:flex; justify-content:space-between; gap:12px; margin-top:16px; page-break-inside:avoid; }
     .sign > div { flex:1; text-align:center; }
     .sign .t { font-weight:bold; margin-bottom:4px; }
-    .sign .box { height:70px; }
+    .sign .box { height:55px; }
     .sign .n { text-align:left; font-size:11px; }
-    .pay { margin-top:14px; page-break-inside:avoid; }
-    .pay > div { display:flex; justify-content:center; gap:24px; }
-    .qr { text-align:center; font-size:10px; } .qr img { width:30mm; height:auto; display:block; margin:0 auto 2px; }
   `;
   return { titleText: 'តារាងកាលវិភាគសងប្រាក់', bodyHtml, pageStyle };
 }
