@@ -979,9 +979,22 @@ function createLoanTableRow(loan, index) {
 // one loan has a value. Display only. Decided on the whole filtered list so the columns do not
 // flicker when paging.
 const LOAN_LIST_AUTOHIDE_COLS = [{ col: 15, key: 'adminFee' }, { col: 16, key: 'insuranceFee' }];
+// Older index.html versions have 18 header cells, but every row now has 19 cells (service-rate column
+// after the interest rate). Add the missing header (and widen the footer) so columns stay aligned.
+function ensureLoanTableServiceRateHeader(table) {
+  const headRow = table.querySelector('thead tr');
+  if (!headRow || headRow.children.length !== 18) return;
+  const th = document.createElement('th');
+  th.innerHTML = '<i class="fas fa-concierge-bell"></i> អត្រាសេវា (%/ខែ)';
+  headRow.insertBefore(th, headRow.children[13]);            // right after "interest rate" (13th header)
+  const lastFootCell = table.querySelector('tfoot tr.summary-row td:last-child');
+  if (lastFootCell) { lastFootCell.setAttribute('colspan', '7'); lastFootCell.dataset.baseSpan = '7'; }
+}
+
 function applyLoanTableColumnVisibility(list) {
   const table = document.getElementById('loansTable');
   if (!table) return;
+  ensureLoanTableServiceRateHeader(table);
   let hiddenCount = 0;
   LOAN_LIST_AUTOHIDE_COLS.forEach(c => {
     const allZero = !!list && list.length > 0 && list.every(l => Math.abs(Number(l[c.key]) || 0) < 0.005);
