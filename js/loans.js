@@ -3249,7 +3249,7 @@ function initLoanReportsButton() {
   const bar = document.querySelector('.loan-quick-tools');
   if (!bar) return false;
   const b = document.createElement('button');
-  b.id = 'openLoanReportsBtn'; b.className = 'btn btn-info'; b.type = 'button';
+  b.id = 'openLoanReportsBtn'; b.className = 'btn btn-info btn-sm'; b.type = 'button';   // btn-sm = same size as the red "select overdue" button next to it
   b.innerHTML = '<i class="fas fa-chart-pie"></i> របាយការណ៍ប្រមូលប្រាក់';
   b.onclick = openLoanReportsModal;
   bar.appendChild(b);
