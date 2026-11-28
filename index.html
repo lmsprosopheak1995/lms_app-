@@ -187,13 +187,13 @@
             <span id="selectionCount" style="margin-left: 10px; font-size: 14px; font-weight: bold;"></span>
         </div>
         <div class="table-container"><table id="loansTable">
-            <thead><tr><th><input type="checkbox" id="selectAllLoans" title="ជ្រើសទាំងអស់ក្នុងទំព័រនេះ" onclick="toggleSelectAllLoans(this.checked)"></th><th data-sortable><i class="fas fa-hashtag"></i> ល.រ</th><th data-sortable><i class="fas fa-id-card"></i> លេខកម្ចី</th><th data-sortable><i class="fas fa-user"></i> ឈ្មោះ</th><th data-sortable><i class="fas fa-venus-mars"></i> ភេទ</th><th data-sortable><i class="fas fa-user-tie"></i> មន្ត្រីឥណទាន</th><th><i class="fas fa-map-marker-alt"></i> ភូមិ</th><th><i class="fas fa-map-marker-alt"></i> ឃុំ</th><th><i class="fas fa-map-marker-alt"></i> ស្រុក</th><th data-sortable><i class="fas fa-map-marked-alt"></i> ខេត្ត</th><th><i class="fas fa-phone"></i> លេខទូរសព្ទ</th><th data-sortable><i class="fas fa-dollar-sign"></i> ប្រាក់កម្ចី</th><th data-sortable><i class="fas fa-percent"></i> អត្រាការប្រាក់ (%)</th><th><i class="fas fa-concierge-bell"></i> អត្រាសេវា (%/ខែ)</th><th><i class="fas fa-landmark"></i> សេវារដ្ឋបាល</th><th><i class="fas fa-shield-alt"></i> សេវាធានារ៉ាប់រង</th><th data-sortable><i class="fas fa-clock"></i> រយៈពេល (ខែ)</th><th data-sortable><i class="fas fa-tasks"></i> ស្ថានភាព</th><th><i class="fas fa-cogs"></i> សកម្មភាព</th></tr></thead>
+            <thead><tr><th><input type="checkbox" id="selectAllLoans" title="ជ្រើសទាំងអស់ក្នុងទំព័រនេះ" onclick="toggleSelectAllLoans(this.checked)"></th><th data-sortable><i class="fas fa-hashtag"></i> ល.រ</th><th data-sortable><i class="fas fa-id-card"></i> លេខកម្ចី</th><th data-sortable><i class="fas fa-user"></i> ឈ្មោះ</th><th data-sortable><i class="fas fa-venus-mars"></i> ភេទ</th><th data-sortable><i class="fas fa-user-tie"></i> មន្ត្រីឥណទាន</th><th><i class="fas fa-map-marker-alt"></i> ភូមិ</th><th><i class="fas fa-map-marker-alt"></i> ឃុំ</th><th><i class="fas fa-map-marker-alt"></i> ស្រុក</th><th data-sortable><i class="fas fa-map-marked-alt"></i> ខេត្ត</th><th><i class="fas fa-phone"></i> លេខទូរសព្ទ</th><th data-sortable><i class="fas fa-dollar-sign"></i> ប្រាក់កម្ចី</th><th data-sortable><i class="fas fa-percent"></i> អត្រាការប្រាក់ (%)</th><th><i class="fas fa-landmark"></i> សេវារដ្ឋបាល</th><th><i class="fas fa-shield-alt"></i> សេវាធានារ៉ាប់រង</th><th data-sortable><i class="fas fa-clock"></i> រយៈពេល (ខែ)</th><th data-sortable><i class="fas fa-tasks"></i> ស្ថានភាព</th><th><i class="fas fa-cogs"></i> សកម្មភាព</th></tr></thead>
             <tbody id="loansTableBody"></tbody>
             <tfoot>
                 <tr class="summary-row">
                     <td colspan="11" id="summaryLabel"><i class="fas fa-calculator"></i> សរុប / Total</td>
                     <td class="right" id="totalLoanAmounts"></td>
-                    <td colspan="7"></td>
+                    <td colspan="6"></td>
                 </tr>
             </tfoot>
         </table></div>
@@ -229,14 +229,13 @@
             <h4 id="customerFormTitle" style="text-align: left; justify-content: flex-start;"><i class="fas fa-user-plus"></i> បន្ថែមអតិថិជនថ្មី</h4>
             <input type="hidden" id="customerId" />
             <div class="grid autofit" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
-                <div><label for="custName"><i class="fas fa-user"></i> ឈ្មោះអតិថិជន</label><input id="custName" required/></div>
+                <h5 class="form-section-title"><i class="fas fa-user"></i> ព័ត៌មានផ្ទាល់ខ្លួន</h5>
+                <div><label for="custName"><i class="fas fa-user"></i> ឈ្មោះអតិថិជន (ខ្មែរ) *</label><input id="custName" required/></div>
+                <div><label for="custNameLatin"><i class="fas fa-font"></i> ឈ្មោះជាអក្សរឡាតាំង</label><input id="custNameLatin"/></div>
                 <div><label for="custGender"><i class="fas fa-venus-mars"></i> ភេទ</label><select id="custGender"><option value="ប្រុស">ប្រុស</option><option value="ស្រី">ស្រី</option></select></div>
-                <div><label for="custPhone"><i class="fas fa-phone"></i> លេខទូរសព្ទ</label><input id="custPhone"/></div>
-                <div><label for="custIdNumber"><i class="fas fa-address-card"></i> លេខអត្តសញ្ញាណប័ណ្ណ</label><input id="custIdNumber"/></div>
-                <div><label for="custVillage"><i class="fas fa-map-marker-alt"></i> ភូមិ</label><input id="custVillage"/></div>
-                <div><label for="custCommune"><i class="fas fa-map-marker-alt"></i> ឃុំ</label><input id="custCommune"/></div>
-                <div><label for="custDistrict"><i class="fas fa-map-marker-alt"></i> ស្រុក</label><input id="custDistrict"/></div>
-                <div><label for="custProvince"><i class="fas fa-map-marked-alt"></i> ខេត្ត</label><input id="custProvince"/></div>
+                <div><label for="custDob"><i class="fas fa-birthday-cake"></i> ថ្ងៃខែឆ្នាំកំណើត</label><input type="date" id="custDob"/></div>
+                <div><label for="custMarital"><i class="fas fa-heart"></i> ស្ថានភាពគ្រួសារ</label><select id="custMarital"><option value="">-- ជ្រើសរើស --</option><option value="single">នៅលីវ</option><option value="married">រៀបការ</option><option value="divorced">លែងលះ</option><option value="widowed">មេម៉ាយ / ពោះម៉ាយ</option></select></div>
+                <div><label for="custNationality"><i class="fas fa-flag"></i> សញ្ជាតិ</label><input id="custNationality" value="ខ្មែរ"/></div>
                 <div>
                   <label for="custResidency"><i class="fas fa-globe-asia"></i> ស្ថានភាពនិវាសនជន</label>
                   <select id="custResidency">
@@ -244,6 +243,38 @@
                     <option value="non-resident">អនិវាសនជន (ជនបរទេស)</option>
                   </select>
                 </div>
+
+                <h5 class="form-section-title"><i class="fas fa-address-card"></i> ឯកសារអត្តសញ្ញាណ</h5>
+                <div><label for="custIdType"><i class="fas fa-id-card"></i> ប្រភេទឯកសារ</label><select id="custIdType"><option value="national">អត្តសញ្ញាណប័ណ្ណ</option><option value="passport">លិខិតឆ្លងដែន</option><option value="family">សៀវភៅគ្រួសារ</option><option value="driver">ប័ណ្ណបើកបរ</option><option value="other">ផ្សេងៗ</option></select></div>
+                <div><label for="custIdNumber"><i class="fas fa-address-card"></i> លេខអត្តសញ្ញាណប័ណ្ណ</label><input id="custIdNumber"/></div>
+                <div><label for="custIdIssueDate"><i class="fas fa-calendar-plus"></i> ថ្ងៃចេញឯកសារ</label><input type="date" id="custIdIssueDate"/></div>
+                <div><label for="custIdExpiryDate"><i class="fas fa-calendar-times"></i> ថ្ងៃផុតកំណត់</label><input type="date" id="custIdExpiryDate"/></div>
+
+                <h5 class="form-section-title"><i class="fas fa-phone"></i> ទំនាក់ទំនង</h5>
+                <div><label for="custPhone"><i class="fas fa-phone"></i> លេខទូរសព្ទ</label><input id="custPhone"/></div>
+                <div><label for="custPhone2"><i class="fas fa-phone-alt"></i> លេខទូរសព្ទទី 2</label><input id="custPhone2"/></div>
+                <div><label for="custTelegram"><i class="fab fa-telegram"></i> Telegram</label><input id="custTelegram"/></div>
+
+                <h5 class="form-section-title"><i class="fas fa-map-marked-alt"></i> អាសយដ្ឋានបច្ចុប្បន្ន</h5>
+                <div><label for="custProvince"><i class="fas fa-map-marked-alt"></i> ខេត្ត / រាជធានី</label><select id="custProvince"></select></div>
+                <div><label for="custDistrict"><i class="fas fa-map-marker-alt"></i> ស្រុក / ខណ្ឌ / ក្រុង</label><select id="custDistrict" disabled></select></div>
+                <div><label for="custCommune"><i class="fas fa-map-marker-alt"></i> ឃុំ / សង្កាត់</label><select id="custCommune" disabled></select></div>
+                <div><label for="custVillage"><i class="fas fa-map-marker-alt"></i> ភូមិ</label><select id="custVillage" disabled></select></div>
+                <div><label for="custAddressDetail"><i class="fas fa-home"></i> ផ្ទះលេខ / ផ្លូវ</label><input id="custAddressDetail"/></div>
+
+                <h5 class="form-section-title"><i class="fas fa-briefcase"></i> មុខរបរ និងចំណូល</h5>
+                <div><label for="custOccupation"><i class="fas fa-user-tie"></i> មុខរបរ</label><input id="custOccupation"/></div>
+                <div><label for="custWorkplace"><i class="fas fa-building"></i> កន្លែងធ្វើការ / អាជីវកម្ម</label><input id="custWorkplace"/></div>
+                <div><label for="custMonthlyIncome"><i class="fas fa-money-bill-wave"></i> ចំណូលប្រចាំខែ</label><input type="number" inputmode="decimal" min="0" step="0.01" id="custMonthlyIncome"/></div>
+                <div><label for="custIncomeCurrency"><i class="fas fa-coins"></i> រូបិយប័ណ្ណចំណូល</label><select id="custIncomeCurrency"><option value="USD">USD ($)</option><option value="KHR">KHR (៛)</option></select></div>
+                <div><label for="custWorkYears"><i class="fas fa-hourglass-half"></i> រយៈពេលធ្វើការ (ឆ្នាំ)</label><input type="number" inputmode="decimal" min="0" step="0.5" id="custWorkYears"/></div>
+
+                <h5 class="form-section-title"><i class="fas fa-user-friends"></i> អ្នកទំនាក់ទំនងបន្ទាន់</h5>
+                <div><label for="custEmergencyName"><i class="fas fa-user"></i> ឈ្មោះ</label><input id="custEmergencyName"/></div>
+                <div><label for="custEmergencyPhone"><i class="fas fa-phone"></i> លេខទូរសព្ទ</label><input id="custEmergencyPhone"/></div>
+                <div><label for="custEmergencyRelation"><i class="fas fa-people-arrows"></i> ទំនាក់ទំនង</label><input id="custEmergencyRelation" placeholder="ឧ. ប្តី/ប្រពន្ធ, ឪពុកម្តាយ, បងប្អូន"/></div>
+
+                <h5 class="form-section-title"><i class="fas fa-shield-alt"></i> ស្ថានភាព</h5>
                 <div style="align-self: center;"><label class="form-check"><input type="checkbox" id="custBlacklisted" onchange="toggleBlacklistFields()"> <i class="fas fa-ban"></i> ដាក់ក្នុងបញ្ជីខ្មៅ (Blacklist)</label></div>
                 <div id="custBlacklistDetails" style="display:none; grid-column: 1 / -1;">
                     <div class="grid autofit" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
@@ -252,9 +283,11 @@
                         <div><label for="custBlacklistApprover"><i class="fas fa-user-check"></i> អ្នកអនុម័ត</label><select id="custBlacklistApprover"></select></div>
                     </div>
                 </div>
+                <div style="grid-column: 1 / -1; font-size: 13px; opacity: .8;"><i class="fas fa-info-circle"></i> រូបថតអតិថិជន រូបអត្តសញ្ញាណប័ណ្ណ (មុខ/ក្រោយ) និងឯកសារផ្សេងៗ ត្រូវ upload នៅទំព័រ "ប្រវត្តិរូបអតិថិជន" បន្ទាប់ពីរក្សាទុក។ ប្រើប៊ូតុង "រក្សាទុក ហើយ Upload ឯកសារ" ដើម្បីទៅទីនោះភ្លាម។</div>
             </div>
             <div style="margin-top:20px; text-align:right;">
               <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> រក្សាទុក</button>
+              <button type="button" class="btn btn-primary" onclick="saveCustomerAndOpenProfile()"><i class="fas fa-file-upload"></i> រក្សាទុក ហើយ Upload ឯកសារ</button>
               <button type="button" class="btn btn-muted" onclick="hideCustomerForm()"><i class="fas fa-times"></i> បោះបង់</button>
             </div>
         </form>
@@ -392,6 +425,10 @@
                         <div><i class="fas fa-venus-mars"></i> ភេទ</div><div id="profileDetailGender"></div>
                         <div><i class="fas fa-phone"></i> លេខទូរសព្ទ</div><div id="profileDetailPhone"></div>
                         <div><i class="fas fa-map-marked-alt"></i> អាសយដ្ឋាន</div><div id="profileDetailAddress" style="white-space: normal;"></div>
+                        <div><i class="fas fa-birthday-cake"></i> ថ្ងៃកំណើត</div><div id="profileDetailDob"></div>
+                        <div><i class="fas fa-id-card"></i> អត្តសញ្ញាណ</div><div id="profileDetailIdInfo" style="white-space: normal;"></div>
+                        <div><i class="fas fa-briefcase"></i> មុខរបរ / ចំណូល</div><div id="profileDetailWork" style="white-space: normal;"></div>
+                        <div><i class="fas fa-user-friends"></i> អ្នកទំនាក់ទំនងបន្ទាន់</div><div id="profileDetailEmergency" style="white-space: normal;"></div>
                         <div><i class="fas fa-calendar-plus"></i> បានបង្កើតនៅ</div><div id="profileDetailCreated"></div>
                         <div><i class="fas fa-info-circle"></i> ស្ថានភាព</div><div id="profileDetailStatus"></div>
                     </div>
@@ -1413,7 +1450,6 @@
         <div style="display:flex; flex-direction:column; gap:10px;">
           <button class="btn btn-info" style="width:100%;" onclick="printLoanSchedule('full')"><i class="fas fa-list"></i> បោះពុម្ពគ្រប់ទាំងអស់ (Full Schedule)</button>
           <button class="btn btn-warning" style="width:100%;" onclick="printLoanSchedule('unpaid')"><i class="fas fa-hourglass-half"></i> បោះពុម្ពតែមិនទាន់បង់ (Unpaid Only)</button>
-          <button class="btn btn-success" style="width:100%;" onclick="printBankFormatSchedule()"><i class="fas fa-file-invoice"></i> បោះពុម្ពតាមទម្រង់ធនាគារ (Bank Format)</button>
         </div>
         <div class="modal-actions">
           <button class="btn btn-muted" onclick="closePrintOptionsModal()">បិទ</button>
@@ -1517,14 +1553,10 @@
              <div class="summary-grid">
                  <div>Remaining Principal</div><div class="right" id="payoffPrincipal"></div>
                  <div>Accrued Interest (approx.)</div><div class="right" id="payoffInterest"></div>
-                 <div id="payoffFeeLabel" style="display:none">Service Fee (ថ្លៃសេវា)</div><div class="right" id="payoffFee" style="display:none"></div>
-                 <div id="payoffLateLabel" style="display:none">Late Interest (ការប្រាក់យឺត)</div><div class="right" id="payoffLate" style="display:none"></div>
-                 <div id="payoffPenaltyLabel" style="display:none">Penalty (ពិន័យ)</div><div class="right" id="payoffPenalty" style="display:none"></div>
                  <div style="font-weight:bold">Total to Payoff</div><div class="right" style="font-weight:bold" id="payoffTotal"></div>
              </div>
              <label for="payoffDate" style="margin-top:15px;">Payoff Date</label>
-             <input type="date" id="payoffDate" onchange="recalcPayoff()"/>
-             <small id="payoffDaysNote" style="display:none; opacity:.8"></small>
+             <input type="date" id="payoffDate"/>
              <div class="modal-actions">
                  <button class="btn btn-success" onclick="processPayoff()">Process Payoff</button>
                  <button class="btn btn-muted" onclick="closePayoffModal()">បោះបង់</button>
@@ -1753,6 +1785,7 @@
   <script src="js/ui.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/customers.js"></script>
+  <script src="js/address.js"></script>
   <script src="js/loans.js"></script>
   <script src="js/savings.js"></script>
   <script src="js/installments.js"></script>
