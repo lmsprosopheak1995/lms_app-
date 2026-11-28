@@ -3116,20 +3116,29 @@ function openLoanReportsModal() {
     modal = document.createElement('div');
     modal.className = 'modal'; modal.id = 'loanReportsModal';
     modal.innerHTML = `<div class="modal-content" style="max-width:1000px; width:96%; max-height:90vh; overflow:auto;">
+      <style>
+        #loanReportsModal .rpt-btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; height:40px; min-width:150px; padding:0 16px; margin:0; white-space:nowrap; box-sizing:border-box; }
+        #loanReportsModal .rpt-filters { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-end; margin:0 0 12px; }
+        #loanReportsModal .rpt-filters > div { display:flex; flex-direction:column; gap:4px; min-width:150px; }
+        #loanReportsModal .rpt-filters label { font-size:12px; margin:0; white-space:nowrap; }
+        #loanReportsModal .rpt-filters select, #loanReportsModal .rpt-filters input { height:40px; width:100%; box-sizing:border-box; margin:0; }
+      </style>
       <h4 style="margin-top:0;"><i class="fas fa-chart-pie"></i> របាយការណ៍ប្រមូលប្រាក់</h4>
       <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px;">
-        <button class="btn btn-info" id="rptTabDue" onclick="setLoanReportTab('due')"><i class="fas fa-bell"></i> ត្រូវដល់កាលកំណត់</button>
-        <button class="btn btn-warning" id="rptTabPar" onclick="setLoanReportTab('par')"><i class="fas fa-exclamation-triangle"></i> កម្ចីយឺត (PAR)</button>
-        <span id="rptDaysWrap"><label>ក្នុងរយៈពេល
+        <button class="btn btn-info rpt-btn" id="rptTabDue" onclick="setLoanReportTab('due')"><i class="fas fa-bell"></i> ត្រូវដល់កាលកំណត់</button>
+        <button class="btn btn-warning rpt-btn" id="rptTabPar" onclick="setLoanReportTab('par')"><i class="fas fa-exclamation-triangle"></i> កម្ចីយឺត (PAR)</button>
+        <span style="flex:1"></span>
+        <button class="btn btn-success rpt-btn" onclick="copyAllLoanReminders()" id="rptCopyAll"><i class="fas fa-copy"></i> ចម្លងសារទាំងអស់</button>
+        <button class="btn btn-secondary rpt-btn" onclick="exportLoanReportCsv()"><i class="fas fa-file-csv"></i> នាំចេញ CSV</button>
+        <button class="btn btn-muted rpt-btn" style="min-width:90px" onclick="closeLoanReportsModal()">បិទ</button>
+      </div>
+      <div class="rpt-filters" id="rptDaysWrap">
+        <div><label for="rptDays">ក្នុងរយៈពេល</label>
           <select id="rptDays" onchange="setLoanReportDays(this.value)">
             <option value="0">ថ្ងៃនេះ</option><option value="3">3 ថ្ងៃ</option><option value="7" selected>7 ថ្ងៃ</option><option value="14">14 ថ្ងៃ</option>
-          </select></label>
-          <label>ឬជ្រើសថ្ងៃ <input type="date" id="rptDate" onchange="setLoanReportDate(this.value)" /></label>
-          <label>មន្ត្រីឥណទាន <select id="rptOfficer" onchange="setLoanReportOfficer(this.value)"><option value="all">ទាំងអស់</option></select></label></span>
-        <span style="flex:1"></span>
-        <button class="btn btn-success" onclick="copyAllLoanReminders()" id="rptCopyAll"><i class="fas fa-copy"></i> ចម្លងសារទាំងអស់</button>
-        <button class="btn btn-secondary" onclick="exportLoanReportCsv()"><i class="fas fa-file-csv"></i> នាំចេញ CSV</button>
-        <button class="btn btn-muted" onclick="closeLoanReportsModal()">បិទ</button>
+          </select></div>
+        <div><label for="rptDate">ឬជ្រើសថ្ងៃ</label><input type="date" id="rptDate" onchange="setLoanReportDate(this.value)" /></div>
+        <div><label for="rptOfficer">មន្ត្រីឥណទាន</label><select id="rptOfficer" onchange="setLoanReportOfficer(this.value)"><option value="all">ទាំងអស់</option></select></div>
       </div>
       <div id="loanReportBody"></div>
     </div>`;
@@ -3160,7 +3169,7 @@ function renderLoanReport() {
   _reportState.rows = rows;
   const isDue = _reportState.tab === 'due';
   document.getElementById('rptDaysWrap').style.display = isDue ? '' : 'none';
-  const rptDateEl = document.getElementById('rptDate'); if (rptDateEl) rptDateEl.parentElement.style.display = isDue ? '' : 'none';
+  
   document.getElementById('rptCopyAll').style.display = isDue ? '' : 'none';
   const th = t => `<th>${t}</th>`;
   if (isDue) {
