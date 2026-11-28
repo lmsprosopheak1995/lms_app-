@@ -3035,7 +3035,7 @@ function printLoanContract() {
 // =============================================================================================
 const REMINDER_CONTACT = '';   // optional line added to every reminder, e.g. 'ទំនាក់ទំនង៖ 096 666 7292'
 
-function computeLoanRiskRows(daysAhead = 7) {
+function computeLoanRiskRows(daysAhead = 7, exactDate = '') {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const horizon = today.getTime() + daysAhead * 864e5;
   const dayMs = iso => { const [y, m, d] = String(iso).split('-').map(Number); return new Date(y, m - 1, d).getTime(); };
@@ -3051,12 +3051,17 @@ function computeLoanRiskRows(daysAhead = 7) {
     const overdue = unpaid.filter(p => p.status === 'overdue');
     const dpd = overdue.reduce((m, p) => Math.max(m, Number(p.daysLate) || 0), 0);
     const overdueAmount = overdue.reduce((s, p) => s + Math.max(0, Number(p.remainingAmount) || 0), 0);
-    const dueItems = unpaid.filter(p => dayMs(p.date) <= horizon);
+    const dueItems = exactDate ? unpaid.filter(p => p.date === exactDate) : unpaid.filter(p => dayMs(p.date) <= horizon);
+    const first = dueItems[0] || unpaid[0];
+    const principalDue = dueItems.reduce((s, p) => s + (p.status === 'partial'
+      ? Math.max(0, p.principal - Math.max(0, (Number(p.paidAmount) || 0) - (p.total - p.principal))) : Math.max(0, p.principal)), 0);
+    const profitDue = dueItems.reduce((s, p) => s + Math.max(0, p.total - p.principal), 0);
     rows.push({
       loan: l, customer: getCustomer(l.customerId) || {}, status: key, dpd, overdueAmount,
       outstandingPrincipal, outstandingUSD: convertCurrency(outstandingPrincipal, l.currency, 'USD'),
       dueAmount: dueItems.reduce((s, p) => s + Math.max(0, Number(p.remainingAmount) || 0), 0),
-      dueCount: dueItems.length, nextDate: unpaid[0].date
+      dueCount: dueItems.length, nextDate: first.date, nextIndex: first.index, principalDue, profitDue,
+      officer: l.creditOfficer, officerName: (typeof getOfficerFullName === 'function' ? getOfficerFullName(l.creditOfficer) : l.creditOfficer) || ''
     });
   });
   return rows;
@@ -3103,7 +3108,7 @@ function copyTextSafe(text) {
   showToast('បានចម្លងសារ', 'success');
 }
 
-let _reportState = { tab: 'due', days: 7, rows: [] };
+let _reportState = { tab: 'due', days: 7, date: '', officer: 'all', rows: [] };
 
 function openLoanReportsModal() {
   let modal = document.getElementById('loanReportsModal');
@@ -3118,7 +3123,9 @@ function openLoanReportsModal() {
         <span id="rptDaysWrap"><label>ក្នុងរយៈពេល
           <select id="rptDays" onchange="setLoanReportDays(this.value)">
             <option value="0">ថ្ងៃនេះ</option><option value="3">3 ថ្ងៃ</option><option value="7" selected>7 ថ្ងៃ</option><option value="14">14 ថ្ងៃ</option>
-          </select></label></span>
+          </select></label>
+          <label>ឬជ្រើសថ្ងៃ <input type="date" id="rptDate" onchange="setLoanReportDate(this.value)" /></label>
+          <label>មន្ត្រីឥណទាន <select id="rptOfficer" onchange="setLoanReportOfficer(this.value)"><option value="all">ទាំងអស់</option></select></label></span>
         <span style="flex:1"></span>
         <button class="btn btn-success" onclick="copyAllLoanReminders()" id="rptCopyAll"><i class="fas fa-copy"></i> ចម្លងសារទាំងអស់</button>
         <button class="btn btn-secondary" onclick="exportLoanReportCsv()"><i class="fas fa-file-csv"></i> នាំចេញ CSV</button>
@@ -3134,29 +3141,51 @@ function openLoanReportsModal() {
 }
 function closeLoanReportsModal() { const m = document.getElementById('loanReportsModal'); if (m) m.style.display = 'none'; }
 function setLoanReportTab(t) { _reportState.tab = t; renderLoanReport(); }
-function setLoanReportDays(v) { _reportState.days = Number(v) || 0; renderLoanReport(); }
+function setLoanReportDays(v) { _reportState.days = Number(v) || 0; _reportState.date = ''; const d = document.getElementById('rptDate'); if (d) d.value = ''; renderLoanReport(); }
+function setLoanReportDate(v) { _reportState.date = v || ''; renderLoanReport(); }
+function setLoanReportOfficer(v) { _reportState.officer = v || 'all'; renderLoanReport(); }
 
 function renderLoanReport() {
   const body = document.getElementById('loanReportBody'); if (!body) return;
-  const rows = computeLoanRiskRows(_reportState.days);
+  let rows = computeLoanRiskRows(_reportState.days, _reportState.date);
+  // officer dropdown (built from the loans in view) + filter
+  const offSel = document.getElementById('rptOfficer');
+  if (offSel) {
+    const seen = new Map(); rows.forEach(r => { if (r.officer) seen.set(r.officer, r.officerName || r.officer); });
+    const cur = _reportState.officer;
+    offSel.innerHTML = '<option value="all">ទាំងអស់</option>' + [...seen].map(([k, n]) => `<option value="${esc(k)}">${esc(n)}</option>`).join('');
+    offSel.value = seen.has(cur) ? cur : 'all'; _reportState.officer = offSel.value;
+  }
+  if (_reportState.officer !== 'all') rows = rows.filter(r => r.officer === _reportState.officer);
   _reportState.rows = rows;
   const isDue = _reportState.tab === 'due';
   document.getElementById('rptDaysWrap').style.display = isDue ? '' : 'none';
+  const rptDateEl = document.getElementById('rptDate'); if (rptDateEl) rptDateEl.parentElement.style.display = isDue ? '' : 'none';
   document.getElementById('rptCopyAll').style.display = isDue ? '' : 'none';
   const th = t => `<th>${t}</th>`;
   if (isDue) {
     const list = rows.filter(r => r.dueCount > 0).sort((a, b) => b.dpd - a.dpd || String(a.nextDate).localeCompare(String(b.nextDate)));
     _reportState.list = list;
-    const totalUSD = list.reduce((s, r) => s + convertCurrency(r.dueAmount, r.loan.currency, 'USD'), 0);
-    body.innerHTML = `<div style="margin-bottom:8px;"><b>${list.length}</b> កម្ចី • សរុបត្រូវប្រមូល <b>${fmtMoney(totalUSD, 'USD')}</b></div>
-      <div class="table-container"><table><thead><tr>${['ល.រ','អតិថិជន','ទូរស័ព្ទ','លេខកម្ចី','កាលកំណត់','ទឹកប្រាក់ត្រូវបង់','ស្ថានភាព','សកម្មភាព'].map(th).join('')}</tr></thead><tbody>
+    const usd = (v, r) => convertCurrency(v, r.loan.currency, 'USD');
+    const totalUSD = list.reduce((s, r) => s + usd(r.dueAmount, r), 0);
+    const principalUSD = list.reduce((s, r) => s + usd(r.principalDue, r), 0);
+    const profitUSD = list.reduce((s, r) => s + usd(r.profitDue, r), 0);
+    body.innerHTML = `<div style="margin-bottom:8px;"><b>${list.length}</b> កម្ចី${_reportState.date ? ` • ថ្ងៃ ${esc(formatKhmerDate(_reportState.date))}` : ''}</div>
+      <div class="table-container"><table><thead><tr>${['ល.រ','អតិថិជន','ទូរស័ព្ទ','លេខកម្ចី','ដំណាក់កាល','កាលកំណត់','ទឹកប្រាក់ត្រូវបង់','មន្ត្រី','ស្ថានភាព','សកម្មភាព'].map(th).join('')}</tr></thead><tbody>
       ${list.map((r, i) => `<tr>
         <td>${i + 1}</td><td>${esc(r.customer.name || '')}</td><td>${esc(r.customer.phone || '')}</td><td>${esc(r.loan.loanId)}</td>
-        <td>${esc(formatKhmerDate(r.nextDate))}</td><td class="right">${fmtMoney(r.dueAmount, r.loan.currency)}</td>
+        <td>${r.nextIndex} / ${esc(r.loan.loanTerm)}</td>
+        <td>${esc(formatKhmerDate(r.nextDate))}</td><td class="right">${fmtMoney(r.dueAmount, r.loan.currency)}</td><td>${esc(r.officerName)}</td>
         <td>${r.dpd > 0 ? `<span style="color:#e74c3c">យឺត ${r.dpd} ថ្ងៃ</span>` : '<span style="color:#27ae60">ដល់កាលកំណត់</span>'}</td>
-        <td><button class="btn btn-sm btn-success" onclick="copyLoanReminderAt(${i})"><i class="fas fa-copy"></i> ចម្លងសារ</button>
-            ${r.customer.phone ? `<a class="btn btn-sm btn-info" href="tel:${esc(r.customer.phone)}"><i class="fas fa-phone"></i></a>` : ''}</td></tr>`).join('') || `<tr><td colspan="8" class="center" style="color:#999">គ្មានកម្ចីត្រូវប្រមូលក្នុងរយៈពេលនេះ</td></tr>`}
-      </tbody></table></div>`;
+        <td style="white-space:nowrap"><button class="btn btn-sm btn-success" onclick="closeLoanReportsModal(); openPaymentModal('${esc(r.loan.loanId)}', ${r.nextIndex})"><i class="fas fa-hand-holding-usd"></i> Collect</button>
+            <button class="btn btn-sm btn-info" onclick="copyLoanReminderAt(${i})"><i class="fas fa-copy"></i></button>
+            ${r.customer.phone ? `<a class="btn btn-sm btn-secondary" href="tel:${esc(r.customer.phone)}"><i class="fas fa-phone"></i></a>` : ''}</td></tr>`).join('') || `<tr><td colspan="10" class="center" style="color:#999">គ្មានកម្ចីត្រូវប្រមូលក្នុងរយៈពេលនេះ</td></tr>`}
+      </tbody>
+      <tfoot class="summary-row">
+        <tr><td colspan="6">សរុបប្រាក់ដើមត្រូវប្រមូល</td><td class="right">${fmtMoney(principalUSD, 'USD')}</td><td colspan="3"></td></tr>
+        <tr><td colspan="6">សរុបប្រាក់ចំណេញរំពឹងទុក (ការប្រាក់ + សេវាផ្សេងៗ)</td><td class="right">${fmtMoney(profitUSD, 'USD')}</td><td colspan="3"></td></tr>
+        <tr><td colspan="6"><b>សរុបត្រូវប្រមូល</b></td><td class="right"><b>${fmtMoney(totalUSD, 'USD')}</b></td><td colspan="3"></td></tr>
+      </tfoot></table></div>`;
   } else {
     const par = computeParSummary(rows);
     _reportState.par = par;
@@ -3185,8 +3214,8 @@ function exportLoanReportCsv() {
   const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
   let head, lines;
   if (_reportState.tab === 'due') {
-    head = ['No', 'Customer', 'Phone', 'LoanID', 'DueDate', 'Currency', 'AmountDue', 'DaysLate'];
-    lines = (_reportState.list || []).map((r, i) => [i + 1, r.customer.name, r.customer.phone, r.loan.loanId, r.nextDate, r.loan.currency, r.dueAmount.toFixed(2), r.dpd]);
+    head = ['No', 'Customer', 'Phone', 'LoanID', 'Installment', 'DueDate', 'Currency', 'AmountDue', 'Officer', 'DaysLate'];
+    lines = (_reportState.list || []).map((r, i) => [i + 1, r.customer.name, r.customer.phone, r.loan.loanId, `${r.nextIndex}/${r.loan.loanTerm}`, r.nextDate, r.loan.currency, r.dueAmount.toFixed(2), r.officerName, r.dpd]);
   } else {
     head = ['No', 'Customer', 'Phone', 'LoanID', 'DaysPastDue', 'Currency', 'OverdueAmount', 'OutstandingPrincipal'];
     lines = (_reportState.overdueList || []).map((r, i) => [i + 1, r.customer.name, r.customer.phone, r.loan.loanId, r.dpd, r.loan.currency, r.overdueAmount.toFixed(2), r.outstandingPrincipal.toFixed(2)]);
@@ -3196,6 +3225,13 @@ function exportLoanReportCsv() {
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
   a.download = `${_reportState.tab === 'due' ? 'due-collections' : 'overdue-par'}-${formatDateISO(new Date())}.csv`;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+// The old "ការប្រមូលប្រាក់" menu tab is replaced by the report above (it has the same date / officer
+// filters, Collect button and totals). Remove its menu entry; its hidden panel stays in the page so
+// no other script that touches those elements breaks.
+function removeLegacyCollectionsTab() {
+  document.querySelectorAll('.tab[onclick*="\'collections\'"]').forEach(t => t.remove());
 }
 
 // adds the "Reports" button next to the other loan tools (once)
@@ -3211,7 +3247,7 @@ function initLoanReportsButton() {
   return true;
 }
 (function () {
-  const go = () => { if (!initLoanReportsButton()) setTimeout(initLoanReportsButton, 1500); };
+  const go = () => { removeLegacyCollectionsTab(); if (!initLoanReportsButton()) setTimeout(() => { removeLegacyCollectionsTab(); initLoanReportsButton(); }, 1500); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
 })();
 
