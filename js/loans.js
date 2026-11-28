@@ -1564,22 +1564,24 @@ function calcActual365Payoff(loan, dateISO) {
 function refreshActual365Payoff() {
   const loan = currentLoan;
   if (!loan || loan.calculationType !== 'actual365') return;
-  const dateISO = document.getElementById('payoffDate').value || formatDateISO(new Date());
+  const dateISO = (document.getElementById('payoffDate') || {}).value || formatDateISO(new Date());
   const p = calcActual365Payoff(loan, dateISO);
   if (!p) return;
-  document.getElementById('payoffPrincipal').textContent = fmtMoney(p.principal, loan.currency);
-  document.getElementById('payoffInterest').textContent = fmtMoney(p.interest, loan.currency);
-  document.getElementById('payoffFee').textContent = fmtMoney(p.fee, loan.currency);
-  document.getElementById('payoffLate').textContent = fmtMoney(p.lateInterest, loan.currency);
-  document.getElementById('payoffPenalty').textContent = fmtMoney(p.penalty, loan.currency);
+  const setText = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+  setText('payoffPrincipal', fmtMoney(p.principal, loan.currency));
+  // if the page has no separate fee/late/penalty rows (older index.html), fold them into "interest"
+  const hasRows = !!document.getElementById('payoffFee');
+  setText('payoffInterest', fmtMoney(hasRows ? p.interest : p.interest + p.fee + p.lateInterest + p.penalty, loan.currency));
+  setText('payoffFee', fmtMoney(p.fee, loan.currency));
+  setText('payoffLate', fmtMoney(p.lateInterest, loan.currency));
+  setText('payoffPenalty', fmtMoney(p.penalty, loan.currency));
+  setText('payoffTotal', fmtMoney(p.total, loan.currency));
   // late interest / penalty rows only show when there is something to pay
   [['payoffLateLabel', 'payoffLate', p.lateInterest], ['payoffPenaltyLabel', 'payoffPenalty', p.penalty]].forEach(([a, b, v]) => {
     const show = v > 0.004;
     [a, b].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = show ? '' : 'none'; });
   });
-  document.getElementById('payoffTotal').textContent = fmtMoney(p.total, loan.currency);
-  const note = document.getElementById('payoffDaysNote');
-  if (note) note.textContent = `គណនាតាមចំនួនថ្ងៃពិត: ${p.days} ថ្ងៃ (÷365)`;
+  setText('payoffDaysNote', `គណនាតាមចំនួនថ្ងៃពិត: ${p.days} ថ្ងៃ (÷365)`);
 }
 // the date field recalculates the Actual/365 payoff when the date changes
 function recalcPayoff() { refreshActual365Payoff(); }
@@ -1591,7 +1593,9 @@ function openPayoffModal() {
     .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = isA365 ? '' : 'none'; });
   if (isA365) {
     document.getElementById('payoffLoanId').textContent = currentLoan.loanId;
-    document.getElementById('payoffDate').value = formatDateISO(new Date());
+    const pd = document.getElementById('payoffDate');
+    pd.value = formatDateISO(new Date());
+    if (!pd.dataset.a365Bound) { pd.addEventListener('change', refreshActual365Payoff); pd.dataset.a365Bound = '1'; }
     refreshActual365Payoff();
     document.getElementById('payoffModal').style.display = 'flex';
     return;
@@ -2586,8 +2590,31 @@ function fillReceipt(loan, installmentIndex = null) {
     document.getElementById('receiptModal').style.display = 'flex';
 }
 
+// Makes sure the "Bank Format" and "Contract / PDF" buttons exist in the print dialog, even when the
+// page is still serving an older index.html that does not contain them (they are normally in
+// index.html; this only adds whichever one is missing, so nothing is duplicated).
+function ensurePrintExtraButtons() {
+    const modal = document.getElementById('printOptionsModal');
+    if (!modal) return;
+    const anchor = modal.querySelector('button[onclick*="printLoanSchedule"]');
+    const box = anchor && anchor.parentElement;
+    if (!box) return;
+    const add = (fnName, icon, label) => {
+        if (modal.querySelector(`button[onclick*="${fnName}"]`)) return;
+        const b = document.createElement('button');
+        b.className = 'btn btn-success';
+        b.style.width = '100%';
+        b.setAttribute('onclick', `${fnName}()`);
+        b.innerHTML = `<i class="fas ${icon}"></i> ${label}`;
+        box.appendChild(b);
+    };
+    add('printBankFormatSchedule', 'fa-file-invoice', 'បោះពុម្ពតាមទម្រង់ធនាគារ (Bank Format)');
+    add('printLoanContract', 'fa-file-signature', 'បោះពុម្ពកិច្ចសន្យាកម្ចី (Contract / PDF)');
+}
+
 function openPrintOptionsModal() {
     if (!currentLoan) { showToast("សូមជ្រើសរើសកម្ចីជាមុនសិន", "error"); return; }
+    ensurePrintExtraButtons();
     document.getElementById('printOptionsModal').style.display = 'flex';
 }
 function closePrintOptionsModal() { document.getElementById('printOptionsModal').style.display = 'none'; }
