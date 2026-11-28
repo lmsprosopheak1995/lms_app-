@@ -2510,6 +2510,7 @@ function fillReceipt(loan, installmentIndex = null) {
     document.getElementById('receiptNumber').textContent = 'REC' + Date.now();
     document.getElementById('receiptDate').textContent = new Date().toLocaleDateString('en-GB');
     document.getElementById('customerNameReceipt').textContent = customer.name;
+    const payerEl = document.getElementById('receiptPayerName'); if (payerEl) payerEl.textContent = customer.name;
     document.getElementById('loanIdReceipt').textContent = loan.loanId;
     document.getElementById('loanDateReceipt').textContent = formatDateDMY(loan.loanDate);
 
@@ -2876,6 +2877,113 @@ function printBankFormatSchedule() {
   closePrintOptionsModal();
 }
 
+// ---------------------------------------------------------------------------------------------
+// Loan CONTRACT printout (opens the browser print dialog → choose "Save as PDF" to get a PDF).
+// Page 1-2: contract text built from the loan's own data + thumbprint/signature boxes like the bank
+// paper; last page: the bank-format repayment schedule as the annex the contract refers to.
+//
+// ⚠ The clause wording below is a standard DRAFT. Have it checked against your institution's
+// policy / a lawyer before using it with customers, then edit the text here (CONTRACT_EXTRA_CLAUSES
+// adds your own articles; CONTRACT_LENDER fills in the lender's details on the paper).
+// ---------------------------------------------------------------------------------------------
+const CONTRACT_SHOW_KINGDOM_HEADER = true;                 // "ព្រះរាជាណាចក្រកម្ពុជា / ជាតិ សាសនា ព្រះមហាក្សត្រ"
+const CONTRACT_LENDER = { name: '', address: '', phone: '' }; // leave '' to print dotted lines to fill by hand
+const CONTRACT_EXTRA_CLAUSES = [];                          // e.g. ['អ្នកខ្ចីសន្យាប្រើប្រាស់ប្រាក់កម្ចីតាមគោលបំណងដែលបានប្រាប់។']
+
+function buildLoanContractHtml(loan) {
+  const customer = getCustomer(loan.customerId) || {};
+  const schedule = buildSchedule(loan);
+  const kh = n => String(n).replace(/\d/g, d => '០១២៣៤៥៦៧៨៩'[d]);
+  const dots = (v, n = 28) => v ? `<b>${esc(v)}</b>` : '.'.repeat(n);
+  const num = x => (Math.round((Number(x) || 0) * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const unitKh = { day: 'ថ្ងៃ', week: 'សប្តាហ៍', month: 'ខែ', year: 'ឆ្នាំ' }[loan.interestUnit] || 'ខែ';
+  const currencyKh = { USD: 'ដុល្លារអាមេរិក', KHR: 'រៀល' }[loan.currency] || loan.currency || '';
+  const genderKh = { male: 'ប្រុស', female: 'ស្រី' }[String(customer.gender || '').toLowerCase()] || customer.gender || '';
+  const address = [customer.village, customer.commune, customer.district, customer.province].filter(Boolean).join(', ');
+  const amountTxt = `${num(loan.loanAmount)} ${currencyKh}`;
+  const rateTxt = loan.interestRateType === 'fixed' ? fmtMoney(loan.interestRate, loan.currency) : `${Number(loan.interestRate || 0).toFixed(2)}%`;
+  const feeRate = Number(loan.serviceRate) || 0;
+  const firstDate = schedule.length ? kh_date(schedule[0].date) : '';
+  function kh_date(iso) { return formatKhmerDate(iso); }
+
+  // typical installment amount (only when the middle installments are all equal)
+  const inst = x => x.principal + x.interest + x.serviceFee + x.adminFee + x.insuranceFee;
+  const mid = schedule.slice(1, -1);
+  const levelPay = mid.length && mid.every(x => Math.abs(inst(x) - inst(mid[0])) < 0.015) ? inst(mid[0]) : null;
+
+  const penaltyTxt = loan.penaltyFee > 0
+    ? ` និងពិន័យ ${loan.penaltyType === 'percent' ? Number(loan.penaltyFee) + '% នៃប្រាក់ដើមនៃដំណាក់កាលដែលយឺត' : fmtMoney(loan.penaltyFee, loan.currency)}`
+    : '';
+
+  const clauses = [
+    ['ទឹកប្រាក់កម្ចី និងរយៈពេល', `ភាគី ក ព្រមឱ្យភាគី ខ ខ្ចីប្រាក់ចំនួន <b>${amountTxt}</b> នៅថ្ងៃទី <b>${kh_date(formatDateISO(parseDate(loan.loanDate)))}</b> សម្រាប់រយៈពេល <b>${kh(loan.loanTerm)} ខែ</b>។`],
+    ['អត្រាការប្រាក់ និងសេវា', loan.calculationType === 'actual365'
+      ? `អត្រាការប្រាក់ <b>${rateTxt}</b> ក្នុងមួយ${unitKh}${feeRate > 0 ? ` និងអត្រាសេវា <b>${feeRate.toFixed(2)}%</b> ក្នុងមួយខែ` : ''} ដែលគណនាលើប្រាក់ដើមនៅសល់ តាមចំនួនថ្ងៃពិតក្នុងមួយគ្រា (ចែកនឹង ៣៦៥ ថ្ងៃ)។`
+      : `អត្រាការប្រាក់ <b>${rateTxt}</b> ក្នុងមួយ${unitKh}${feeRate > 0 ? ` និងអត្រាសេវា <b>${feeRate.toFixed(2)}%</b> ក្នុងមួយខែ` : ''} តាមវិធីគណនាដែលបានកំណត់ក្នុងតារាងកាលវិភាគសងប្រាក់ភ្ជាប់។`],
+    ['ការសងប្រាក់', `ភាគី ខ ត្រូវសងប្រាក់ដើម ការប្រាក់ និងសេវា តាមតារាងកាលវិភាគសងប្រាក់ដែលភ្ជាប់ជាមួយកិច្ចសន្យានេះ ចំនួន <b>${kh(schedule.length)} ដំណាក់កាល</b> ដោយដំណាក់កាលដំបូងនៅថ្ងៃទី <b>${firstDate}</b> ហើយបន្តរៀងរាល់ខែ។${levelPay ? ` ទឹកប្រាក់ត្រូវបង់ក្នុងមួយដំណាក់កាលគឺ <b>${num(levelPay)} ${currencyKh}</b> (ដំណាក់កាលដំបូង និងចុងក្រោយអាចខុសគ្នាបន្តិច)។` : ''} ប្រសិនបើថ្ងៃកំណត់ត្រូវនឹងថ្ងៃឈប់សម្រាក ការបង់ត្រូវរុញទៅថ្ងៃធ្វើការបន្ទាប់។`],
+    ['ការសងមុនកាលកំណត់', 'ភាគី ខ អាចសងមុនកាលកំណត់បាន ដោយត្រូវបង់ប្រាក់ដើមដែលនៅសល់ រួមជាមួយការប្រាក់ និងសេវាដែលកើតឡើងដល់ថ្ងៃបង់។'],
+    ['ការបង់យឺតយ៉ាវ', `ក្នុងករណីភាគី ខ បង់យឺតជាងកាលកំណត់ ភាគី ខ ត្រូវបង់ការប្រាក់យឺតលើប្រាក់ដើមនៃដំណាក់កាលដែលយឺត${penaltyTxt}។`],
+    ['ការខកខានមិនបានសង', 'ក្នុងករណីភាគី ខ ខកខានមិនបានសងតាមកាលកំណត់ ភាគី ក មានសិទ្ធិទាមទារឱ្យសងទឹកប្រាក់ដែលនៅជំពាក់ទាំងអស់ និងអនុវត្តតាមនីតិវិធីច្បាប់ជាធរមាននៅព្រះរាជាណាចក្រកម្ពុជា។'],
+    ...CONTRACT_EXTRA_CLAUSES.map((t, i) => [`ប្រការបន្ថែម`, esc(t)]),
+    ['ការទទួលស្គាល់', 'ភាគី ខ បានអាន និងយល់ច្បាស់ពីខ្លឹមសារ អត្រាការប្រាក់ សេវា និងតារាងកាលវិភាគសងប្រាក់ទាំងអស់ ហើយព្រមព្រៀងតាមដោយស្ម័គ្រចិត្ត។'],
+    ['ការដោះស្រាយវិវាទ', 'ករណីមានវិវាទ ភាគីទាំងពីរត្រូវដោះស្រាយដោយការចរចា។ ប្រសិនបើមិនអាចដោះស្រាយបាន ត្រូវប្តឹងទៅតុលាការដែលមានសមត្ថកិច្ច។'],
+    ['ចំនួនច្បាប់', 'កិច្ចសន្យានេះធ្វើឡើងជា ២ ច្បាប់ មានសារៈស្មើគ្នា ភាគីនីមួយៗកាន់ ១ ច្បាប់។']
+  ];
+  const clausesHtml = clauses.map((c, i) => `<p class="cl"><b>ប្រការ ${kh(i + 1)}៖ ${c[0]}</b><br/>${c[1]}</p>`).join('');
+
+  const signBox = (title, name, boxClass) => `<div><div class="t">${title}</div><div class="${boxClass}"></div><div class="n">ឈ្មោះ៖ ${name ? `<b>${esc(name)}</b>` : '.'.repeat(26)}</div></div>`;
+  const contractHtml = `
+    <div class="contract">
+      ${CONTRACT_SHOW_KINGDOM_HEADER ? '<div class="kingdom"><b>ព្រះរាជាណាចក្រកម្ពុជា</b><br/><b>ជាតិ សាសនា ព្រះមហាក្សត្រ</b></div>' : ''}
+      <h2 class="ctitle">កិច្ចសន្យាកម្ចី</h2>
+      <div class="cno">លេខកិច្ចសន្យា៖ <b>${esc(loan.loanId)}</b> &nbsp;&nbsp; ថ្ងៃទី៖ <b>${kh_date(formatDateISO(parseDate(loan.loanDate)))}</b></div>
+      <p>កិច្ចសន្យានេះធ្វើឡើងរវាង៖</p>
+      <p class="party"><b>ភាគី ក (អ្នកឱ្យខ្ចី)៖</b> ឈ្មោះ ${dots(CONTRACT_LENDER.name)} អាសយដ្ឋាន ${dots(CONTRACT_LENDER.address, 30)} ទូរស័ព្ទ ${dots(CONTRACT_LENDER.phone, 16)}</p>
+      <p class="party"><b>ភាគី ខ (អ្នកខ្ចី)៖</b> ឈ្មោះ ${dots(customer.name)} ភេទ ${dots(genderKh, 6)} អត្តសញ្ញាណប័ណ្ណលេខ ${dots(customer.idNumber || customer.nationalId || '', 18)} ទូរស័ព្ទ ${dots(customer.phone, 14)} អាសយដ្ឋាន ${dots(address, 30)}</p>
+      <p>ភាគីទាំងពីរបានព្រមព្រៀងគ្នាតាមលក្ខខណ្ឌដូចខាងក្រោម៖</p>
+      ${clausesHtml}
+      <p class="place">ធ្វើនៅ ............................ ថ្ងៃទី ${'.'.repeat(6)} ខែ ${'.'.repeat(8)} ឆ្នាំ ${'.'.repeat(8)}</p>
+      <div class="csign">
+        ${signBox('ភាគី ក (អ្នកឱ្យខ្ចី) ហត្ថលេខា និងត្រា', CONTRACT_LENDER.name, 'sbox wide')}
+        ${signBox('ស្នាមមេដៃស្តាំអ្នកខ្ចី', customer.name, 'sbox')}
+        ${signBox('ស្នាមមេដៃស្តាំអ្នករួមខ្ចី (បើមាន)', '', 'sbox')}
+        ${signBox('ស្នាមមេដៃស្តាំអ្នកធានា (បើមាន)', '', 'sbox')}
+      </div>
+    </div>`;
+
+  const annex = buildBankFormatScheduleHtml(loan);
+  const pageStyle = annex.pageStyle + `
+    .contract { line-height:1.75; font-size:12.5px; }
+    .kingdom { text-align:center; margin-bottom:6px; line-height:1.6; }
+    .ctitle { text-align:center; margin:8px 0 4px; font-size:20px; }
+    .cno { text-align:center; margin-bottom:10px; }
+    .contract p { margin:5px 0; text-align:justify; }
+    .cl { page-break-inside:avoid; }
+    .place { margin-top:14px !important; text-align:right !important; }
+    .csign { display:flex; justify-content:space-between; gap:10px; margin-top:8px; page-break-inside:avoid; }
+    .csign > div { flex:1; text-align:center; }
+    .csign .t { font-weight:bold; font-size:11px; min-height:30px; }
+    .sbox { width:28mm; height:32mm; margin:4px auto; border:1px dotted #444; }
+    .sbox.wide { width:90%; }
+    .csign .n { text-align:left; font-size:10.5px; }
+    .annex { page-break-before:always; }
+  `;
+  return { titleText: `កិច្ចសន្យាកម្ចី-${loan.loanId}`, bodyHtml: contractHtml + `<div class="annex">${annex.bodyHtml}</div>`, pageStyle };
+}
+
+function printLoanContract() {
+  if (!currentLoan) { showToast("សូមជ្រើសរើសកម្ចីជាមុនសិន", "error"); return; }
+  const { titleText, bodyHtml, pageStyle } = buildLoanContractHtml(currentLoan);
+  // no 'noopener' — see the note in printLoanSchedule(). The <title> becomes the default PDF file name.
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) { showToast('សូមអនុញ្ញាត Pop-up (Allow Pop-ups) សម្រាប់គេហទំព័រនេះ ដើម្បីអាច Print បាន', 'error'); return; }
+  printWindow.document.write(`<html><head><meta charset="utf-8"><title>${titleText}</title><style>${pageStyle}</style></head><body>${bodyHtml}</body></html>`);
+  printWindow.document.close();
+  setTimeout(() => { printWindow.focus(); printWindow.print(); printWindow.close(); }, 400);
+  closePrintOptionsModal();
+}
+
 function printReceipt() {
     const printArea = document.getElementById('receiptPrint');
     if (!printArea) return;
@@ -2883,7 +2991,8 @@ function printReceipt() {
     // NOTE: no 'noopener' here — see the comment in printLoanSchedule() above for why.
     const printWindow = window.open('', '_blank');
     if (!printWindow) { showToast('សូមអនុញ្ញាត Pop-up (Allow Pop-ups) សម្រាប់គេហទំព័រនេះ ដើម្បីអាច Print បាន', 'error'); return; }
-    printWindow.document.write('<html><head><title>Print Receipt</title>');
+    const receiptNo = (document.getElementById('receiptNumber') || {}).textContent || '';
+    printWindow.document.write(`<html><head><meta charset="utf-8"><title>Receipt-${receiptNo}</title>`);
     printWindow.document.write('<link rel="stylesheet" href="styles.css">');
     printWindow.document.write('<style>body { margin: 20px; } .modal-content { border: none; box-shadow: none; } #receiptActions { display: none; } </style>');
     printWindow.document.write('</head><body>');
