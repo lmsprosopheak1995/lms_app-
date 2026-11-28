@@ -187,13 +187,13 @@
             <span id="selectionCount" style="margin-left: 10px; font-size: 14px; font-weight: bold;"></span>
         </div>
         <div class="table-container"><table id="loansTable">
-            <thead><tr><th><input type="checkbox" id="selectAllLoans" title="ជ្រើសទាំងអស់ក្នុងទំព័រនេះ" onclick="toggleSelectAllLoans(this.checked)"></th><th data-sortable><i class="fas fa-hashtag"></i> ល.រ</th><th data-sortable><i class="fas fa-id-card"></i> លេខកម្ចី</th><th data-sortable><i class="fas fa-user"></i> ឈ្មោះ</th><th data-sortable><i class="fas fa-venus-mars"></i> ភេទ</th><th data-sortable><i class="fas fa-user-tie"></i> មន្ត្រីឥណទាន</th><th><i class="fas fa-map-marker-alt"></i> ភូមិ</th><th><i class="fas fa-map-marker-alt"></i> ឃុំ</th><th><i class="fas fa-map-marker-alt"></i> ស្រុក</th><th data-sortable><i class="fas fa-map-marked-alt"></i> ខេត្ត</th><th><i class="fas fa-phone"></i> លេខទូរសព្ទ</th><th data-sortable><i class="fas fa-dollar-sign"></i> ប្រាក់កម្ចី</th><th data-sortable><i class="fas fa-percent"></i> អត្រាការប្រាក់ (%)</th><th><i class="fas fa-landmark"></i> សេវារដ្ឋបាល</th><th><i class="fas fa-shield-alt"></i> សេវាធានារ៉ាប់រង</th><th data-sortable><i class="fas fa-clock"></i> រយៈពេល (ខែ)</th><th data-sortable><i class="fas fa-tasks"></i> ស្ថានភាព</th><th><i class="fas fa-cogs"></i> សកម្មភាព</th></tr></thead>
+            <thead><tr><th><input type="checkbox" id="selectAllLoans" title="ជ្រើសទាំងអស់ក្នុងទំព័រនេះ" onclick="toggleSelectAllLoans(this.checked)"></th><th data-sortable><i class="fas fa-hashtag"></i> ល.រ</th><th data-sortable><i class="fas fa-id-card"></i> លេខកម្ចី</th><th data-sortable><i class="fas fa-user"></i> ឈ្មោះ</th><th data-sortable><i class="fas fa-venus-mars"></i> ភេទ</th><th data-sortable><i class="fas fa-user-tie"></i> មន្ត្រីឥណទាន</th><th><i class="fas fa-map-marker-alt"></i> ភូមិ</th><th><i class="fas fa-map-marker-alt"></i> ឃុំ</th><th><i class="fas fa-map-marker-alt"></i> ស្រុក</th><th data-sortable><i class="fas fa-map-marked-alt"></i> ខេត្ត</th><th><i class="fas fa-phone"></i> លេខទូរសព្ទ</th><th data-sortable><i class="fas fa-dollar-sign"></i> ប្រាក់កម្ចី</th><th data-sortable><i class="fas fa-percent"></i> អត្រាការប្រាក់ (%)</th><th><i class="fas fa-concierge-bell"></i> អត្រាសេវា (%/ខែ)</th><th><i class="fas fa-landmark"></i> សេវារដ្ឋបាល</th><th><i class="fas fa-shield-alt"></i> សេវាធានារ៉ាប់រង</th><th data-sortable><i class="fas fa-clock"></i> រយៈពេល (ខែ)</th><th data-sortable><i class="fas fa-tasks"></i> ស្ថានភាព</th><th><i class="fas fa-cogs"></i> សកម្មភាព</th></tr></thead>
             <tbody id="loansTableBody"></tbody>
             <tfoot>
                 <tr class="summary-row">
                     <td colspan="11" id="summaryLabel"><i class="fas fa-calculator"></i> សរុប / Total</td>
                     <td class="right" id="totalLoanAmounts"></td>
-                    <td colspan="6"></td>
+                    <td colspan="7"></td>
                 </tr>
             </tfoot>
         </table></div>
@@ -1450,6 +1450,8 @@
         <div style="display:flex; flex-direction:column; gap:10px;">
           <button class="btn btn-info" style="width:100%;" onclick="printLoanSchedule('full')"><i class="fas fa-list"></i> បោះពុម្ពគ្រប់ទាំងអស់ (Full Schedule)</button>
           <button class="btn btn-warning" style="width:100%;" onclick="printLoanSchedule('unpaid')"><i class="fas fa-hourglass-half"></i> បោះពុម្ពតែមិនទាន់បង់ (Unpaid Only)</button>
+          <button class="btn btn-success" style="width:100%;" onclick="printBankFormatSchedule()"><i class="fas fa-file-invoice"></i> បោះពុម្ពតាមទម្រង់ធនាគារ (Bank Format)</button>
+          <button class="btn btn-success" style="width:100%;" onclick="printLoanContract()"><i class="fas fa-file-signature"></i> បោះពុម្ពកិច្ចសន្យាកម្ចី (Contract / PDF)</button>
         </div>
         <div class="modal-actions">
           <button class="btn btn-muted" onclick="closePrintOptionsModal()">បិទ</button>
@@ -1481,8 +1483,17 @@
             <div>សេវាធានារ៉ាប់រង:</div><div class="right" id="insuranceFeeReceipt"></div>
             <div style="font-weight:bold; font-size: 1.1em; border-top:2px solid #333;">សរុប:</div><div class="right" style="font-weight:bold; font-size: 1.1em; border-top:2px solid #333;" id="totalPayment"></div>
         </div>
-        <div style="margin-top:20px; font-size:12px; display:flex; justify-content:space-between;">
-            <span>ហត្ថលេខាអ្នកទទួល</span><span>ហត្ថលេខាអ្នកបង់</span>
+        <div style="margin-top:20px; font-size:12px; display:flex; justify-content:space-between; gap:16px;">
+            <div style="flex:1; text-align:center;">
+                <div style="font-weight:bold;">ស្នាមមេដៃស្តាំអ្នកបង់ប្រាក់</div>
+                <div style="width:28mm; height:32mm; margin:6px auto; border:1px dotted #666;"></div>
+                <div style="text-align:left;">ឈ្មោះ៖ <b id="receiptPayerName"></b></div>
+            </div>
+            <div style="flex:1; text-align:center;">
+                <div style="font-weight:bold;">ហត្ថលេខាអ្នកទទួលប្រាក់</div>
+                <div style="width:28mm; height:32mm; margin:6px auto;"></div>
+                <div style="text-align:left;">ឈ្មោះ៖ ........................................</div>
+            </div>
         </div>
         <div id="receiptActions" class="modal-actions">
             <button class="btn btn-info" onclick="printReceipt()"><i class="fas fa-print"></i> បោះពុម្ព</button>
@@ -1553,10 +1564,14 @@
              <div class="summary-grid">
                  <div>Remaining Principal</div><div class="right" id="payoffPrincipal"></div>
                  <div>Accrued Interest (approx.)</div><div class="right" id="payoffInterest"></div>
+                 <div id="payoffFeeLabel" style="display:none">Service Fee (ថ្លៃសេវា)</div><div class="right" id="payoffFee" style="display:none"></div>
+                 <div id="payoffLateLabel" style="display:none">Late Interest (ការប្រាក់យឺត)</div><div class="right" id="payoffLate" style="display:none"></div>
+                 <div id="payoffPenaltyLabel" style="display:none">Penalty (ពិន័យ)</div><div class="right" id="payoffPenalty" style="display:none"></div>
                  <div style="font-weight:bold">Total to Payoff</div><div class="right" style="font-weight:bold" id="payoffTotal"></div>
              </div>
              <label for="payoffDate" style="margin-top:15px;">Payoff Date</label>
-             <input type="date" id="payoffDate"/>
+             <input type="date" id="payoffDate" onchange="recalcPayoff()"/>
+             <small id="payoffDaysNote" style="display:none; opacity:.8"></small>
              <div class="modal-actions">
                  <button class="btn btn-success" onclick="processPayoff()">Process Payoff</button>
                  <button class="btn btn-muted" onclick="closePayoffModal()">បោះបង់</button>
