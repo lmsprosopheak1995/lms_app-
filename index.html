@@ -1414,6 +1414,7 @@
           <button class="btn btn-info" style="width:100%;" onclick="printLoanSchedule('full')"><i class="fas fa-list"></i> បោះពុម្ពគ្រប់ទាំងអស់ (Full Schedule)</button>
           <button class="btn btn-warning" style="width:100%;" onclick="printLoanSchedule('unpaid')"><i class="fas fa-hourglass-half"></i> បោះពុម្ពតែមិនទាន់បង់ (Unpaid Only)</button>
           <button class="btn btn-success" style="width:100%;" onclick="printBankFormatSchedule()"><i class="fas fa-file-invoice"></i> បោះពុម្ពតាមទម្រង់ធនាគារ (Bank Format)</button>
+          <button class="btn btn-success" style="width:100%;" onclick="printLoanContract()"><i class="fas fa-file-signature"></i> បោះពុម្ពកិច្ចសន្យាកម្ចី (Contract / PDF)</button>
         </div>
         <div class="modal-actions">
           <button class="btn btn-muted" onclick="closePrintOptionsModal()">បិទ</button>
@@ -1445,8 +1446,17 @@
             <div>សេវាធានារ៉ាប់រង:</div><div class="right" id="insuranceFeeReceipt"></div>
             <div style="font-weight:bold; font-size: 1.1em; border-top:2px solid #333;">សរុប:</div><div class="right" style="font-weight:bold; font-size: 1.1em; border-top:2px solid #333;" id="totalPayment"></div>
         </div>
-        <div style="margin-top:20px; font-size:12px; display:flex; justify-content:space-between;">
-            <span>ហត្ថលេខាអ្នកទទួល</span><span>ហត្ថលេខាអ្នកបង់</span>
+        <div style="margin-top:20px; font-size:12px; display:flex; justify-content:space-between; gap:16px;">
+            <div style="flex:1; text-align:center;">
+                <div style="font-weight:bold;">ស្នាមមេដៃស្តាំអ្នកបង់ប្រាក់</div>
+                <div style="width:28mm; height:32mm; margin:6px auto; border:1px dotted #666;"></div>
+                <div style="text-align:left;">ឈ្មោះ៖ <b id="receiptPayerName"></b></div>
+            </div>
+            <div style="flex:1; text-align:center;">
+                <div style="font-weight:bold;">ហត្ថលេខាអ្នកទទួលប្រាក់</div>
+                <div style="width:28mm; height:32mm; margin:6px auto;"></div>
+                <div style="text-align:left;">ឈ្មោះ៖ ........................................</div>
+            </div>
         </div>
         <div id="receiptActions" class="modal-actions">
             <button class="btn btn-info" onclick="printReceipt()"><i class="fas fa-print"></i> បោះពុម្ព</button>
