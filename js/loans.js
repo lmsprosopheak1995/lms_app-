@@ -3024,6 +3024,197 @@ function printLoanContract() {
   closePrintOptionsModal();
 }
 
+// =============================================================================================
+// COLLECTION & RISK REPORTS (new, read-only — nothing here changes loan data)
+//   • "ត្រូវដល់កាលកំណត់" : loans due today / in the next N days (+ overdue), with ready-to-copy
+//     reminder messages (one by one or all at once) and a one-tap call link.
+//   • "កម្ចីយឺត (PAR)"   : portfolio-at-risk aging — current, 1-30, 31-60, 61-90, 90+ days — with
+//     PAR>30 %, plus the list of overdue loans, worst first.
+//   • "នាំចេញ CSV"       : downloads the current tab as a CSV that opens in Excel.
+// The button is added automatically next to the other loan tools; no index.html change needed.
+// =============================================================================================
+const REMINDER_CONTACT = '';   // optional line added to every reminder, e.g. 'ទំនាក់ទំនង៖ 096 666 7292'
+
+function computeLoanRiskRows(daysAhead = 7) {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const horizon = today.getTime() + daysAhead * 864e5;
+  const dayMs = iso => { const [y, m, d] = String(iso).split('-').map(Number); return new Date(y, m - 1, d).getTime(); };
+  let list = loans.filter(l => !l.isArchived);
+  if (!hasPermission('canViewAllLoans')) list = list.filter(l => l.creditOfficer === currentUser.username);
+  const rows = [];
+  list.forEach(l => {
+    const key = getLoanComputedStatus(l).key;
+    if (key !== 'active' && key !== 'overdue') return;
+    const unpaid = (buildSchedule(l) || []).filter(p => p.status !== 'paid');
+    if (!unpaid.length) return;
+    const outstandingPrincipal = unpaid.reduce((s, p) => s + Math.max(0, Number(p.principal) || 0), 0);
+    const overdue = unpaid.filter(p => p.status === 'overdue');
+    const dpd = overdue.reduce((m, p) => Math.max(m, Number(p.daysLate) || 0), 0);
+    const overdueAmount = overdue.reduce((s, p) => s + Math.max(0, Number(p.remainingAmount) || 0), 0);
+    const dueItems = unpaid.filter(p => dayMs(p.date) <= horizon);
+    rows.push({
+      loan: l, customer: getCustomer(l.customerId) || {}, status: key, dpd, overdueAmount,
+      outstandingPrincipal, outstandingUSD: convertCurrency(outstandingPrincipal, l.currency, 'USD'),
+      dueAmount: dueItems.reduce((s, p) => s + Math.max(0, Number(p.remainingAmount) || 0), 0),
+      dueCount: dueItems.length, nextDate: unpaid[0].date
+    });
+  });
+  return rows;
+}
+
+const PAR_BUCKETS = [
+  { key: 'current', label: 'មិនទាន់យឺត (0 ថ្ងៃ)', test: d => d <= 0 },
+  { key: 'b1', label: 'យឺត 1-30 ថ្ងៃ', test: d => d >= 1 && d <= 30 },
+  { key: 'b2', label: 'យឺត 31-60 ថ្ងៃ', test: d => d >= 31 && d <= 60 },
+  { key: 'b3', label: 'យឺត 61-90 ថ្ងៃ', test: d => d >= 61 && d <= 90 },
+  { key: 'b4', label: 'យឺតលើស 90 ថ្ងៃ', test: d => d > 90 }
+];
+function computeParSummary(rows) {
+  const total = rows.reduce((s, r) => s + r.outstandingUSD, 0);
+  const buckets = PAR_BUCKETS.map(b => {
+    const rs = rows.filter(r => b.test(r.dpd));
+    const amt = rs.reduce((s, r) => s + r.outstandingUSD, 0);
+    return { ...b, count: rs.length, amount: amt, pct: total > 0 ? amt / total * 100 : 0 };
+  });
+  const par30 = total > 0 ? rows.filter(r => r.dpd > 30).reduce((s, r) => s + r.outstandingUSD, 0) / total * 100 : 0;
+  return { total, buckets, par30, loanCount: rows.length };
+}
+
+function buildReminderMessage(r) {
+  const name = r.customer.name || '';
+  const amount = fmtMoney(r.dueAmount, r.loan.currency);
+  const date = formatKhmerDate(r.nextDate);
+  const body = r.dpd > 0
+    ? `កម្ចីលេខ ${r.loan.loanId} របស់លោក/អ្នក បានហួសកាលកំណត់ ${r.dpd} ថ្ងៃ (កាលកំណត់ ${date}) ទឹកប្រាក់ត្រូវបង់ ${amount}។ សូមជួយបង់ឱ្យបានឆាប់។`
+    : `កម្ចីលេខ ${r.loan.loanId} របស់លោក/អ្នក មានកាលកំណត់បង់នៅថ្ងៃទី ${date} ទឹកប្រាក់ត្រូវបង់ ${amount}។`;
+  return `សួស្តី ${name} 🙏\nសូមរំលឹកថា ${body}${REMINDER_CONTACT ? '\n' + REMINDER_CONTACT : ''}\nសូមអរគុណ!`;
+}
+
+function copyTextSafe(text) {
+  const fallback = () => {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).catch(fallback);
+  else fallback();
+  showToast('បានចម្លងសារ', 'success');
+}
+
+let _reportState = { tab: 'due', days: 7, rows: [] };
+
+function openLoanReportsModal() {
+  let modal = document.getElementById('loanReportsModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.className = 'modal'; modal.id = 'loanReportsModal';
+    modal.innerHTML = `<div class="modal-content" style="max-width:1000px; width:96%; max-height:90vh; overflow:auto;">
+      <h4 style="margin-top:0;"><i class="fas fa-chart-pie"></i> របាយការណ៍ប្រមូលប្រាក់</h4>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px;">
+        <button class="btn btn-info" id="rptTabDue" onclick="setLoanReportTab('due')"><i class="fas fa-bell"></i> ត្រូវដល់កាលកំណត់</button>
+        <button class="btn btn-warning" id="rptTabPar" onclick="setLoanReportTab('par')"><i class="fas fa-exclamation-triangle"></i> កម្ចីយឺត (PAR)</button>
+        <span id="rptDaysWrap"><label>ក្នុងរយៈពេល
+          <select id="rptDays" onchange="setLoanReportDays(this.value)">
+            <option value="0">ថ្ងៃនេះ</option><option value="3">3 ថ្ងៃ</option><option value="7" selected>7 ថ្ងៃ</option><option value="14">14 ថ្ងៃ</option>
+          </select></label></span>
+        <span style="flex:1"></span>
+        <button class="btn btn-success" onclick="copyAllLoanReminders()" id="rptCopyAll"><i class="fas fa-copy"></i> ចម្លងសារទាំងអស់</button>
+        <button class="btn btn-secondary" onclick="exportLoanReportCsv()"><i class="fas fa-file-csv"></i> នាំចេញ CSV</button>
+        <button class="btn btn-muted" onclick="closeLoanReportsModal()">បិទ</button>
+      </div>
+      <div id="loanReportBody"></div>
+    </div>`;
+    document.body.appendChild(modal);
+  }
+  modal.style.display = 'flex';
+  _reportState.days = Number(document.getElementById('rptDays').value) || 7;
+  renderLoanReport();
+}
+function closeLoanReportsModal() { const m = document.getElementById('loanReportsModal'); if (m) m.style.display = 'none'; }
+function setLoanReportTab(t) { _reportState.tab = t; renderLoanReport(); }
+function setLoanReportDays(v) { _reportState.days = Number(v) || 0; renderLoanReport(); }
+
+function renderLoanReport() {
+  const body = document.getElementById('loanReportBody'); if (!body) return;
+  const rows = computeLoanRiskRows(_reportState.days);
+  _reportState.rows = rows;
+  const isDue = _reportState.tab === 'due';
+  document.getElementById('rptDaysWrap').style.display = isDue ? '' : 'none';
+  document.getElementById('rptCopyAll').style.display = isDue ? '' : 'none';
+  const th = t => `<th>${t}</th>`;
+  if (isDue) {
+    const list = rows.filter(r => r.dueCount > 0).sort((a, b) => b.dpd - a.dpd || String(a.nextDate).localeCompare(String(b.nextDate)));
+    _reportState.list = list;
+    const totalUSD = list.reduce((s, r) => s + convertCurrency(r.dueAmount, r.loan.currency, 'USD'), 0);
+    body.innerHTML = `<div style="margin-bottom:8px;"><b>${list.length}</b> កម្ចី • សរុបត្រូវប្រមូល <b>${fmtMoney(totalUSD, 'USD')}</b></div>
+      <div class="table-container"><table><thead><tr>${['ល.រ','អតិថិជន','ទូរស័ព្ទ','លេខកម្ចី','កាលកំណត់','ទឹកប្រាក់ត្រូវបង់','ស្ថានភាព','សកម្មភាព'].map(th).join('')}</tr></thead><tbody>
+      ${list.map((r, i) => `<tr>
+        <td>${i + 1}</td><td>${esc(r.customer.name || '')}</td><td>${esc(r.customer.phone || '')}</td><td>${esc(r.loan.loanId)}</td>
+        <td>${esc(formatKhmerDate(r.nextDate))}</td><td class="right">${fmtMoney(r.dueAmount, r.loan.currency)}</td>
+        <td>${r.dpd > 0 ? `<span style="color:#e74c3c">យឺត ${r.dpd} ថ្ងៃ</span>` : '<span style="color:#27ae60">ដល់កាលកំណត់</span>'}</td>
+        <td><button class="btn btn-sm btn-success" onclick="copyLoanReminderAt(${i})"><i class="fas fa-copy"></i> ចម្លងសារ</button>
+            ${r.customer.phone ? `<a class="btn btn-sm btn-info" href="tel:${esc(r.customer.phone)}"><i class="fas fa-phone"></i></a>` : ''}</td></tr>`).join('') || `<tr><td colspan="8" class="center" style="color:#999">គ្មានកម្ចីត្រូវប្រមូលក្នុងរយៈពេលនេះ</td></tr>`}
+      </tbody></table></div>`;
+  } else {
+    const par = computeParSummary(rows);
+    _reportState.par = par;
+    const overdueList = rows.filter(r => r.dpd > 0).sort((a, b) => b.dpd - a.dpd);
+    _reportState.overdueList = overdueList;
+    body.innerHTML = `<div style="margin-bottom:8px;">កម្ចីកំពុងដំណើរការ <b>${par.loanCount}</b> • ប្រាក់ដើមនៅសល់ <b>${fmtMoney(par.total, 'USD')}</b> • <b>PAR &gt; 30 ថ្ងៃ: ${par.par30.toFixed(2)}%</b></div>
+      <div class="table-container"><table><thead><tr>${['រយៈពេលយឺត','ចំនួនកម្ចី','ប្រាក់ដើមនៅសល់ (USD)','% នៃផលប័ត្រ'].map(th).join('')}</tr></thead><tbody>
+      ${par.buckets.map(b => `<tr><td>${b.label}</td><td class="right">${b.count}</td><td class="right">${fmtMoney(b.amount, 'USD')}</td><td class="right">${b.pct.toFixed(2)}%</td></tr>`).join('')}
+      </tbody></table></div>
+      <h5 style="margin:14px 0 6px;">កម្ចីយឺត (យឺតជាងគេមុន)</h5>
+      <div class="table-container"><table><thead><tr>${['ល.រ','អតិថិជន','ទូរស័ព្ទ','លេខកម្ចី','យឺត (ថ្ងៃ)','ទឹកប្រាក់យឺត','ប្រាក់ដើមនៅសល់'].map(th).join('')}</tr></thead><tbody>
+      ${overdueList.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.customer.name || '')}</td><td>${esc(r.customer.phone || '')}</td><td>${esc(r.loan.loanId)}</td>
+        <td class="right" style="color:#e74c3c">${r.dpd}</td><td class="right">${fmtMoney(r.overdueAmount, r.loan.currency)}</td><td class="right">${fmtMoney(r.outstandingPrincipal, r.loan.currency)}</td></tr>`).join('') || `<tr><td colspan="7" class="center" style="color:#999">គ្មានកម្ចីយឺត 🎉</td></tr>`}
+      </tbody></table></div>`;
+  }
+}
+
+function copyLoanReminderAt(i) { const r = (_reportState.list || [])[i]; if (r) copyTextSafe(buildReminderMessage(r)); }
+function copyAllLoanReminders() {
+  const list = _reportState.list || [];
+  if (!list.length) { showToast('គ្មានសារត្រូវចម្លង', 'error'); return; }
+  copyTextSafe(list.map(buildReminderMessage).join('\n\n----------\n\n'));
+}
+
+function exportLoanReportCsv() {
+  const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  let head, lines;
+  if (_reportState.tab === 'due') {
+    head = ['No', 'Customer', 'Phone', 'LoanID', 'DueDate', 'Currency', 'AmountDue', 'DaysLate'];
+    lines = (_reportState.list || []).map((r, i) => [i + 1, r.customer.name, r.customer.phone, r.loan.loanId, r.nextDate, r.loan.currency, r.dueAmount.toFixed(2), r.dpd]);
+  } else {
+    head = ['No', 'Customer', 'Phone', 'LoanID', 'DaysPastDue', 'Currency', 'OverdueAmount', 'OutstandingPrincipal'];
+    lines = (_reportState.overdueList || []).map((r, i) => [i + 1, r.customer.name, r.customer.phone, r.loan.loanId, r.dpd, r.loan.currency, r.overdueAmount.toFixed(2), r.outstandingPrincipal.toFixed(2)]);
+  }
+  const csv = '\ufeff' + [head, ...lines].map(row => row.map(q).join(',')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+  a.download = `${_reportState.tab === 'due' ? 'due-collections' : 'overdue-par'}-${formatDateISO(new Date())}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+// adds the "Reports" button next to the other loan tools (once)
+function initLoanReportsButton() {
+  if (document.getElementById('openLoanReportsBtn')) return true;
+  const bar = document.querySelector('.loan-quick-tools');
+  if (!bar) return false;
+  const b = document.createElement('button');
+  b.id = 'openLoanReportsBtn'; b.className = 'btn btn-info'; b.type = 'button';
+  b.innerHTML = '<i class="fas fa-chart-pie"></i> របាយការណ៍ប្រមូលប្រាក់';
+  b.onclick = openLoanReportsModal;
+  bar.appendChild(b);
+  return true;
+}
+(function () {
+  const go = () => { if (!initLoanReportsButton()) setTimeout(initLoanReportsButton, 1500); };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
+})();
+
 function printReceipt() {
     const printArea = document.getElementById('receiptPrint');
     if (!printArea) return;
